@@ -58,3 +58,12 @@ body {
 .active\:scale-98:active {
   transform: scale(0.98);
 }
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

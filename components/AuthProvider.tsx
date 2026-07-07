@@ -10,15 +10,23 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  clearActivity,
+  isSessionIdleExpired,
+  touchActivity,
+} from "@/lib/auth/session";
 import type { Profile } from "@/types/profile";
 import type { User } from "@supabase/supabase-js";
+import AuthModal from "@/components/auth/AuthModal";
 
 interface AuthContextValue {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
   refreshProfile: () => Promise<void>;
-  signIn: () => Promise<void>;
+  logout: () => Promise<void>;
+  requireAuth: (onAuthed?: () => void) => boolean;
+  openAuthModal: (mode?: "login" | "signup") => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -39,6 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">(
+    "login"
+  );
   const isClient = useSyncExternalStore(
     subscribeNoop,
     getClientSnapshot,
@@ -64,39 +76,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(data.profile);
       return true;
     }
+    setProfile(null);
     return false;
   }, []);
 
-  const signIn = useCallback(async () => {
+  const logout = useCallback(async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    clearActivity();
+    setUser(null);
+    setProfile(null);
+  }, [supabase]);
+
+  const initSession = useCallback(async () => {
     if (!supabase) return;
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
-      const { error } = await supabase.auth.signInAnonymously();
-      if (error) {
-        console.error("익명 로그인 실패:", error.message);
-        return;
-      }
+    if (isSessionIdleExpired()) {
+      await logout();
+      return;
     }
 
     const {
       data: { user: currentUser },
     } = await supabase.auth.getUser();
-    setUser(currentUser);
 
+    if (!currentUser) {
+      setUser(null);
+      setProfile(null);
+      return;
+    }
+
+    setUser(currentUser);
+    await fetchProfile();
+    touchActivity();
+  }, [supabase, fetchProfile, logout]);
+
+  const refreshProfile = useCallback(async () => {
+    await fetchProfile();
+  }, [fetchProfile]);
+
+  const openAuthModal = useCallback((mode: "login" | "signup" = "login") => {
+    setAuthModalMode(mode);
+    setAuthModalOpen(true);
+  }, []);
+
+  const requireAuth = useCallback(
+    (onAuthed?: () => void) => {
+      if (user) {
+        onAuthed?.();
+        return true;
+      }
+      openAuthModal("login");
+      return false;
+    },
+    [user, openAuthModal]
+  );
+
+  const handleAuthSuccess = useCallback(async () => {
+    if (!supabase) return;
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+    setUser(currentUser);
     if (currentUser) {
-      // 가입 트리거가 프로필을 만드는 동안 짧게 재시도한다.
       for (let attempt = 0; attempt < 5; attempt++) {
         const ok = await fetchProfile();
         if (ok) break;
         await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
       }
     }
+    touchActivity();
+    setAuthModalOpen(false);
   }, [supabase, fetchProfile]);
-
-  const refreshProfile = useCallback(async () => {
-    await fetchProfile();
-  }, [fetchProfile]);
 
   useEffect(() => {
     if (!shouldAuthenticate || !supabase) return;
@@ -104,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let active = true;
 
     queueMicrotask(() => {
-      void signIn().finally(() => {
+      void initSession().finally(() => {
         if (active) setAuthLoading(false);
       });
     });
@@ -115,20 +168,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile();
+        touchActivity();
+      } else {
+        setProfile(null);
       }
     });
+
+    const onActivity = () => touchActivity();
+    window.addEventListener("pointerdown", onActivity);
+    window.addEventListener("keydown", onActivity);
 
     return () => {
       active = false;
       subscription.unsubscribe();
+      window.removeEventListener("pointerdown", onActivity);
+      window.removeEventListener("keydown", onActivity);
     };
-  }, [shouldAuthenticate, supabase, signIn, fetchProfile]);
+  }, [shouldAuthenticate, supabase, initSession, fetchProfile]);
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, refreshProfile, signIn }}
+      value={{
+        user,
+        profile,
+        loading,
+        refreshProfile,
+        logout,
+        requireAuth,
+        openAuthModal,
+      }}
     >
       {children}
+      <AuthModal
+        open={authModalOpen}
+        mode={authModalMode}
+        onClose={() => setAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+        onSwitchMode={setAuthModalMode}
+      />
     </AuthContext.Provider>
   );
 }
@@ -139,4 +216,9 @@ export function useAuth() {
     throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
+}
+
+export function useRequireAuth() {
+  const { requireAuth, user } = useAuth();
+  return { requireAuth, isLoggedIn: !!user };
 }

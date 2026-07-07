@@ -6,6 +6,7 @@ declare global {
     maps: {
       Map: new (element: HTMLElement, options: any) => any;
       LatLng: new (lat: number, lng: number) => any;
+      LatLngBounds: new (sw: any, ne: any) => any;
       Marker: new (options: any) => any;
       Circle: new (options: any) => any;
       Point: new (x: number, y: number) => any;
@@ -14,7 +15,7 @@ declare global {
           target: any,
           event: string,
           handler: (...args: any[]) => void
-        ) => void;
+        ) => any;
         removeListener: (listener: any) => void;
       };
     };

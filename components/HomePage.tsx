@@ -9,15 +9,16 @@ import CreatePinModal from "@/components/CreatePinModal";
 import ConquerModal from "@/components/ConquerModal";
 import PinBottomSheet from "@/components/PinBottomSheet";
 import RandomPointBottomSheet from "@/components/RandomPointBottomSheet";
-import NicknameModal from "@/components/NicknameModal";
+import MapActionButtons from "@/components/layout/MapActionButtons";
 import { getDistanceMeters } from "@/lib/geo";
-import { PIN_RADIUS_METERS, DEFAULT_NICKNAME } from "@/lib/constants";
+import { PIN_RADIUS_METERS } from "@/lib/constants";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
 import type { ConquerProbability } from "@/lib/constants";
 
 export default function HomePage() {
-  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile, requireAuth } =
+    useAuth();
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(
     null
   );
@@ -29,23 +30,17 @@ export default function HomePage() {
     useState<RandomPoint | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showConquerModal, setShowConquerModal] = useState(false);
-  const [nicknameModalForced, setNicknameModalForced] = useState(false);
-  const [nicknameModalDismissed, setNicknameModalDismissed] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const locationInitializedRef = useRef(false);
-
-  const showNicknameModal =
-    nicknameModalForced ||
-    (profile?.nickname === DEFAULT_NICKNAME && !nicknameModalDismissed);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const fetchPins = useCallback(async (lat: number, lng: number) => {
-    const res = await fetch(`/api/pins?lat=${lat}&lng=${lng}&radius=3000`);
+  const fetchPins = useCallback(async () => {
+    const res = await fetch("/api/pins?all=true");
     if (res.ok) {
       const data = await res.json();
       setPins(data.pins ?? []);
@@ -94,60 +89,96 @@ export default function HomePage() {
     }
 
     setPosition(coords);
-    await fetchPins(coords.lat, coords.lng);
+    await fetchPins();
   }, [requestPosition, fetchPins, showToast]);
 
   useEffect(() => {
-    if (authLoading || !user || locationInitializedRef.current) return;
-    locationInitializedRef.current = true;
+    queueMicrotask(() => {
+      void fetchPins();
+    });
+  }, [fetchPins]);
 
-    void (async () => {
-      const coords = await requestPosition();
-      if (coords) {
-        setPosition(coords);
-        await fetchPins(coords.lat, coords.lng);
-      } else {
-        showToast("위치 권한이 필요합니다.");
+  useEffect(() => {
+    if (authLoading) return;
+
+    queueMicrotask(() => {
+      if (!locationInitializedRef.current) {
+        locationInitializedRef.current = true;
+        void (async () => {
+          const coords = await requestPosition();
+          if (coords) {
+            setPosition(coords);
+          }
+        })();
       }
-      await fetchRandomPoints();
-    })();
-  }, [
-    authLoading,
-    user,
-    requestPosition,
-    fetchPins,
-    fetchRandomPoints,
-    showToast,
-  ]);
+
+      if (user) {
+        void fetchRandomPoints();
+      } else {
+        setRandomPoints([]);
+      }
+    });
+  }, [authLoading, user, requestPosition, fetchRandomPoints]);
 
   const handlePanToCurrent = () => {
     void getCurrentPosition();
   };
 
-  const handleCreatePinClick = async () => {
-    if (!position) {
-      showToast("현재 위치를 먼저 확인해주세요.");
-      return;
-    }
-
-    const res = await fetch(
-      `/api/pins?lat=${position.lat}&lng=${position.lng}&radius=${PIN_RADIUS_METERS}`
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const nearby = (data.pins ?? []).filter(
-        (p: Pin) =>
-          getDistanceMeters(position.lat, position.lng, p.lat, p.lng) <=
-          PIN_RADIUS_METERS
-      );
-      if (nearby.length > 0) {
-        showToast("이미 점령된 영역입니다. 점령에 도전해보세요.");
-        setSelectedPin(nearby[0]);
+  const handleCreatePinClick = () => {
+    requireAuth(async () => {
+      if (!position) {
+        showToast("현재 위치를 먼저 확인해주세요.");
         return;
       }
-    }
 
-    setShowCreateModal(true);
+      const res = await fetch(
+        `/api/pins?lat=${position.lat}&lng=${position.lng}&radius=${PIN_RADIUS_METERS}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const nearby = (data.pins ?? []).filter(
+          (p: Pin) =>
+            getDistanceMeters(position.lat, position.lng, p.lat, p.lng) <=
+            PIN_RADIUS_METERS
+        );
+        if (nearby.length > 0) {
+          showToast("이미 점령된 영역입니다. 점령에 도전해보세요.");
+          setSelectedPin(nearby[0]);
+          return;
+        }
+      }
+
+      setShowCreateModal(true);
+    });
+  };
+
+  const handleSpawnRandomPoints = () => {
+    requireAuth(async () => {
+      if (!position) {
+        showToast("현재 위치를 먼저 확인해주세요.");
+        return;
+      }
+
+      setActionLoading(true);
+      const res = await fetch("/api/random-points/spawn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_lat: position.lat,
+          current_lng: position.lng,
+        }),
+      });
+      const data = await res.json();
+      setActionLoading(false);
+
+      if (!res.ok) {
+        showToast(data.error ?? "포인트 생성에 실패했습니다.");
+        return;
+      }
+
+      await fetchRandomPoints();
+      showToast(data.message);
+    });
   };
 
   const handleCreatePin = async (text: string) => {
@@ -171,7 +202,7 @@ export default function HomePage() {
     }
 
     await refreshProfile();
-    await fetchPins(position.lat, position.lng);
+    await fetchPins();
     showToast("발도장이 찍혔어요!");
     return { success: true };
   };
@@ -182,6 +213,10 @@ export default function HomePage() {
   ) => {
     if (!position || !selectedPin) {
       return { success: false, error: "위치 정보가 없습니다." };
+    }
+
+    if (!user) {
+      return { success: false, error: "로그인이 필요합니다." };
     }
 
     setActionLoading(true);
@@ -204,7 +239,7 @@ export default function HomePage() {
     }
 
     await refreshProfile();
-    await fetchPins(position.lat, position.lng);
+    await fetchPins();
     setSelectedPin(null);
 
     return {
@@ -213,35 +248,8 @@ export default function HomePage() {
     };
   };
 
-  const handleSpawnRandomPoints = async () => {
-    if (!position) {
-      showToast("현재 위치를 먼저 확인해주세요.");
-      return;
-    }
-
-    setActionLoading(true);
-    const res = await fetch("/api/random-points/spawn", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        current_lat: position.lat,
-        current_lng: position.lng,
-      }),
-    });
-    const data = await res.json();
-    setActionLoading(false);
-
-    if (!res.ok) {
-      showToast(data.error ?? "포인트 생성에 실패했습니다.");
-      return;
-    }
-
-    await fetchRandomPoints();
-    showToast(data.message);
-  };
-
   const handleClaimRandomPoint = async () => {
-    if (!position || !selectedRandomPoint) return;
+    if (!position || !selectedRandomPoint || !user) return;
 
     setActionLoading(true);
     const res = await fetch("/api/random-points/claim", {
@@ -267,18 +275,14 @@ export default function HomePage() {
     showToast(data.message);
   };
 
-  const handleNicknameSubmit = async (nickname: string) => {
-    const res = await fetch("/api/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nickname }),
+  const handlePinClick = (pin: Pin) => {
+    setSelectedPin(pin);
+  };
+
+  const handleConquerClick = () => {
+    requireAuth(() => {
+      setShowConquerModal(true);
     });
-    const data = await res.json();
-    if (!res.ok) {
-      return { success: false, error: data.error };
-    }
-    await refreshProfile();
-    return { success: true };
   };
 
   const randomPointDistance = selectedRandomPoint && position
@@ -290,21 +294,6 @@ export default function HomePage() {
       )
     : null;
 
-  if (authLoading) {
-    return (
-      <div className="h-dvh flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-4xl mb-3">👣</p>
-          <p className="text-xl font-bold text-gray-800">발도장</p>
-          <p className="text-gray-400 text-sm mt-1">
-            걸은 곳에 내 흔적을 남겨보세요
-          </p>
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mt-6" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="relative h-dvh w-full overflow-hidden">
       <MapView
@@ -312,39 +301,29 @@ export default function HomePage() {
         randomPoints={randomPoints}
         currentPosition={position}
         currentUserId={user?.id ?? null}
-        onPinClick={setSelectedPin}
-        onRandomPointClick={setSelectedRandomPoint}
+        onPinClick={handlePinClick}
+        onRandomPointClick={(point) => {
+          requireAuth(() => setSelectedRandomPoint(point));
+        }}
       />
 
-      <PointBalance
-        points={profile?.points ?? 0}
-        nickname={profile?.nickname}
-        onNicknameClick={() => setNicknameModalForced(true)}
-      />
+      {user && profile && (
+        <PointBalance
+          points={profile.points}
+          nickname={profile.nickname}
+        />
+      )}
 
       <CurrentLocationButton
         onClick={handlePanToCurrent}
         loading={locationLoading}
       />
 
-      <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pt-10 pb-6 pb-safe bg-gradient-to-t from-black/40 to-transparent pointer-events-none">
-        <div className="flex gap-2.5 pointer-events-auto max-w-lg mx-auto">
-          <button
-            onClick={handleCreatePinClick}
-            disabled={actionLoading}
-            className="flex-[1.4] py-4 rounded-2xl bg-blue-600 text-white text-base font-bold shadow-xl shadow-blue-600/30 active:scale-98 transition-transform disabled:opacity-50"
-          >
-            👣 발도장 찍기
-          </button>
-          <button
-            onClick={handleSpawnRandomPoints}
-            disabled={actionLoading}
-            className="flex-1 py-4 rounded-2xl bg-white text-amber-600 text-base font-bold shadow-xl border border-amber-200 active:scale-98 transition-transform disabled:opacity-50"
-          >
-            ✨ 포인트 찾기
-          </button>
-        </div>
-      </div>
+      <MapActionButtons
+        onCreatePin={handleCreatePinClick}
+        onSpawnPoints={handleSpawnRandomPoints}
+        disabled={actionLoading}
+      />
 
       <CreatePinModal
         open={showCreateModal}
@@ -363,9 +342,7 @@ export default function HomePage() {
       <PinBottomSheet
         pin={selectedPin}
         onClose={() => setSelectedPin(null)}
-        onConquer={() => {
-          setShowConquerModal(true);
-        }}
+        onConquer={handleConquerClick}
         isOwner={selectedPin?.user_id === user?.id}
       />
 
@@ -375,17 +352,6 @@ export default function HomePage() {
         onClose={() => setSelectedRandomPoint(null)}
         onClaim={handleClaimRandomPoint}
         claiming={actionLoading}
-      />
-
-      <NicknameModal
-        key={profile?.nickname ?? "no-profile"}
-        open={showNicknameModal}
-        onClose={() => {
-          setNicknameModalDismissed(true);
-          setNicknameModalForced(false);
-        }}
-        onSubmit={handleNicknameSubmit}
-        currentNickname={profile?.nickname}
       />
 
       {toast && (
