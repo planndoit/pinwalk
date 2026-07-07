@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import Script from "next/script";
 import { getNaverMapScriptUrl } from "@/lib/naverMap";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
@@ -112,7 +111,7 @@ export default function MapView({
   const randomMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const scriptId = "naver-maps-sdk-script";
 
   // 네이버 지도 인증 실패 공식 훅. maps.js 실행 전에 등록되어야 한다.
   useEffect(() => {
@@ -127,8 +126,7 @@ export default function MapView({
     };
   }, []);
 
-  const handleScriptLoad = useCallback(() => {
-    setScriptLoaded(true);
+  const initMap = useCallback(() => {
     const naverObj = (window as Window & { naver?: typeof naver }).naver;
     if (!mapRef.current || !naverObj?.maps || mapInstanceRef.current) {
       return;
@@ -143,18 +141,60 @@ export default function MapView({
   }, []);
 
   useEffect(() => {
-    if (!scriptLoaded || mapReady) return;
+    if (!clientId) return;
 
-    const timer = setTimeout(() => {
-      if (!mapReady) {
+    const naverObj = (window as Window & { naver?: typeof naver }).naver;
+    if (naverObj?.maps) {
+      initMap();
+      return;
+    }
+
+    const existing = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (existing) {
+      const retry = window.setInterval(() => {
+        const loadedNaver = (window as Window & { naver?: typeof naver }).naver;
+        if (loadedNaver?.maps) {
+          window.clearInterval(retry);
+          initMap();
+        }
+      }, 200);
+      const timeout = window.setTimeout(() => {
+        window.clearInterval(retry);
+        setLoadError(
+          `지도 초기화에 실패했습니다. 서비스 URL에 ${window.location.origin} 이(가) 등록되어 있는지 확인해주세요.`
+        );
+      }, 8000);
+      return () => {
+        window.clearInterval(retry);
+        window.clearTimeout(timeout);
+      };
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = getNaverMapScriptUrl(clientId);
+    script.async = true;
+    script.onload = () => {
+      initMap();
+    };
+    script.onerror = () => {
+      setLoadError("네이버 지도 스크립트를 불러오지 못했습니다.");
+    };
+    document.head.appendChild(script);
+
+    const timeout = window.setTimeout(() => {
+      const loadedNaver = (window as Window & { naver?: typeof naver }).naver;
+      if (!loadedNaver?.maps && !mapReady) {
         setLoadError(
           `지도 초기화에 실패했습니다. 서비스 URL에 ${window.location.origin} 이(가) 등록되어 있는지 확인해주세요.`
         );
       }
-    }, 4000);
+    }, 8000);
 
-    return () => clearTimeout(timer);
-  }, [scriptLoaded, mapReady]);
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [initMap, mapReady]);
 
   // 현재 위치 마커 표시 및 지도 이동
   useEffect(() => {
@@ -263,14 +303,6 @@ export default function MapView({
 
   return (
     <>
-      <Script
-        src={getNaverMapScriptUrl(clientId)}
-        strategy="afterInteractive"
-        onLoad={handleScriptLoad}
-        onError={() =>
-          setLoadError("네이버 지도 스크립트를 불러오지 못했습니다.")
-        }
-      />
       <div ref={mapRef} className="w-full h-full" />
       {loadError && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 p-4">
