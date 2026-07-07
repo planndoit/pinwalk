@@ -1,5 +1,5 @@
 export function getNaverMapScriptUrl(clientId: string): string {
-  return `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`;
+  return `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`;
 }
 
 export function formatRemainingTime(expiresAt: string): string {
