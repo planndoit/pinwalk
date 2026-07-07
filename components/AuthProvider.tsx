@@ -136,18 +136,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleAuthSuccess = useCallback(async () => {
     if (!supabase) return;
+
     const {
-      data: { user: currentUser },
-    } = await supabase.auth.getUser();
-    setUser(currentUser);
-    if (currentUser) {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    setUser(session?.user ?? null);
+
+    if (session?.user) {
       for (let attempt = 0; attempt < 5; attempt++) {
         const ok = await fetchProfile();
         if (ok) break;
         await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
       }
+      touchActivity();
     }
-    touchActivity();
+
     setAuthModalOpen(false);
   }, [supabase, fetchProfile]);
 

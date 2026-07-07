@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { normalizeUsername, usernameToAuthEmail } from "@/lib/auth/constants";
+import { createClient } from "@/lib/supabase/client";
 
 interface LoginFormProps {
   loading: boolean;
@@ -22,16 +24,16 @@ export default function LoginForm({
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+    const normalized = normalizeUsername(username);
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: usernameToAuthEmail(normalized),
+      password,
     });
-    const data = await res.json();
     setLoading(false);
 
-    if (!res.ok) {
-      setError(data.error ?? "로그인에 실패했습니다.");
+    if (signInError) {
+      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
       return;
     }
 

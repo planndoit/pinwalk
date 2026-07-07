@@ -3,7 +3,6 @@ import { jsonError } from "@/lib/api/auth";
 import { usernameToAuthEmail, normalizeUsername } from "@/lib/auth/constants";
 import { serializeProfile } from "@/lib/profile";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import {
   validateNickname,
   validatePassword,
@@ -79,17 +78,20 @@ export async function POST(request: Request) {
     return jsonError(createError?.message ?? "회원가입에 실패했습니다.", 500);
   }
 
-  const supabase = await createClient();
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password: password!,
-  });
+  const { error: profileUpdateError } = await admin
+    .from("profiles")
+    .update({
+      username: normalizedUsername,
+      nickname: trimmedNickname,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", created.user.id);
 
-  if (signInError) {
-    return jsonError("회원가입 후 로그인에 실패했습니다.", 500);
+  if (profileUpdateError) {
+    return jsonError("프로필 생성에 실패했습니다.", 500);
   }
 
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile, error: profileError } = await admin
     .from("profiles")
     .select("*")
     .eq("id", created.user.id)

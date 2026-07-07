@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api/auth";
 import { usernameToAuthEmail, normalizeUsername } from "@/lib/auth/constants";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { validatePassword, validateUsername } from "@/lib/validation/auth";
 import { serializeProfile } from "@/lib/profile";
@@ -24,32 +23,23 @@ export async function POST(request: Request) {
   }
 
   const normalizedUsername = normalizeUsername(username!);
-  const admin = createAdminClient();
-
-  const { data: profileRow } = await admin
-    .from("profiles")
-    .select("id")
-    .eq("username", normalizedUsername)
-    .maybeSingle();
-
-  if (!profileRow) {
-    return jsonError("아이디 또는 비밀번호가 올바르지 않습니다.", 401);
-  }
-
+  const email = usernameToAuthEmail(normalizedUsername);
   const supabase = await createClient();
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email: usernameToAuthEmail(normalizedUsername),
-    password: password!,
-  });
 
-  if (signInError) {
+  const { data: signInData, error: signInError } =
+    await supabase.auth.signInWithPassword({
+      email,
+      password: password!,
+    });
+
+  if (signInError || !signInData.user) {
     return jsonError("아이디 또는 비밀번호가 올바르지 않습니다.", 401);
   }
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", profileRow.id)
+    .eq("id", signInData.user.id)
     .single();
 
   if (profileError || !profile) {

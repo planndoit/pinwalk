@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { normalizeUsername, usernameToAuthEmail } from "@/lib/auth/constants";
+import { createClient } from "@/lib/supabase/client";
 
 interface SignupFormProps {
   loading: boolean;
@@ -35,10 +37,22 @@ export default function SignupForm({
       }),
     });
     const data = await res.json();
-    setLoading(false);
 
     if (!res.ok) {
+      setLoading(false);
       setError(data.error ?? "회원가입에 실패했습니다.");
+      return;
+    }
+
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: usernameToAuthEmail(normalizeUsername(username)),
+      password,
+    });
+    setLoading(false);
+
+    if (signInError) {
+      setError("회원가입은 완료됐지만 로그인에 실패했습니다. 로그인을 시도해주세요.");
       return;
     }
 
