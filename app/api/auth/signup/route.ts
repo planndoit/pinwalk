@@ -3,6 +3,7 @@ import { jsonError } from "@/lib/api/auth";
 import { usernameToAuthEmail, normalizeUsername } from "@/lib/auth/constants";
 import { serializeProfile } from "@/lib/profile";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import {
   validateNickname,
   validatePassword,
@@ -75,20 +76,32 @@ export async function POST(request: Request) {
     });
 
   if (createError || !created.user) {
-    return jsonError(createError?.message ?? "회원가입에 실패했습니다.", 500);
+    const message = createError?.message ?? "회원가입에 실패했습니다.";
+    if (message.toLowerCase().includes("already")) {
+      return jsonError("이미 사용 중인 아이디입니다.");
+    }
+    return jsonError(message, 500);
   }
 
-  const { error: profileUpdateError } = await admin
-    .from("profiles")
-    .update({
-      username: normalizedUsername,
-      nickname: trimmedNickname,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", created.user.id);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { error: profileUpdateError } = await admin
+      .from("profiles")
+      .update({
+        username: normalizedUsername,
+        nickname: trimmedNickname,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", created.user.id);
 
-  if (profileUpdateError) {
-    return jsonError("프로필 생성에 실패했습니다.", 500);
+    if (!profileUpdateError) {
+      break;
+    }
+
+    if (attempt === 4) {
+      return jsonError("프로필 생성에 실패했습니다.", 500);
+    }
+
+    await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
   }
 
   const { data: profile, error: profileError } = await admin
@@ -101,5 +114,22 @@ export async function POST(request: Request) {
     return jsonError("프로필 생성에 실패했습니다.", 500);
   }
 
-  return NextResponse.json({ profile: serializeProfile(profile) });
+  const supabase = await createClient();
+  const { data: signInData, error: signInError } =
+    await supabase.auth.signInWithPassword({
+      email,
+      password: password!,
+    });
+
+  if (signInError || !signInData.session) {
+    return jsonError(
+      "회원가입은 완료됐지만 로그인에 실패했습니다. 로그인을 시도해주세요.",
+      500
+    );
+  }
+
+  return NextResponse.json({
+    profile: serializeProfile(profile),
+    session: signInData.session,
+  });
 }

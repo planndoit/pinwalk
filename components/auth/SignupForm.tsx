@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { normalizeUsername, usernameToAuthEmail } from "@/lib/auth/constants";
+import { establishSession } from "@/lib/auth/establishSession";
 import { createClient } from "@/lib/supabase/client";
 
 interface SignupFormProps {
@@ -26,37 +26,32 @@ export default function SignupForm({
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username,
-        password,
-        passwordConfirm,
-        nickname,
-      }),
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          password,
+          passwordConfirm,
+          nickname,
+        }),
+      });
+      const data = await res.json();
 
-    if (!res.ok) {
+      if (!res.ok) {
+        setError(data.error ?? "회원가입에 실패했습니다.");
+        return;
+      }
+
+      const supabase = createClient();
+      await establishSession(supabase, data.session);
+      onSuccess();
+    } catch {
+      setError("회원가입 처리 중 오류가 발생했습니다.");
+    } finally {
       setLoading(false);
-      setError(data.error ?? "회원가입에 실패했습니다.");
-      return;
     }
-
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: usernameToAuthEmail(normalizeUsername(username)),
-      password,
-    });
-    setLoading(false);
-
-    if (signInError) {
-      setError("회원가입은 완료됐지만 로그인에 실패했습니다. 로그인을 시도해주세요.");
-      return;
-    }
-
-    onSuccess();
   };
 
   return (

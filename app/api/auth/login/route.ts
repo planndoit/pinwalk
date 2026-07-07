@@ -32,13 +32,15 @@ export async function POST(request: Request) {
       password: password!,
     });
 
-  if (signInError || !signInData.user) {
+  if (signInError || !signInData.user || !signInData.session) {
     return jsonError("아이디 또는 비밀번호가 올바르지 않습니다.", 401);
   }
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("*")
+    .select(
+      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, created_at, updated_at"
+    )
     .eq("id", signInData.user.id)
     .single();
 
@@ -46,5 +48,8 @@ export async function POST(request: Request) {
     return jsonError("프로필을 불러오지 못했습니다.", 500);
   }
 
-  return NextResponse.json({ profile: serializeProfile(profile) });
+  return NextResponse.json({
+    profile: serializeProfile(profile),
+    session: signInData.session,
+  });
 }

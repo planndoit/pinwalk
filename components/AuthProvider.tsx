@@ -144,12 +144,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(session?.user ?? null);
 
     if (session?.user) {
+      setProfile(null);
       for (let attempt = 0; attempt < 5; attempt++) {
         const ok = await fetchProfile();
         if (ok) break;
         await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
       }
       touchActivity();
+      setAuthModalOpen(false);
+      return;
     }
 
     setAuthModalOpen(false);
