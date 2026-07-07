@@ -111,6 +111,20 @@ export default function MapView({
   const pinCirclesRef = useRef<InstanceType<typeof naver.maps.Circle>[]>([]);
   const randomMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
   const [mapReady, setMapReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // 네이버 지도 인증 실패 공식 훅. maps.js 실행 전에 등록되어야 한다.
+  useEffect(() => {
+    const w = window as Window & { navermap_authFailure?: () => void };
+    w.navermap_authFailure = () => {
+      setLoadError(
+        "네이버 지도 인증에 실패했습니다. 키 값과 서비스 URL 등록을 확인해주세요."
+      );
+    };
+    return () => {
+      delete w.navermap_authFailure;
+    };
+  }, []);
 
   const handleScriptLoad = useCallback(() => {
     if (!mapRef.current || typeof naver === "undefined" || mapInstanceRef.current) {
@@ -230,8 +244,19 @@ export default function MapView({
         src={getNaverMapScriptUrl(clientId)}
         strategy="afterInteractive"
         onLoad={handleScriptLoad}
+        onError={() =>
+          setLoadError("네이버 지도 스크립트를 불러오지 못했습니다.")
+        }
       />
       <div ref={mapRef} className="w-full h-full" />
+      {loadError && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 p-4">
+          <div className="max-w-sm bg-white rounded-2xl shadow-lg border border-red-100 p-5 text-center">
+            <p className="text-sm font-bold text-red-600">지도 로딩 오류</p>
+            <p className="text-xs text-gray-600 mt-2">{loadError}</p>
+          </div>
+        </div>
+      )}
     </>
   );
 }
