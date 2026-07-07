@@ -112,13 +112,14 @@ export default function MapView({
   const randomMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
 
   // 네이버 지도 인증 실패 공식 훅. maps.js 실행 전에 등록되어야 한다.
   useEffect(() => {
     const w = window as Window & { navermap_authFailure?: () => void };
     w.navermap_authFailure = () => {
       setLoadError(
-        "네이버 지도 인증에 실패했습니다. 키 값과 서비스 URL 등록을 확인해주세요."
+        `네이버 지도 인증에 실패했습니다. 현재 접속 주소(${window.location.origin})를 네이버 클라우드 Maps 서비스 URL에 등록해주세요.`
       );
     };
     return () => {
@@ -127,34 +128,54 @@ export default function MapView({
   }, []);
 
   const handleScriptLoad = useCallback(() => {
-    if (!mapRef.current || typeof naver === "undefined" || mapInstanceRef.current) {
+    setScriptLoaded(true);
+    const naverObj = (window as Window & { naver?: typeof naver }).naver;
+    if (!mapRef.current || !naverObj?.maps || mapInstanceRef.current) {
       return;
     }
 
-    mapInstanceRef.current = new naver.maps.Map(mapRef.current, {
-      center: new naver.maps.LatLng(37.5665, 126.978),
+    mapInstanceRef.current = new naverObj.maps.Map(mapRef.current, {
+      center: new naverObj.maps.LatLng(37.5665, 126.978),
       zoom: 16,
       zoomControl: false,
     });
     setMapReady(true);
   }, []);
 
+  useEffect(() => {
+    if (!scriptLoaded || mapReady) return;
+
+    const timer = setTimeout(() => {
+      if (!mapReady) {
+        setLoadError(
+          `지도 초기화에 실패했습니다. 서비스 URL에 ${window.location.origin} 이(가) 등록되어 있는지 확인해주세요.`
+        );
+      }
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [scriptLoaded, mapReady]);
+
   // 현재 위치 마커 표시 및 지도 이동
   useEffect(() => {
+    const naverObj = (window as Window & { naver?: typeof naver }).naver;
     const map = mapInstanceRef.current;
-    if (!mapReady || !map || !currentPosition) return;
+    if (!mapReady || !map || !currentPosition || !naverObj?.maps) return;
 
-    const pos = new naver.maps.LatLng(currentPosition.lat, currentPosition.lng);
+    const pos = new naverObj.maps.LatLng(
+      currentPosition.lat,
+      currentPosition.lng
+    );
 
     if (currentMarkerRef.current) {
       currentMarkerRef.current.setPosition(pos);
     } else {
-      currentMarkerRef.current = new naver.maps.Marker({
+      currentMarkerRef.current = new naverObj.maps.Marker({
         position: pos,
         map,
         icon: {
           content: createCurrentLocationContent(),
-          anchor: new naver.maps.Point(0, 0),
+          anchor: new naverObj.maps.Point(0, 0),
         },
       });
     }
@@ -164,8 +185,9 @@ export default function MapView({
 
   // 핀 마커 + 반경 원
   useEffect(() => {
+    const naverObj = (window as Window & { naver?: typeof naver }).naver;
     const map = mapInstanceRef.current;
-    if (!mapReady || !map) return;
+    if (!mapReady || !map || !naverObj?.maps) return;
 
     pinMarkersRef.current.forEach((m) => m.setMap(null));
     pinCirclesRef.current.forEach((c) => c.setMap(null));
@@ -173,11 +195,11 @@ export default function MapView({
     pinCirclesRef.current = [];
 
     pins.forEach((pin) => {
-      const pos = new naver.maps.LatLng(pin.lat, pin.lng);
+      const pos = new naverObj.maps.LatLng(pin.lat, pin.lng);
       const isMine = currentUserId !== null && pin.user_id === currentUserId;
       const color = isMine ? "#2563eb" : "#ef4444";
 
-      const circle = new naver.maps.Circle({
+      const circle = new naverObj.maps.Circle({
         map,
         center: pos,
         radius: pin.radius_meters,
@@ -189,39 +211,40 @@ export default function MapView({
       });
       pinCirclesRef.current.push(circle);
 
-      const marker = new naver.maps.Marker({
+      const marker = new naverObj.maps.Marker({
         position: pos,
         map,
         icon: {
           content: createPinMarkerContent(pin.text, isMine),
-          anchor: new naver.maps.Point(0, 0),
+          anchor: new naverObj.maps.Point(0, 0),
         },
       });
 
-      naver.maps.Event.addListener(marker, "click", () => onPinClick(pin));
+      naverObj.maps.Event.addListener(marker, "click", () => onPinClick(pin));
       pinMarkersRef.current.push(marker);
     });
   }, [mapReady, pins, currentUserId, onPinClick]);
 
   // 랜덤 포인트 마커
   useEffect(() => {
+    const naverObj = (window as Window & { naver?: typeof naver }).naver;
     const map = mapInstanceRef.current;
-    if (!mapReady || !map) return;
+    if (!mapReady || !map || !naverObj?.maps) return;
 
     randomMarkersRef.current.forEach((m) => m.setMap(null));
     randomMarkersRef.current = [];
 
     randomPoints.forEach((point) => {
-      const marker = new naver.maps.Marker({
-        position: new naver.maps.LatLng(point.lat, point.lng),
+      const marker = new naverObj.maps.Marker({
+        position: new naverObj.maps.LatLng(point.lat, point.lng),
         map,
         icon: {
           content: createRandomPointMarkerContent(point.points),
-          anchor: new naver.maps.Point(0, 0),
+          anchor: new naverObj.maps.Point(0, 0),
         },
       });
 
-      naver.maps.Event.addListener(marker, "click", () =>
+      naverObj.maps.Event.addListener(marker, "click", () =>
         onRandomPointClick(point)
       );
       randomMarkersRef.current.push(marker);
