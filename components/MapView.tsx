@@ -30,6 +30,10 @@ interface MapViewProps {
 
 const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
 
+function createFlagIcon(size = 14): string {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="display:block;flex-shrink:0" aria-hidden="true"><line x1="5" y1="21" x2="5" y2="3" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/><path d="M5 3 L19 7.5 L5 12 Z" fill="#ffffff"/></svg>`;
+}
+
 function createPinMarkerContent(text: string, isMine: boolean): string {
   const display = text.length > 8 ? text.slice(0, 8) + "…" : text;
   const bg = isMine ? "#2563eb" : "#ef4444";
@@ -46,7 +50,10 @@ function createPinMarkerContent(text: string, isMine: boolean): string {
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         border: 2px solid white;
         letter-spacing: -0.02em;
-      ">${isMine ? "👣" : "📍"} ${display}</div>
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      ">${createFlagIcon()}<span>${display}</span></div>
       <div style="
         width: 0; height: 0;
         border-left: 6px solid transparent;
@@ -72,7 +79,7 @@ function createEmojiPinMarkerContent(isMine: boolean): string {
         font-size: 14px;
         box-shadow: 0 3px 10px rgba(0,0,0,0.25);
         border: 2px solid white;
-      ">${isMine ? "👣" : "📍"}</div>
+      ">${createFlagIcon(16)}</div>
       <div style="
         width: 0; height: 0;
         border-left: 5px solid transparent;
