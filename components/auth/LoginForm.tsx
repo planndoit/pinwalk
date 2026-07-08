@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { establishSession } from "@/lib/auth/establishSession";
 import { createClient } from "@/lib/supabase/client";
+import { REMEMBERED_USERNAME_KEY } from "@/lib/auth/constants";
 
 interface LoginFormProps {
   loading: boolean;
@@ -17,7 +18,16 @@ export default function LoginForm({
 }: LoginFormProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberUsername, setRememberUsername] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem(REMEMBERED_USERNAME_KEY);
+    if (saved) {
+      setUsername(saved);
+      setRememberUsername(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +45,12 @@ export default function LoginForm({
       if (!res.ok) {
         setError(data.error ?? "로그인에 실패했습니다.");
         return;
+      }
+
+      if (rememberUsername) {
+        localStorage.setItem(REMEMBERED_USERNAME_KEY, username.trim());
+      } else {
+        localStorage.removeItem(REMEMBERED_USERNAME_KEY);
       }
 
       const supabase = createClient();
@@ -65,6 +81,15 @@ export default function LoginForm({
         autoComplete="current-password"
         className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
+      <label className="flex items-center gap-2 px-1 text-sm text-gray-600 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={rememberUsername}
+          onChange={(e) => setRememberUsername(e.target.checked)}
+          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+        아이디 저장
+      </label>
       {error && <p className="text-sm text-red-500 text-center">{error}</p>}
       <button
         type="submit"

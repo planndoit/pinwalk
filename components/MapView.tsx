@@ -189,21 +189,27 @@ function focusClusterOnMap(
 
 function createCurrentLocationContent(): string {
   return `
-    <div style="transform: translate(-50%, -50%); position: relative;">
+    <div style="transform: translate(-50%, -50%); position: relative; width: 18px; height: 18px;">
       <div style="
-        position: absolute; inset: -10px;
+        position: absolute; inset: 0;
         border-radius: 50%;
-        background: rgba(59,130,246,0.2);
+        background: rgba(59,130,246,0.35);
+        animation: bdj-current-pulse 1.8s ease-out infinite;
       "></div>
       <div style="
-        position: relative;
-        width: 18px; height: 18px;
+        position: absolute; inset: 0;
         background: #3b82f6;
         border: 3px solid white;
         border-radius: 50%;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
       "></div>
     </div>
+    <style>
+      @keyframes bdj-current-pulse {
+        0% { transform: scale(1); opacity: 0.8; }
+        100% { transform: scale(3.2); opacity: 0; }
+      }
+    </style>
   `;
 }
 

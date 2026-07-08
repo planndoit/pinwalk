@@ -16,6 +16,8 @@ import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
 import type { ConquerProbability } from "@/lib/constants";
 
+const POSITION_UPDATE_THRESHOLD_METERS = 5;
+
 export default function HomePage() {
   const { user, profile, loading: authLoading, refreshProfile, requireAuth } =
     useAuth();
@@ -32,7 +34,8 @@ export default function HomePage() {
   const [showConquerModal, setShowConquerModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const locationInitializedRef = useRef(false);
+  const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null);
+  const dailyBonusUserRef = useRef<string | null>(null);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -88,6 +91,7 @@ export default function HomePage() {
       return;
     }
 
+    lastPositionRef.current = coords;
     setPosition(coords);
     await fetchPins();
   }, [requestPosition, fetchPins, showToast]);
@@ -99,26 +103,61 @@ export default function HomePage() {
   }, [fetchPins]);
 
   useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const prev = lastPositionRef.current;
+        if (
+          prev &&
+          getDistanceMeters(prev.lat, prev.lng, next.lat, next.lng) <
+            POSITION_UPDATE_THRESHOLD_METERS
+        ) {
+          return;
+        }
+        lastPositionRef.current = next;
+        setPosition(next);
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
+  useEffect(() => {
     if (authLoading) return;
 
     queueMicrotask(() => {
-      if (!locationInitializedRef.current) {
-        locationInitializedRef.current = true;
-        void (async () => {
-          const coords = await requestPosition();
-          if (coords) {
-            setPosition(coords);
-          }
-        })();
-      }
-
       if (user) {
         void fetchRandomPoints();
       } else {
         setRandomPoints([]);
       }
     });
-  }, [authLoading, user, requestPosition, fetchRandomPoints]);
+  }, [authLoading, user, fetchRandomPoints]);
+
+  useEffect(() => {
+    if (!user) {
+      dailyBonusUserRef.current = null;
+      return;
+    }
+    if (dailyBonusUserRef.current === user.id) return;
+    dailyBonusUserRef.current = user.id;
+
+    queueMicrotask(() => {
+      void (async () => {
+        const res = await fetch("/api/daily-bonus", { method: "POST" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.claimed) {
+          await refreshProfile();
+          showToast(`출석 보너스 ${data.amount}P를 받았어요!`);
+        }
+      })();
+    });
+  }, [user, refreshProfile, showToast]);
 
   const handlePanToCurrent = () => {
     void getCurrentPosition();

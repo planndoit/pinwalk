@@ -16,7 +16,7 @@ export async function GET() {
   const { data: profile, error } = await supabase
     .from("profiles")
     .select(
-      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, created_at, updated_at"
+      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, last_daily_bonus_at, created_at, updated_at"
     )
     .eq("id", user.id)
     .single();
@@ -103,7 +103,7 @@ export async function PATCH(request: Request) {
     .update(updates)
     .eq("id", user.id)
     .select(
-      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, created_at, updated_at"
+      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, last_daily_bonus_at, created_at, updated_at"
     )
     .single();
 

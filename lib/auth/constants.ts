@@ -6,6 +6,7 @@ export const NICKNAME_MAX_LENGTH = 20;
 export const AVATAR_MAX_BYTES = 50 * 1024;
 export const SESSION_IDLE_MS = 3 * 24 * 60 * 60 * 1000;
 export const LAST_ACTIVITY_KEY = "pinwalk_last_activity";
+export const REMEMBERED_USERNAME_KEY = "pinwalk_remembered_username";
 
 export function usernameToAuthEmail(username: string): string {
   return `${username.toLowerCase()}@${AUTH_EMAIL_DOMAIN}`;

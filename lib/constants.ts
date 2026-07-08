@@ -16,3 +16,6 @@ export const RANDOM_POINT_CLAIM_RADIUS_METERS = 30;
 export const PIN_TEXT_MAX_LENGTH = 20;
 export const DEFAULT_NICKNAME = "익명의 워커";
 export const SERVICE_NAME = "발도장";
+
+export const DAILY_BONUS_AMOUNT = 10;
+export const DAILY_BONUS_RESET_HOUR_KST = 9;
