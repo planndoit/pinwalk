@@ -38,7 +38,13 @@ export default function HomePage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<CelebrationType | null>(null);
+  const [recenterRequest, setRecenterRequest] = useState<{
+    lat: number;
+    lng: number;
+    nonce: number;
+  } | null>(null);
   const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null);
+  const recenterNonceRef = useRef(0);
   const dailyBonusUserRef = useRef<string | null>(null);
 
   const showToast = useCallback((message: string) => {
@@ -47,7 +53,7 @@ export default function HomePage() {
   }, []);
 
   const fetchPins = useCallback(async () => {
-    const res = await fetch("/api/pins?all=true");
+    const res = await fetch("/api/pins?all=true", { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       setPins(data.pins ?? []);
@@ -55,7 +61,7 @@ export default function HomePage() {
   }, []);
 
   const fetchRandomPoints = useCallback(async () => {
-    const res = await fetch("/api/random-points");
+    const res = await fetch("/api/random-points", { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       setRandomPoints(data.randomPoints ?? []);
@@ -92,12 +98,13 @@ export default function HomePage() {
 
     if (!coords) {
       showToast("위치 권한이 필요합니다.");
-      return;
+      return null;
     }
 
     lastPositionRef.current = coords;
     setPosition(coords);
     await fetchPins();
+    return coords;
   }, [requestPosition, fetchPins, showToast]);
 
   useEffect(() => {
@@ -105,6 +112,16 @@ export default function HomePage() {
       void fetchPins();
     });
   }, [fetchPins]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      void fetchPins();
+      if (user) void fetchRandomPoints();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [fetchPins, fetchRandomPoints, user]);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -164,7 +181,12 @@ export default function HomePage() {
   }, [user, refreshProfile, showToast]);
 
   const handlePanToCurrent = () => {
-    void getCurrentPosition();
+    void (async () => {
+      const coords = await getCurrentPosition();
+      if (!coords) return;
+      recenterNonceRef.current += 1;
+      setRecenterRequest({ ...coords, nonce: recenterNonceRef.current });
+    })();
   };
 
   const handleCreatePinClick = () => {
@@ -350,6 +372,7 @@ export default function HomePage() {
         randomPoints={randomPoints}
         currentPosition={position}
         currentUserId={user?.id ?? null}
+        recenterRequest={recenterRequest}
         onPinClick={handlePinClick}
         onRandomPointClick={(point) => {
           requireAuth(() => setSelectedRandomPoint(point));

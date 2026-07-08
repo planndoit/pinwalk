@@ -7,9 +7,13 @@ import {
 } from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { deductPoints } from "@/lib/pins";
+import { addPoints, deductPoints } from "@/lib/pins";
 import { getDistanceMeters } from "@/lib/geo";
-import { calculateConquerCost, rollConquerSuccess } from "@/lib/points";
+import {
+  calculateConquerCost,
+  calculateDefenseReward,
+  rollConquerSuccess,
+} from "@/lib/points";
 import { validatePinText } from "@/lib/validation";
 
 export async function POST(request: Request) {
@@ -115,6 +119,17 @@ export async function POST(request: Request) {
       cost,
       success: false,
     });
+
+    const defenseReward = calculateDefenseReward(probability);
+    if (defenseReward > 0 && targetPin.user_id !== user.id) {
+      await addPoints(
+        targetPin.user_id,
+        defenseReward,
+        "defense_reward",
+        `공격 방어로 ${defenseReward}P 획득`,
+        target_pin_id
+      );
+    }
 
     return NextResponse.json({
       success: false,

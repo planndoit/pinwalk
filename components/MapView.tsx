@@ -23,6 +23,7 @@ interface MapViewProps {
   randomPoints: RandomPoint[];
   currentPosition: { lat: number; lng: number } | null;
   currentUserId: string | null;
+  recenterRequest: { lat: number; lng: number; nonce: number } | null;
   onPinClick: (pin: Pin) => void;
   onRandomPointClick: (point: RandomPoint) => void;
 }
@@ -218,6 +219,7 @@ export default function MapView({
   randomPoints,
   currentPosition,
   currentUserId,
+  recenterRequest,
   onPinClick,
   onRandomPointClick,
 }: MapViewProps) {
@@ -484,6 +486,16 @@ export default function MapView({
       map.panTo(pos);
     }
   }, [mapReady, currentPosition]);
+
+  // 현재 위치 버튼 클릭 시 지도를 해당 좌표로 이동
+  useEffect(() => {
+    if (!recenterRequest) return;
+    const naverObj = (window as Window & { naver?: typeof naver }).naver;
+    const map = mapInstanceRef.current;
+    if (!mapReady || !map || !naverObj?.maps) return;
+
+    map.panTo(new naverObj.maps.LatLng(recenterRequest.lat, recenterRequest.lng));
+  }, [mapReady, recenterRequest]);
 
   useEffect(() => {
     renderPinOverlays();
