@@ -202,14 +202,22 @@ export default function MyPage() {
           <h2 className="text-sm font-bold text-gray-800 mb-3">활동 내역</h2>
           <div className="space-y-0">
             {events.map((event, index) => {
-              const dotColor =
-                event.amount != null
-                  ? event.amount > 0
-                    ? "bg-emerald-500"
-                    : "bg-rose-500"
-                  : event.event_type === "conquered_by"
-                    ? "bg-gray-400"
-                    : "bg-blue-500";
+              const dotColor = (() => {
+                if (event.event_type === "conquered_by") return "bg-rose-500";
+                if (event.event_type === "conquer") {
+                  return event.title === "점령 성공"
+                    ? "bg-blue-500"
+                    : "bg-rose-500";
+                }
+                if (event.title === "깃발 꽂기") return "bg-blue-500";
+                if (event.amount != null && event.amount > 0) {
+                  return "bg-emerald-500";
+                }
+                if (event.amount != null && event.amount < 0) {
+                  return "bg-rose-500";
+                }
+                return "bg-gray-400";
+              })();
 
               return (
                 <div
