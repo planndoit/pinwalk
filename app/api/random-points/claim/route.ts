@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     user.id,
     randomPoint.points,
     "random_point_claim",
-    `랜덤 포인트 획득 (${randomPoint.points}P)`,
+    "랜덤 포인트 획득",
     random_point_id
   );
 

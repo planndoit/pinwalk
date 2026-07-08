@@ -126,7 +126,7 @@ export async function POST(request: Request) {
         targetPin.user_id,
         defenseReward,
         "defense_reward",
-        `공격 방어로 ${defenseReward}P 획득`,
+        "공격을 막아냈어요",
         target_pin_id
       );
     }

@@ -22,8 +22,9 @@ export interface UserStats {
 
 export interface TimelineEvent {
   id: string;
-  event_type: "pin_create" | "point_earn" | "conquer";
+  event_type: "point" | "conquer" | "conquered_by";
   title: string;
-  description: string;
+  description: string | null;
+  amount: number | null;
   created_at: string;
 }

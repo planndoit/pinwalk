@@ -8,7 +8,6 @@ import { formatActivityDate } from "@/lib/formatDate";
 import type { TimelineEvent, UserStats } from "@/types/ranking";
 
 const STAT_LABELS: { key: keyof UserStats; label: string; unit: string }[] = [
-  { key: "total_earned", label: "누적 포인트", unit: "P" },
   { key: "earn_count", label: "포인트 획득", unit: "회" },
   { key: "active_pins", label: "현재 깃발", unit: "개" },
   { key: "total_pins", label: "누적 깃발", unit: "개" },
@@ -166,6 +165,19 @@ export default function MyPage() {
           onError={showToast}
         />
 
+        <section className="px-4 pt-4">
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl px-5 py-5 text-center shadow-lg shadow-blue-600/20">
+            <p className="text-xs text-blue-100 font-medium">현재 포인트</p>
+            <p className="text-4xl font-extrabold text-white mt-1 tabular-nums">
+              {profile.points.toLocaleString()}
+              <span className="text-lg font-bold ml-1">P</span>
+            </p>
+            <p className="text-xs text-blue-100/80 mt-1.5">
+              누적 획득 {(stats?.total_earned ?? 0).toLocaleString()}P
+            </p>
+          </div>
+        </section>
+
         <section className="px-4 py-4">
           <h2 className="text-sm font-bold text-gray-800 mb-3">나의 활동</h2>
           <div className="grid grid-cols-2 gap-2">
@@ -189,33 +201,57 @@ export default function MyPage() {
         <section className="px-4 pb-6">
           <h2 className="text-sm font-bold text-gray-800 mb-3">활동 내역</h2>
           <div className="space-y-0">
-            {events.map((event, index) => (
-              <div key={`${event.id}-${event.created_at}`} className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`w-2.5 h-2.5 rounded-full mt-2 ${
-                      event.event_type === "pin_create"
-                        ? "bg-blue-500"
-                        : event.event_type === "point_earn"
-                          ? "bg-amber-500"
-                          : "bg-red-500"
-                    }`}
-                  />
-                  {index < events.length - 1 && (
-                    <div className="w-px flex-1 bg-gray-200 my-1" />
-                  )}
+            {events.map((event, index) => {
+              const dotColor =
+                event.amount != null
+                  ? event.amount > 0
+                    ? "bg-emerald-500"
+                    : "bg-rose-500"
+                  : event.event_type === "conquered_by"
+                    ? "bg-gray-400"
+                    : "bg-blue-500";
+
+              return (
+                <div
+                  key={`${event.event_type}-${event.id}`}
+                  className="flex gap-3"
+                >
+                  <div className="flex flex-col items-center">
+                    <div className={`w-2.5 h-2.5 rounded-full mt-2 ${dotColor}`} />
+                    {index < events.length - 1 && (
+                      <div className="w-px flex-1 bg-gray-200 my-1" />
+                    )}
+                  </div>
+                  <div className="flex-1 pb-5 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-400">
+                        {formatActivityDate(event.created_at)}
+                      </p>
+                      <p className="text-sm font-bold text-gray-900 mt-0.5">
+                        {event.title}
+                      </p>
+                      {event.description && (
+                        <p className="text-sm text-gray-600 mt-0.5">
+                          {event.description}
+                        </p>
+                      )}
+                    </div>
+                    {event.amount != null && (
+                      <span
+                        className={`text-sm font-bold tabular-nums whitespace-nowrap mt-4 ${
+                          event.amount > 0 ? "text-emerald-600" : "text-rose-500"
+                        }`}
+                      >
+                        {event.amount > 0
+                          ? `+${event.amount.toLocaleString()}`
+                          : event.amount.toLocaleString()}
+                        P
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 pb-5">
-                  <p className="text-xs text-gray-400">
-                    {formatActivityDate(event.created_at)}
-                  </p>
-                  <p className="text-sm font-bold text-gray-900 mt-0.5">
-                    {event.title}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-0.5">{event.description}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div ref={loadMoreRef} className="h-8" />
           {timelineLoading && (
