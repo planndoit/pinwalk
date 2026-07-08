@@ -23,6 +23,7 @@ export default function SignupForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError("");
     setLoading(true);
 
@@ -62,7 +63,8 @@ export default function SignupForm({
         onChange={(e) => setUsername(e.target.value)}
         placeholder="아이디 (영문 소문자, 숫자, _)"
         autoComplete="username"
-        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+        disabled={loading}
+        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
       />
       <input
         type="password"
@@ -70,7 +72,8 @@ export default function SignupForm({
         onChange={(e) => setPassword(e.target.value)}
         placeholder="비밀번호 (6자 이상)"
         autoComplete="new-password"
-        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+        disabled={loading}
+        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
       />
       <input
         type="password"
@@ -78,14 +81,16 @@ export default function SignupForm({
         onChange={(e) => setPasswordConfirm(e.target.value)}
         placeholder="비밀번호 확인"
         autoComplete="new-password"
-        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+        disabled={loading}
+        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
       />
       <input
         type="text"
         value={nickname}
         onChange={(e) => setNickname(e.target.value.slice(0, 20))}
         placeholder="닉네임"
-        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+        disabled={loading}
+        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
       />
       {error && <p className="text-sm text-red-500 text-center">{error}</p>}
       <button

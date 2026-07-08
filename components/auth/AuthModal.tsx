@@ -25,7 +25,10 @@ export default function AuthModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={loading ? undefined : onClose}
+      />
       <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-slide-up sm:animate-fade-in max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900">
@@ -33,7 +36,8 @@ export default function AuthModal({
           </h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center"
+            disabled={loading}
+            className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center disabled:opacity-40"
             aria-label="닫기"
           >
             ✕
@@ -61,7 +65,8 @@ export default function AuthModal({
               <button
                 type="button"
                 onClick={() => onSwitchMode("signup")}
-                className="text-blue-600 font-semibold"
+                disabled={loading}
+                className="text-blue-600 font-semibold disabled:opacity-40"
               >
                 회원가입
               </button>
@@ -72,7 +77,8 @@ export default function AuthModal({
               <button
                 type="button"
                 onClick={() => onSwitchMode("login")}
-                className="text-blue-600 font-semibold"
+                disabled={loading}
+                className="text-blue-600 font-semibold disabled:opacity-40"
               >
                 로그인
               </button>

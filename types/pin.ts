@@ -26,4 +26,5 @@ export interface PinAttempt {
   success: boolean;
   created_at: string;
   attacker_nickname?: string;
+  previous_owner_nickname?: string | null;
 }

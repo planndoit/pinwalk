@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import FlagIcon from "@/components/icons/FlagIcon";
 import type { Pin, PinAttempt } from "@/types/pin";
 import { formatRemainingTime } from "@/lib/naverMap";
 import { DEFAULT_NICKNAME } from "@/lib/constants";
@@ -10,6 +11,17 @@ interface PinBottomSheetProps {
   onClose: () => void;
   onConquer: () => void;
   isOwner: boolean;
+  disabled?: boolean;
+}
+
+function formatAttemptText(attempt: PinAttempt): string {
+  if (attempt.success && attempt.previous_owner_nickname) {
+    return `${attempt.attacker_nickname ?? DEFAULT_NICKNAME} → ${attempt.previous_owner_nickname} 점령`;
+  }
+  if (attempt.success) {
+    return `${attempt.attacker_nickname ?? DEFAULT_NICKNAME} 점령 성공`;
+  }
+  return `${attempt.attacker_nickname ?? DEFAULT_NICKNAME} 점령 실패`;
 }
 
 export default function PinBottomSheet({
@@ -17,6 +29,7 @@ export default function PinBottomSheet({
   onClose,
   onConquer,
   isOwner,
+  disabled,
 }: PinBottomSheetProps) {
   const [attempts, setAttempts] = useState<PinAttempt[]>([]);
   const [summary, setSummary] = useState({
@@ -46,17 +59,20 @@ export default function PinBottomSheet({
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-white rounded-t-3xl px-6 pt-3 pb-8 animate-slide-up shadow-2xl">
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+      <div
+        className="absolute inset-0 bg-black/30"
+        onClick={disabled ? undefined : onClose}
+      />
+      <div className="relative w-full max-w-lg bg-white rounded-t-3xl px-6 pt-3 pb-8 animate-slide-up shadow-2xl max-h-[85dvh] flex flex-col">
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 shrink-0" />
 
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3 shrink-0">
           <div
-            className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0 ${
+            className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
               isOwner ? "bg-blue-50" : "bg-red-50"
             }`}
           >
-            {isOwner ? "👣" : "📍"}
+            <FlagIcon size={22} color="#ef4444" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-lg font-bold text-gray-900 break-all leading-snug">
@@ -73,7 +89,7 @@ export default function PinBottomSheet({
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-xl px-3.5 py-2.5">
+        <div className="mt-4 flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-xl px-3.5 py-2.5 shrink-0">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -84,24 +100,28 @@ export default function PinBottomSheet({
             <circle cx="12" cy="12" r="9" />
             <path d="M12 7v5l3 3" strokeLinecap="round" />
           </svg>
-          남은 노출 시간 <span className="font-semibold text-gray-700">{formatRemainingTime(pin.expires_at)}</span>
+          남은 노출 시간{" "}
+          <span className="font-semibold text-gray-700">
+            {formatRemainingTime(pin.expires_at)}
+          </span>
         </div>
 
         {!isOwner && (
           <button
             onClick={onConquer}
-            className="w-full mt-4 py-3.5 rounded-2xl bg-red-500 text-white font-bold shadow-lg shadow-red-500/25 active:scale-98 transition-transform"
+            disabled={disabled}
+            className="w-full mt-4 py-3.5 rounded-2xl bg-red-500 text-white font-bold shadow-lg shadow-red-500/25 active:scale-98 transition-transform shrink-0 disabled:opacity-50"
           >
             ⚔️ 점령 도전하기
           </button>
         )}
 
         {summary.total > 0 && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-2xl">
-            <div className="flex items-center justify-between">
+          <div className="mt-4 p-4 bg-gray-50 rounded-2xl flex flex-col min-h-0 shrink">
+            <div className="flex items-center justify-between shrink-0">
               <p className="text-xs font-semibold text-gray-600">점령 기록</p>
               <p className="text-xs text-gray-500">
-                <span className="text-emerald-600 font-semibold">
+                <span className="text-blue-600 font-semibold">
                   성공 {summary.successCount}
                 </span>
                 <span className="mx-1">·</span>
@@ -110,23 +130,25 @@ export default function PinBottomSheet({
                 </span>
               </p>
             </div>
-            <ul className="mt-2.5 space-y-1.5">
-              {attempts.slice(0, 3).map((a) => (
+            <ul className="mt-2.5 space-y-2 overflow-y-auto max-h-48 pr-1">
+              {attempts.map((a) => (
                 <li
                   key={a.id}
-                  className="text-xs text-gray-500 flex items-center gap-1.5"
+                  className="text-xs text-gray-600 flex items-start gap-2"
                 >
                   <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      a.success ? "bg-emerald-500" : "bg-red-400"
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
+                      a.success ? "bg-blue-500" : "bg-red-400"
                     }`}
                   />
-                  <span className="truncate">
-                    {a.attacker_nickname ?? DEFAULT_NICKNAME}
-                  </span>
-                  <span className="text-gray-400 shrink-0">
-                    {a.selected_probability}% · {a.success ? "성공" : "실패"}
-                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-800">
+                      {formatAttemptText(a)}
+                    </p>
+                    <p className="text-gray-400 mt-0.5">
+                      {a.selected_probability}% 시도
+                    </p>
+                  </div>
                 </li>
               ))}
             </ul>

@@ -92,6 +92,7 @@ export default function HomePage() {
   }, []);
 
   const getCurrentPosition = useCallback(async () => {
+    if (locationLoading) return null;
     setLocationLoading(true);
     const coords = await requestPosition();
     setLocationLoading(false);
@@ -190,34 +191,7 @@ export default function HomePage() {
   };
 
   const handleCreatePinClick = () => {
-    requireAuth(async () => {
-      if (!position) {
-        showToast("현재 위치를 먼저 확인해주세요.");
-        return;
-      }
-
-      const res = await fetch(
-        `/api/pins?lat=${position.lat}&lng=${position.lng}&radius=${PIN_RADIUS_METERS}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const nearby = (data.pins ?? []).filter(
-          (p: Pin) =>
-            getDistanceMeters(position.lat, position.lng, p.lat, p.lng) <=
-            PIN_RADIUS_METERS
-        );
-        if (nearby.length > 0) {
-          showToast("이미 점령된 영역입니다. 점령에 도전해보세요.");
-          setSelectedPin(nearby[0]);
-          return;
-        }
-      }
-
-      setShowCreateModal(true);
-    });
-  };
-
-  const handleSpawnRandomPoints = () => {
+    if (actionLoading) return;
     requireAuth(async () => {
       if (!position) {
         showToast("현재 위치를 먼저 확인해주세요.");
@@ -225,24 +199,61 @@ export default function HomePage() {
       }
 
       setActionLoading(true);
-      const res = await fetch("/api/random-points/spawn", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          current_lat: position.lat,
-          current_lng: position.lng,
-        }),
-      });
-      const data = await res.json();
-      setActionLoading(false);
+      try {
+        const res = await fetch(
+          `/api/pins?lat=${position.lat}&lng=${position.lng}&radius=${PIN_RADIUS_METERS}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const nearby = (data.pins ?? []).filter(
+            (p: Pin) =>
+              getDistanceMeters(position.lat, position.lng, p.lat, p.lng) <=
+              PIN_RADIUS_METERS
+          );
+          if (nearby.length > 0) {
+            showToast("이미 점령된 영역입니다. 점령에 도전해보세요.");
+            setSelectedPin(nearby[0]);
+            return;
+          }
+        }
 
-      if (!res.ok) {
-        showToast(data.error ?? "포인트 생성에 실패했습니다.");
+        setShowCreateModal(true);
+      } finally {
+        setActionLoading(false);
+      }
+    });
+  };
+
+  const handleSpawnRandomPoints = () => {
+    if (actionLoading) return;
+    requireAuth(async () => {
+      if (!position) {
+        showToast("현재 위치를 먼저 확인해주세요.");
         return;
       }
 
-      await fetchRandomPoints();
-      showToast(data.message);
+      setActionLoading(true);
+      try {
+        const res = await fetch("/api/random-points/spawn", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            current_lat: position.lat,
+            current_lng: position.lng,
+          }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showToast(data.error ?? "포인트 생성에 실패했습니다.");
+          return;
+        }
+
+        await fetchRandomPoints();
+        showToast(data.message);
+      } finally {
+        setActionLoading(false);
+      }
     });
   };
 
@@ -250,28 +261,31 @@ export default function HomePage() {
     if (!position) return { success: false, error: "위치 정보가 없습니다." };
 
     setActionLoading(true);
-    const res = await fetch("/api/pins/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lat: position.lat,
-        lng: position.lng,
-        text,
-        duration_days: durationDays,
-      }),
-    });
-    const data = await res.json();
-    setActionLoading(false);
+    try {
+      const res = await fetch("/api/pins/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: position.lat,
+          lng: position.lng,
+          text,
+          duration_days: durationDays,
+        }),
+      });
+      const data = await res.json();
 
-    if (!res.ok) {
-      return { success: false, error: data.error };
+      if (!res.ok) {
+        return { success: false, error: data.error };
+      }
+
+      await refreshProfile();
+      await fetchPins();
+      setCelebration("plant");
+      showToast("깃발을 꽂았어요!");
+      return { success: true };
+    } finally {
+      setActionLoading(false);
     }
-
-    await refreshProfile();
-    await fetchPins();
-    setCelebration("plant");
-    showToast("깃발을 꽂았어요!");
-    return { success: true };
   };
 
   const handleConquer = async (
@@ -287,63 +301,69 @@ export default function HomePage() {
     }
 
     setActionLoading(true);
-    const res = await fetch("/api/conquer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        target_pin_id: selectedPin.id,
-        selected_probability: probability,
-        new_text: text,
-        current_lat: position.lat,
-        current_lng: position.lng,
-      }),
-    });
-    const data = await res.json();
-    setActionLoading(false);
+    try {
+      const res = await fetch("/api/conquer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_pin_id: selectedPin.id,
+          selected_probability: probability,
+          new_text: text,
+          current_lat: position.lat,
+          current_lng: position.lng,
+        }),
+      });
+      const data = await res.json();
 
-    if (!res.ok) {
-      return { success: false, error: data.error };
+      if (!res.ok) {
+        return { success: false, error: data.error };
+      }
+
+      await refreshProfile();
+      await fetchPins();
+      setSelectedPin(null);
+
+      if (data.success) {
+        setCelebration("conquer");
+      }
+
+      return {
+        success: true,
+        conquered: data.success,
+      };
+    } finally {
+      setActionLoading(false);
     }
-
-    await refreshProfile();
-    await fetchPins();
-    setSelectedPin(null);
-
-    if (data.success) {
-      setCelebration("conquer");
-    }
-
-    return {
-      success: true,
-      conquered: data.success,
-    };
   };
 
   const handleClaimRandomPoint = async () => {
     if (!position || !selectedRandomPoint || !user) return;
 
     setActionLoading(true);
-    const res = await fetch("/api/random-points/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        random_point_id: selectedRandomPoint.id,
-        current_lat: position.lat,
-        current_lng: position.lng,
-      }),
-    });
-    const data = await res.json();
-    setActionLoading(false);
+    try {
+      const res = await fetch("/api/random-points/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          random_point_id: selectedRandomPoint.id,
+          current_lat: position.lat,
+          current_lng: position.lng,
+        }),
+      });
+      const data = await res.json();
 
-    if (!res.ok) {
-      showToast(data.error);
-      return;
+      if (!res.ok) {
+        showToast(data.error);
+        return;
+      }
+
+      await refreshProfile();
+      await fetchRandomPoints();
+      setSelectedRandomPoint(null);
+      showToast(data.message);
+    } finally {
+      setActionLoading(false);
     }
-
-    await refreshProfile();
-    await fetchRandomPoints();
-    setSelectedRandomPoint(null);
-    showToast(data.message);
   };
 
   const handlePinClick = (pin: Pin) => {
@@ -416,6 +436,7 @@ export default function HomePage() {
         onClose={() => setSelectedPin(null)}
         onConquer={handleConquerClick}
         isOwner={selectedPin?.user_id === user?.id}
+        disabled={actionLoading}
       />
 
       <RandomPointBottomSheet

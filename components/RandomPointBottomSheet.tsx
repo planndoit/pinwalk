@@ -29,7 +29,10 @@ export default function RandomPointBottomSheet({
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/30"
+        onClick={claiming ? undefined : onClose}
+      />
       <div className="relative w-full max-w-lg bg-white rounded-t-3xl px-6 pt-3 pb-8 animate-slide-up shadow-2xl">
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
 

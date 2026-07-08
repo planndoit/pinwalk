@@ -101,28 +101,32 @@ export default function MyPage() {
     nickname: string;
     avatar?: { base64: string; mime: string };
   }) => {
+    if (saving) return;
     setSaving(true);
-    const body: Record<string, unknown> = { nickname: payload.nickname };
-    if (payload.avatar) {
-      body.avatar_base64 = payload.avatar.base64;
-      body.avatar_mime = payload.avatar.mime;
+    try {
+      const body: Record<string, unknown> = { nickname: payload.nickname };
+      if (payload.avatar) {
+        body.avatar_base64 = payload.avatar.base64;
+        body.avatar_mime = payload.avatar.mime;
+      }
+
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast(data.error ?? "저장에 실패했습니다.");
+        return;
+      }
+
+      await refreshProfile();
+      showToast("프로필이 저장되었습니다.");
+    } finally {
+      setSaving(false);
     }
-
-    const res = await fetch("/api/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    setSaving(false);
-
-    if (!res.ok) {
-      showToast(data.error ?? "저장에 실패했습니다.");
-      return;
-    }
-
-    await refreshProfile();
-    showToast("프로필이 저장되었습니다.");
   };
 
   const handleLogout = async () => {

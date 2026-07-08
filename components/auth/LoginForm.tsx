@@ -31,6 +31,7 @@ export default function LoginForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError("");
     setLoading(true);
 
@@ -71,7 +72,8 @@ export default function LoginForm({
         onChange={(e) => setUsername(e.target.value)}
         placeholder="아이디"
         autoComplete="username"
-        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+        disabled={loading}
+        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
       />
       <input
         type="password"
@@ -79,14 +81,16 @@ export default function LoginForm({
         onChange={(e) => setPassword(e.target.value)}
         placeholder="비밀번호"
         autoComplete="current-password"
-        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+        disabled={loading}
+        className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
       />
       <label className="flex items-center gap-2 px-1 text-sm text-gray-600 cursor-pointer select-none">
         <input
           type="checkbox"
           checked={rememberUsername}
           onChange={(e) => setRememberUsername(e.target.checked)}
-          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          disabled={loading}
+          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-60"
         />
         아이디 저장
       </label>

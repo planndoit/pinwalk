@@ -53,7 +53,8 @@ export default function ProfileEditorSection({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="relative w-16 h-16 rounded-full bg-gray-100 overflow-hidden shrink-0 border-2 border-white shadow"
+          disabled={saving}
+          className="relative w-16 h-16 rounded-full bg-gray-100 overflow-hidden shrink-0 border-2 border-white shadow disabled:opacity-50"
         >
           {avatarPreview ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -74,7 +75,8 @@ export default function ProfileEditorSection({
           <input
             value={nickname}
             onChange={(e) => setNickname(e.target.value.slice(0, 20))}
-            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold"
+            disabled={saving}
+            className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold disabled:opacity-60"
             placeholder="닉네임"
           />
           <button
