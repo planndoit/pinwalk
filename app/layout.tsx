@@ -4,12 +4,12 @@ import AppShell from "@/components/layout/AppShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "발도장",
-  description: "걸은 곳에 내 흔적을 남겨보세요",
+  title: "깃발",
+  description: "걸은 곳에 내 깃발을 꽂아보세요",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "발도장",
+    title: "깃발",
   },
 };
 

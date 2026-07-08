@@ -10,11 +10,14 @@ import ConquerModal from "@/components/ConquerModal";
 import PinBottomSheet from "@/components/PinBottomSheet";
 import RandomPointBottomSheet from "@/components/RandomPointBottomSheet";
 import MapActionButtons from "@/components/layout/MapActionButtons";
+import CelebrationOverlay, {
+  type CelebrationType,
+} from "@/components/CelebrationOverlay";
 import { getDistanceMeters } from "@/lib/geo";
 import { PIN_RADIUS_METERS } from "@/lib/constants";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
-import type { ConquerProbability } from "@/lib/constants";
+import type { ConquerProbability, PinDurationDays } from "@/lib/constants";
 
 const POSITION_UPDATE_THRESHOLD_METERS = 5;
 
@@ -34,6 +37,7 @@ export default function HomePage() {
   const [showConquerModal, setShowConquerModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [celebration, setCelebration] = useState<CelebrationType | null>(null);
   const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null);
   const dailyBonusUserRef = useRef<string | null>(null);
 
@@ -220,7 +224,7 @@ export default function HomePage() {
     });
   };
 
-  const handleCreatePin = async (text: string) => {
+  const handleCreatePin = async (text: string, durationDays: PinDurationDays) => {
     if (!position) return { success: false, error: "위치 정보가 없습니다." };
 
     setActionLoading(true);
@@ -231,6 +235,7 @@ export default function HomePage() {
         lat: position.lat,
         lng: position.lng,
         text,
+        duration_days: durationDays,
       }),
     });
     const data = await res.json();
@@ -242,7 +247,8 @@ export default function HomePage() {
 
     await refreshProfile();
     await fetchPins();
-    showToast("발도장이 찍혔어요!");
+    setCelebration("plant");
+    showToast("깃발을 꽂았어요!");
     return { success: true };
   };
 
@@ -280,6 +286,10 @@ export default function HomePage() {
     await refreshProfile();
     await fetchPins();
     setSelectedPin(null);
+
+    if (data.success) {
+      setCelebration("conquer");
+    }
 
     return {
       success: true,
@@ -392,6 +402,13 @@ export default function HomePage() {
         onClaim={handleClaimRandomPoint}
         claiming={actionLoading}
       />
+
+      {celebration && (
+        <CelebrationOverlay
+          type={celebration}
+          onDone={() => setCelebration(null)}
+        />
+      )}
 
       {toast && (
         <div className="fixed top-28 left-4 right-4 z-50 flex justify-center pointer-events-none">

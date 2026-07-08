@@ -6,8 +6,8 @@ import type { RankingEntry, RankingType } from "@/types/ranking";
 const TABS: { type: RankingType; label: string; unit: string }[] = [
   { type: "total_earned", label: "누적 포인트", unit: "P" },
   { type: "earn_count", label: "포인트 획득", unit: "회" },
-  { type: "active_pins", label: "현재 발도장", unit: "개" },
-  { type: "total_pins", label: "누적 발도장", unit: "개" },
+  { type: "active_pins", label: "현재 깃발", unit: "개" },
+  { type: "total_pins", label: "누적 깃발", unit: "개" },
   { type: "conquers", label: "점령 수", unit: "회" },
 ];
 

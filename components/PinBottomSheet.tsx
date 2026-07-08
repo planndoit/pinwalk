@@ -66,7 +66,7 @@ export default function PinBottomSheet({
               {pin.nickname ?? DEFAULT_NICKNAME}
               {isOwner && (
                 <span className="ml-1.5 text-[11px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">
-                  내 발도장
+                  내 깃발
                 </span>
               )}
             </p>

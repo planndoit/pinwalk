@@ -168,7 +168,7 @@ AS $$
     SELECT
       pins.id,
       'pin_create'::TEXT AS event_type,
-      '발도장 찍기'::TEXT AS title,
+      '깃발 꽂기'::TEXT AS title,
       pins.text AS description,
       pins.created_at
     FROM pins

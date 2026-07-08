@@ -118,7 +118,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: false,
-      message: "점령 실패! 기존 발도장이 버텼어요.",
+      message: "점령 실패! 기존 깃발이 버텼어요.",
       points: deductResult.newPoints,
     });
   }
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success: true,
-    message: "점령 성공! 이 영역에 내 발도장이 찍혔어요.",
+    message: "점령 성공! 이 영역에 내 깃발을 꽂았어요.",
     pin: newPin,
     points: deductResult.newPoints,
   });

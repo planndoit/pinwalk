@@ -20,7 +20,7 @@ export default function MapActionButtons({
             disabled={disabled}
             className="flex-[1.4] py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-600/25 active:scale-98 transition-transform disabled:opacity-50"
           >
-            👣 발도장 찍기
+            🚩 깃발 꽂기
           </button>
           <button
             onClick={onSpawnPoints}

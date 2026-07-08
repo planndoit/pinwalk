@@ -41,8 +41,8 @@ export default function ConquerModal({
       setResult({
         conquered: res.conquered,
         message: res.conquered
-          ? "점령 성공! 이 영역에 내 발도장이 찍혔어요."
-          : "점령 실패! 기존 발도장이 버텼어요.",
+          ? "점령 성공! 이 영역에 내 깃발을 꽂았어요."
+          : "점령 실패! 기존 깃발이 버텼어요.",
       });
     } else {
       setError(res.error ?? "점령 시도에 실패했습니다.");
@@ -117,7 +117,7 @@ export default function ConquerModal({
               onChange={(e) =>
                 setText(e.target.value.slice(0, PIN_TEXT_MAX_LENGTH))
               }
-              placeholder="새 발도장 문구 (최대 20자)"
+              placeholder="새 깃발 문구 (최대 20자)"
               className="w-full mt-4 p-3.5 bg-gray-50 border border-gray-200 rounded-2xl resize-none h-20 text-base focus:outline-none focus:ring-2 focus:ring-red-400 focus:bg-white transition-colors"
               maxLength={PIN_TEXT_MAX_LENGTH}
             />

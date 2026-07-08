@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  CREATE_PIN_COST,
-  PIN_DURATION_HOURS,
+  PIN_DURATION_OPTIONS,
   PIN_RADIUS_METERS,
 } from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
@@ -16,10 +15,11 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { lat, lng, text } = body as {
+  const { lat, lng, text, duration_days } = body as {
     lat?: number;
     lng?: number;
     text?: string;
+    duration_days?: number;
   };
 
   if (typeof lat !== "number" || typeof lng !== "number") {
@@ -30,11 +30,19 @@ export async function POST(request: Request) {
     return jsonError("핀 문구를 입력해주세요.");
   }
 
+  const durationOption = PIN_DURATION_OPTIONS.find(
+    (option) => option.days === duration_days
+  );
+  if (!durationOption) {
+    return jsonError("노출 기간이 올바르지 않습니다.");
+  }
+
   const validation = validatePinText(text);
   if (!validation.valid) {
     return jsonError(validation.error!);
   }
 
+  const cost = durationOption.cost;
   const admin = createAdminClient();
 
   const { data: profile } = await admin
@@ -43,7 +51,7 @@ export async function POST(request: Request) {
     .eq("id", user.id)
     .single();
 
-  if (!profile || profile.points < CREATE_PIN_COST) {
+  if (!profile || profile.points < cost) {
     return jsonError("포인트가 부족합니다.");
   }
 
@@ -56,7 +64,7 @@ export async function POST(request: Request) {
   }
 
   const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + PIN_DURATION_HOURS);
+  expiresAt.setHours(expiresAt.getHours() + durationOption.days * 24);
 
   const { data: pin, error } = await admin
     .from("pins")
@@ -78,9 +86,9 @@ export async function POST(request: Request) {
 
   const deductResult = await deductPoints(
     user.id,
-    CREATE_PIN_COST,
+    cost,
     "create_pin",
-    "발도장 생성",
+    `깃발 생성 (${durationOption.days}일)`,
     pin.id
   );
 

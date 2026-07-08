@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import ProfileEditorSection from "@/components/my/ProfileEditorSection";
 import { formatActivityDate } from "@/lib/formatDate";
@@ -9,13 +10,21 @@ import type { TimelineEvent, UserStats } from "@/types/ranking";
 const STAT_LABELS: { key: keyof UserStats; label: string; unit: string }[] = [
   { key: "total_earned", label: "누적 포인트", unit: "P" },
   { key: "earn_count", label: "포인트 획득", unit: "회" },
-  { key: "active_pins", label: "현재 발도장", unit: "개" },
-  { key: "total_pins", label: "누적 발도장", unit: "개" },
+  { key: "active_pins", label: "현재 깃발", unit: "개" },
+  { key: "total_pins", label: "누적 깃발", unit: "개" },
   { key: "conquers", label: "점령 수", unit: "회" },
 ];
 
 export default function MyPage() {
-  const { user, profile, refreshProfile, logout, loading: authLoading } = useAuth();
+  const {
+    user,
+    profile,
+    refreshProfile,
+    logout,
+    loading: authLoading,
+    openAuthModal,
+  } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
@@ -52,6 +61,12 @@ export default function MyPage() {
     },
     []
   );
+
+  useEffect(() => {
+    if (authLoading || user) return;
+    router.replace("/");
+    openAuthModal("login");
+  }, [authLoading, user, router, openAuthModal]);
 
   useEffect(() => {
     if (!user) return;
@@ -113,7 +128,7 @@ export default function MyPage() {
 
   const handleLogout = async () => {
     await logout();
-    showToast("로그아웃되었습니다.");
+    router.replace("/");
   };
 
   if (authLoading) {
