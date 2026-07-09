@@ -17,6 +17,7 @@ declare global {
           handler: (...args: any[]) => void
         ) => any;
         removeListener: (listener: any) => void;
+        trigger: (target: any, event: string, ...args: any[]) => void;
       };
     };
   };

@@ -19,6 +19,7 @@ import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
 
 interface MapViewProps {
+  active?: boolean;
   pins: Pin[];
   randomPoints: RandomPoint[];
   currentPosition: { lat: number; lng: number } | null;
@@ -222,6 +223,7 @@ function createCurrentLocationContent(): string {
 }
 
 export default function MapView({
+  active = true,
   pins,
   randomPoints,
   currentPosition,
@@ -466,6 +468,25 @@ export default function MapView({
       window.clearTimeout(timeout);
     };
   }, [initMap, mapReady]);
+
+  useEffect(() => {
+    if (!active || !mapReady) return;
+
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const raf = window.requestAnimationFrame(() => {
+      if (typeof map.autoResize === "function") {
+        map.autoResize();
+        return;
+      }
+
+      const naverObj = (window as Window & { naver?: typeof naver }).naver;
+      naverObj?.maps?.Event?.trigger(map, "resize");
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [active, mapReady]);
 
   // 현재 위치 마커 표시 및 지도 이동
   useEffect(() => {

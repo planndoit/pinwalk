@@ -21,7 +21,11 @@ import type { ConquerProbability, PinDurationDays } from "@/lib/constants";
 
 const POSITION_UPDATE_THRESHOLD_METERS = 5;
 
-export default function HomePage() {
+interface HomePageProps {
+  active?: boolean;
+}
+
+export default function HomePage({ active = true }: HomePageProps) {
   const { user, profile, loading: authLoading, refreshProfile, requireAuth } =
     useAuth();
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(
@@ -125,7 +129,17 @@ export default function HomePage() {
   }, [fetchPins, fetchRandomPoints, user]);
 
   useEffect(() => {
-    if (!navigator.geolocation) return;
+    if (active) return;
+    setSelectedPin(null);
+    setSelectedRandomPoint(null);
+    setShowCreateModal(false);
+    setShowConquerModal(false);
+    setCelebration(null);
+    setToast(null);
+  }, [active]);
+
+  useEffect(() => {
+    if (!active || !navigator.geolocation) return;
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
@@ -146,7 +160,7 @@ export default function HomePage() {
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
+  }, [active]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -388,6 +402,7 @@ export default function HomePage() {
   return (
     <div className="relative h-dvh w-full overflow-hidden">
       <MapView
+        active={active}
         pins={pins}
         randomPoints={randomPoints}
         currentPosition={position}
