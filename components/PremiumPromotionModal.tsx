@@ -10,9 +10,8 @@ interface CommonCodeOption {
 interface PremiumPromotionModalProps {
   open: boolean;
   onClose: () => void;
-  selectedLocation: { lat: number; lng: number };
-  selectedAddress: string | null;
-  onReselectLocation: () => void;
+  selectedLocation: { lat: number; lng: number } | null;
+  onSelectOnMap: () => void;
   onSuccess: (message: string) => void;
 }
 
@@ -20,8 +19,7 @@ export default function PremiumPromotionModal({
   open,
   onClose,
   selectedLocation,
-  selectedAddress,
-  onReselectLocation,
+  onSelectOnMap,
   onSuccess,
 }: PremiumPromotionModalProps) {
   const [categories, setCategories] = useState<CommonCodeOption[]>([]);
@@ -33,6 +31,7 @@ export default function PremiumPromotionModal({
     contactPhone: "",
     contactEmail: "",
     contactName: "",
+    address: "",
     benefit: "",
     promoText: "",
     promoLink: "",
@@ -55,6 +54,15 @@ export default function PremiumPromotionModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedLocation) {
+      setError("지도에서 가게 위치를 선택해주세요.");
+      return;
+    }
+    if (!form.address.trim()) {
+      setError("도로명 주소를 입력해주세요.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -67,6 +75,7 @@ export default function PremiumPromotionModal({
         contactPhone: form.contactPhone,
         contactEmail: form.contactEmail,
         contactName: form.contactName,
+        address: form.address,
         lat: selectedLocation.lat,
         lng: selectedLocation.lng,
         benefit: form.benefit,
@@ -92,22 +101,11 @@ export default function PremiumPromotionModal({
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl max-h-[85dvh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">프리미엄 깃발 홍보 요청</h2>
-          <button type="button" onClick={onClose} className="text-gray-400 text-xl">×</button>
+          <button type="button" onClick={onClose} className="text-gray-400 text-xl">
+            ×
+          </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-3">
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <p className="text-sm font-semibold text-amber-800">선택한 가게 위치</p>
-            <p className="text-sm text-amber-900 mt-1">
-              {selectedAddress ?? "지도에서 선택한 위치"}
-            </p>
-            <button
-              type="button"
-              onClick={onReselectLocation}
-              className="mt-2 text-xs font-semibold text-amber-700 underline"
-            >
-              위치 다시 선택
-            </button>
-          </div>
           <label className="block text-sm">
             <span className="font-medium text-gray-700">카테고리</span>
             <select
@@ -118,7 +116,9 @@ export default function PremiumPromotionModal({
             >
               <option value="">선택</option>
               {categories.map((c) => (
-                <option key={c.code} value={c.code}>{c.name}</option>
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </label>
@@ -127,6 +127,7 @@ export default function PremiumPromotionModal({
             ["contactPhone", "연락처"],
             ["contactEmail", "이메일"],
             ["contactName", "담당자 이름"],
+            ["address", "도로명 주소"],
             ["benefit", "혜택"],
             ["promoText", "홍보 문구"],
             ["promoLink", "홍보 링크 (선택)"],
@@ -138,9 +139,29 @@ export default function PremiumPromotionModal({
                 value={form[key as keyof typeof form]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                 required={key !== "promoLink"}
+                placeholder={
+                  key === "address" ? "예: 서울특별시 강남구 테헤란로 123" : undefined
+                }
               />
             </label>
           ))}
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-sm font-semibold text-amber-800">지도 위치</p>
+            <p className="text-sm text-amber-900 mt-1">
+              {selectedLocation
+                ? "지도에서 위치가 선택되었습니다."
+                : "지도에서 가게 위치를 선택해주세요."}
+            </p>
+            <button
+              type="button"
+              onClick={onSelectOnMap}
+              className="mt-2 w-full py-2.5 rounded-xl bg-amber-500 text-white text-sm font-bold"
+            >
+              {selectedLocation ? "지도에서 위치 다시 선택" : "지도에서 위치 선택"}
+            </button>
+          </div>
+
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             type="submit"

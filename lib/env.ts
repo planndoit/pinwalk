@@ -48,11 +48,3 @@ export function getEmailFrom(): string | null {
 export function getResendApiKey(): string | null {
   return process.env.RESEND_API_KEY ?? null;
 }
-
-export function getNaverMapClientId(): string | null {
-  return process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? null;
-}
-
-export function getNaverMapClientSecret(): string | null {
-  return process.env.NAVER_MAP_CLIENT_SECRET ?? null;
-}

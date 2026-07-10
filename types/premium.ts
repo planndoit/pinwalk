@@ -28,6 +28,7 @@ export interface PremiumPromotionRequest {
   contact_phone: string;
   contact_email: string;
   contact_name: string;
+  address: string | null;
   lat: number;
   lng: number;
   benefit: string;
@@ -48,6 +49,7 @@ export interface PremiumPlace {
   contact_phone: string | null;
   contact_email: string | null;
   contact_name: string | null;
+  address: string | null;
   lat: number;
   lng: number;
   benefit: string;

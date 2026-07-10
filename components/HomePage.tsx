@@ -55,9 +55,6 @@ export default function HomePage({ active = true }: HomePageProps) {
     lat: number;
     lng: number;
   } | null>(null);
-  const [promotionPickedAddress, setPromotionPickedAddress] = useState<string | null>(
-    null
-  );
   const [couponClaimRadius, setCouponClaimRadius] = useState(15);
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
   const [selectedRandomPoint, setSelectedRandomPoint] =
@@ -212,7 +209,6 @@ export default function HomePage({ active = true }: HomePageProps) {
     setShowPremiumPromotionModal(false);
     setPromotionLocationPickMode(false);
     setPromotionPickedLocation(null);
-    setPromotionPickedAddress(null);
     setCelebration(null);
     setToast(null);
   }, [active]);
@@ -484,17 +480,21 @@ export default function HomePage({ active = true }: HomePageProps) {
     setSelectedRandomPoint(null);
     setSelectedPremiumPlace(null);
     setSelectedCouponSpawn(null);
-    setPromotionPickedLocation(
-      position ? { lat: position.lat, lng: position.lng } : null
-    );
-    setPromotionPickedAddress(position ? "현재 위치" : null);
+    setPromotionLocationPickMode(false);
+    setShowPremiumPromotionModal(true);
+  };
+
+  const handleSelectPromotionOnMap = () => {
+    setShowPremiumPromotionModal(false);
     setPromotionLocationPickMode(true);
+    if (!promotionPickedLocation && position) {
+      setPromotionPickedLocation({ lat: position.lat, lng: position.lng });
+    }
   };
 
   const handleCancelPromotionLocationPick = () => {
     setPromotionLocationPickMode(false);
-    setPromotionPickedLocation(null);
-    setPromotionPickedAddress(null);
+    setShowPremiumPromotionModal(true);
   };
 
   const handleConfirmPromotionLocationPick = () => {
@@ -503,40 +503,9 @@ export default function HomePage({ active = true }: HomePageProps) {
     setShowPremiumPromotionModal(true);
   };
 
-  const handleReselectPromotionLocation = () => {
-    setShowPremiumPromotionModal(false);
-    setPromotionLocationPickMode(true);
-  };
-
   const handlePromotionMapClick = useCallback((lat: number, lng: number) => {
     setPromotionPickedLocation({ lat, lng });
-    setPromotionPickedAddress("지도에서 선택한 위치");
   }, []);
-
-  const handleSearchPromotionAddress = useCallback(
-    async (query: string) => {
-      const res = await fetch("/api/geocode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error ?? "주소 검색에 실패했습니다.");
-      }
-
-      setPromotionPickedLocation({ lat: data.lat, lng: data.lng });
-      setPromotionPickedAddress(data.roadAddress ?? query);
-      recenterNonceRef.current += 1;
-      setRecenterRequest({
-        lat: data.lat,
-        lng: data.lng,
-        nonce: recenterNonceRef.current,
-      });
-    },
-    []
-  );
 
   const handleClaimCouponSpawn = async () => {
     if (!position || !selectedCouponSpawn || !user) return;
@@ -638,10 +607,8 @@ export default function HomePage({ active = true }: HomePageProps) {
 
       {promotionLocationPickMode && (
         <PremiumPromotionLocationPicker
-          pickedAddress={promotionPickedAddress}
           onCancel={handleCancelPromotionLocationPick}
           onConfirm={handleConfirmPromotionLocationPick}
-          onSearchAddress={handleSearchPromotionAddress}
           canConfirm={promotionPickedLocation !== null}
         />
       )}
@@ -702,13 +669,16 @@ export default function HomePage({ active = true }: HomePageProps) {
 
       <PremiumPromotionModal
         open={showPremiumPromotionModal}
-        onClose={() => setShowPremiumPromotionModal(false)}
-        selectedLocation={
-          promotionPickedLocation ?? { lat: 0, lng: 0 }
-        }
-        selectedAddress={promotionPickedAddress}
-        onReselectLocation={handleReselectPromotionLocation}
-        onSuccess={showToast}
+        onClose={() => {
+          setShowPremiumPromotionModal(false);
+          setPromotionPickedLocation(null);
+        }}
+        selectedLocation={promotionPickedLocation}
+        onSelectOnMap={handleSelectPromotionOnMap}
+        onSuccess={(message) => {
+          setPromotionPickedLocation(null);
+          showToast(message);
+        }}
       />
 
       {celebration && (

@@ -69,6 +69,7 @@ export async function PATCH(
     ["contactPhone", "contact_phone"],
     ["contactEmail", "contact_email"],
     ["contactName", "contact_name"],
+    ["address", "address"],
     ["lat", "lat"],
     ["lng", "lng"],
     ["benefit", "benefit"],

@@ -22,6 +22,7 @@ export default function AdminPremiumPlaceNewPage() {
     contactPhone: "",
     contactEmail: "",
     contactName: "",
+    address: "",
     lat: "",
     lng: "",
     benefit: "",
@@ -50,6 +51,7 @@ export default function AdminPremiumPlaceNewPage() {
             contactPhone: r.contactPhone,
             contactEmail: r.contactEmail,
             contactName: r.contactName,
+            address: r.address ?? "",
             lat: String(r.lat),
             lng: String(r.lng),
             benefit: r.benefit,
@@ -73,6 +75,7 @@ export default function AdminPremiumPlaceNewPage() {
         contactPhone: form.contactPhone,
         contactEmail: form.contactEmail,
         contactName: form.contactName,
+        address: form.address || null,
         lat: Number(form.lat),
         lng: Number(form.lng),
         benefit: form.benefit,
@@ -110,6 +113,9 @@ export default function AdminPremiumPlaceNewPage() {
           <AdminInput label="연락처" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} />
           <AdminInput label="이메일" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
           <AdminInput label="담당자" value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} />
+          <div className="sm:col-span-2">
+            <AdminInput label="도로명 주소" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          </div>
           <AdminInput label="위도" value={form.lat} onChange={(e) => setForm({ ...form, lat: e.target.value })} required />
           <AdminInput label="경도" value={form.lng} onChange={(e) => setForm({ ...form, lng: e.target.value })} required />
           <div className="sm:col-span-2">

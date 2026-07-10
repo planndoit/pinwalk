@@ -74,6 +74,7 @@ export default function AdminPromotionRequestDetailPage() {
         <p><span className="text-gray-500 w-24 inline-block">담당자</span> {String(request.contactName)}</p>
         <p><span className="text-gray-500 w-24 inline-block">연락처</span> {String(request.contactPhone)}</p>
         <p><span className="text-gray-500 w-24 inline-block">이메일</span> {String(request.contactEmail)}</p>
+        <p><span className="text-gray-500 w-24 inline-block">도로명 주소</span> {String(request.address ?? "-")}</p>
         <p><span className="text-gray-500 w-24 inline-block">혜택</span> {String(request.benefit)}</p>
         <p><span className="text-gray-500 w-24 inline-block">홍보 문구</span> {String(request.promoText)}</p>
         <p><span className="text-gray-500 w-24 inline-block">홍보 링크</span> {String(request.promoLink ?? "-")}</p>
