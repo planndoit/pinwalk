@@ -45,3 +45,26 @@ export function getBoundingBoxDelta(radiusMeters: number, lat: number) {
     lngDelta: (lngDelta * 180) / Math.PI,
   };
 }
+
+export function offsetPointMeters(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+  distanceMeters: number
+): { lat: number; lng: number } {
+  const bearing = Math.atan2(
+    toLng - fromLng,
+    toLat - fromLat
+  );
+  const latOffset =
+    (distanceMeters * Math.cos(bearing)) / EARTH_RADIUS_METERS;
+  const lngOffset =
+    (distanceMeters * Math.sin(bearing)) /
+    (EARTH_RADIUS_METERS * Math.cos((fromLat * Math.PI) / 180));
+
+  return {
+    lat: fromLat + (latOffset * 180) / Math.PI,
+    lng: fromLng + (lngOffset * 180) / Math.PI,
+  };
+}

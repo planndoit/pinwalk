@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
@@ -180,6 +181,19 @@ export default function MyPage() {
               누적 획득 {(stats?.total_earned ?? 0).toLocaleString()}P
             </p>
           </div>
+        </section>
+
+        <section className="px-4 pt-2">
+          <Link
+            href="/coupons"
+            className="flex items-center justify-between bg-white border border-violet-100 rounded-2xl px-4 py-4 shadow-sm"
+          >
+            <div>
+              <p className="text-sm font-bold text-gray-900">쿠폰함</p>
+              <p className="text-xs text-gray-500 mt-0.5">프리미엄 장소 쿠폰 확인</p>
+            </div>
+            <span className="text-violet-600 text-sm font-semibold">보기</span>
+          </Link>
         </section>
 
         <section className="px-4 py-4">

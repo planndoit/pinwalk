@@ -10,6 +10,9 @@ import ConquerModal from "@/components/ConquerModal";
 import PinBottomSheet from "@/components/PinBottomSheet";
 import RandomPointBottomSheet from "@/components/RandomPointBottomSheet";
 import MapActionButtons from "@/components/layout/MapActionButtons";
+import PremiumPromotionModal from "@/components/PremiumPromotionModal";
+import PremiumPlaceBottomSheet from "@/components/PremiumPlaceBottomSheet";
+import PremiumCouponBottomSheet from "@/components/PremiumCouponBottomSheet";
 import CelebrationOverlay, {
   type CelebrationType,
 } from "@/components/CelebrationOverlay";
@@ -17,6 +20,10 @@ import { getDistanceMeters } from "@/lib/geo";
 import { PIN_RADIUS_METERS } from "@/lib/constants";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
+import type {
+  SerializedCouponSpawn,
+  SerializedPremiumPlace,
+} from "@/types/premiumClient";
 import type { ConquerProbability, PinDurationDays } from "@/lib/constants";
 
 const POSITION_UPDATE_THRESHOLD_METERS = 5;
@@ -34,6 +41,15 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [locationLoading, setLocationLoading] = useState(false);
   const [pins, setPins] = useState<Pin[]>([]);
   const [randomPoints, setRandomPoints] = useState<RandomPoint[]>([]);
+  const [premiumPlaces, setPremiumPlaces] = useState<SerializedPremiumPlace[]>([]);
+  const [couponSpawns, setCouponSpawns] = useState<SerializedCouponSpawn[]>([]);
+  const [inPremiumZone, setInPremiumZone] = useState(false);
+  const [selectedPremiumPlace, setSelectedPremiumPlace] =
+    useState<SerializedPremiumPlace | null>(null);
+  const [selectedCouponSpawn, setSelectedCouponSpawn] =
+    useState<SerializedCouponSpawn | null>(null);
+  const [showPremiumPromotionModal, setShowPremiumPromotionModal] = useState(false);
+  const [couponClaimRadius, setCouponClaimRadius] = useState(15);
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
   const [selectedRandomPoint, setSelectedRandomPoint] =
     useState<RandomPoint | null>(null);
@@ -71,6 +87,42 @@ export default function HomePage({ active = true }: HomePageProps) {
       setRandomPoints(data.randomPoints ?? []);
     }
   }, []);
+
+  const fetchPremiumPlaces = useCallback(async (lat?: number, lng?: number) => {
+    const params = new URLSearchParams();
+    if (typeof lat === "number" && typeof lng === "number") {
+      params.set("lat", String(lat));
+      params.set("lng", String(lng));
+    }
+    const res = await fetch(`/api/premium-places?${params}`, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      setPremiumPlaces(data.places ?? []);
+    }
+  }, []);
+
+  const syncCouponSpawns = useCallback(
+    async (lat: number, lng: number) => {
+      if (!user) {
+        setCouponSpawns([]);
+        setInPremiumZone(false);
+        return;
+      }
+
+      const res = await fetch("/api/premium-coupon-spawns/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_lat: lat, current_lng: lng }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setCouponSpawns(data.spawns ?? []);
+        setInPremiumZone(data.inPremiumZone === true);
+      }
+    },
+    [user]
+  );
 
   const requestPosition = useCallback((): Promise<{
     lat: number;
@@ -115,25 +167,40 @@ export default function HomePage({ active = true }: HomePageProps) {
   useEffect(() => {
     queueMicrotask(() => {
       void fetchPins();
+      void fetchPremiumPlaces();
     });
-  }, [fetchPins]);
+  }, [fetchPins, fetchPremiumPlaces]);
+
+  useEffect(() => {
+    void (async () => {
+      const res = await fetch("/api/premium-places/config");
+      if (res.ok) {
+        const data = await res.json();
+        setCouponClaimRadius(data.couponClaimRadiusMeters ?? 15);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       void fetchPins();
+      void fetchPremiumPlaces(position?.lat, position?.lng);
       if (user) void fetchRandomPoints();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [fetchPins, fetchRandomPoints, user]);
+  }, [fetchPins, fetchRandomPoints, fetchPremiumPlaces, user, position]);
 
   useEffect(() => {
     if (active) return;
     setSelectedPin(null);
     setSelectedRandomPoint(null);
+    setSelectedPremiumPlace(null);
+    setSelectedCouponSpawn(null);
     setShowCreateModal(false);
     setShowConquerModal(false);
+    setShowPremiumPromotionModal(false);
     setCelebration(null);
     setToast(null);
   }, [active]);
@@ -154,13 +221,15 @@ export default function HomePage({ active = true }: HomePageProps) {
         }
         lastPositionRef.current = next;
         setPosition(next);
+        void fetchPremiumPlaces(next.lat, next.lng);
+        if (user) void syncCouponSpawns(next.lat, next.lng);
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [active]);
+  }, [active, user, fetchPremiumPlaces, syncCouponSpawns]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -390,6 +459,45 @@ export default function HomePage({ active = true }: HomePageProps) {
     });
   };
 
+  const handlePremiumPromotionClick = () => {
+    requireAuth(() => {
+      if (!position) {
+        showToast("현재 위치를 먼저 확인해주세요.");
+        return;
+      }
+      setShowPremiumPromotionModal(true);
+    });
+  };
+
+  const handleClaimCouponSpawn = async () => {
+    if (!position || !selectedCouponSpawn || !user) return;
+
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/premium-coupon-spawns/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spawn_id: selectedCouponSpawn.id,
+          current_lat: position.lat,
+          current_lng: position.lng,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast(data.error);
+        return;
+      }
+
+      setSelectedCouponSpawn(null);
+      await syncCouponSpawns(position.lat, position.lng);
+      showToast(data.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const randomPointDistance = selectedRandomPoint && position
     ? getDistanceMeters(
         position.lat,
@@ -399,18 +507,33 @@ export default function HomePage({ active = true }: HomePageProps) {
       )
     : null;
 
+  const couponSpawnDistance = selectedCouponSpawn && position
+    ? getDistanceMeters(
+        position.lat,
+        position.lng,
+        selectedCouponSpawn.lat,
+        selectedCouponSpawn.lng
+      )
+    : null;
+
   return (
     <div className="relative h-dvh w-full overflow-hidden">
       <MapView
         active={active}
         pins={pins}
         randomPoints={randomPoints}
+        premiumPlaces={premiumPlaces}
+        couponSpawns={couponSpawns}
         currentPosition={position}
         currentUserId={user?.id ?? null}
         recenterRequest={recenterRequest}
         onPinClick={handlePinClick}
         onRandomPointClick={(point) => {
           requireAuth(() => setSelectedRandomPoint(point));
+        }}
+        onPremiumPlaceClick={setSelectedPremiumPlace}
+        onCouponSpawnClick={(spawn) => {
+          requireAuth(() => setSelectedCouponSpawn(spawn));
         }}
       />
 
@@ -429,8 +552,19 @@ export default function HomePage({ active = true }: HomePageProps) {
       <MapActionButtons
         onCreatePin={handleCreatePinClick}
         onSpawnPoints={handleSpawnRandomPoints}
+        onPremiumPromotion={handlePremiumPromotionClick}
         disabled={actionLoading}
       />
+
+      {inPremiumZone && user && (
+        <div className="fixed bottom-[calc(11.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 pointer-events-none">
+          <div className="max-w-lg mx-auto px-4">
+            <p className="text-center text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-200 rounded-full py-2 px-4 shadow-sm">
+              프리미엄 쿠폰을 획득할 수 있는 영역입니다
+            </p>
+          </div>
+        </div>
+      )}
 
       <CreatePinModal
         open={showCreateModal}
@@ -460,6 +594,28 @@ export default function HomePage({ active = true }: HomePageProps) {
         onClose={() => setSelectedRandomPoint(null)}
         onClaim={handleClaimRandomPoint}
         claiming={actionLoading}
+      />
+
+      <PremiumPlaceBottomSheet
+        place={selectedPremiumPlace}
+        onClose={() => setSelectedPremiumPlace(null)}
+      />
+
+      <PremiumCouponBottomSheet
+        spawn={selectedCouponSpawn}
+        distance={couponSpawnDistance}
+        claimRadius={couponClaimRadius}
+        onClose={() => setSelectedCouponSpawn(null)}
+        onClaim={handleClaimCouponSpawn}
+        claiming={actionLoading}
+      />
+
+      <PremiumPromotionModal
+        open={showPremiumPromotionModal}
+        onClose={() => setShowPremiumPromotionModal(false)}
+        currentLat={position?.lat ?? 0}
+        currentLng={position?.lng ?? 0}
+        onSuccess={showToast}
       />
 
       {celebration && (

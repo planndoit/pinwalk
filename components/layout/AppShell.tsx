@@ -10,8 +10,17 @@ function isMainTabPath(pathname: string): boolean {
   return (MAIN_TAB_PATHS as readonly string[]).includes(pathname);
 }
 
+function isAdminPath(pathname: string): boolean {
+  return pathname.startsWith("/admin");
+}
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+
+  if (isAdminPath(pathname)) {
+    return <>{children}</>;
+  }
+
   const isMainTab = isMainTabPath(pathname);
   const isMapTab = pathname === "/";
 

@@ -13,10 +13,18 @@ export async function GET() {
   }
 
   const supabase = await createClient();
+  const admin = createAdminClient();
+  const now = new Date().toISOString();
+
+  await admin
+    .from("profiles")
+    .update({ last_seen_at: now, updated_at: now })
+    .eq("id", user.id);
+
   const { data: profile, error } = await supabase
     .from("profiles")
     .select(
-      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, last_daily_bonus_at, created_at, updated_at"
+      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, last_daily_bonus_at, last_seen_at, created_at, updated_at"
     )
     .eq("id", user.id)
     .single();
@@ -103,7 +111,7 @@ export async function PATCH(request: Request) {
     .update(updates)
     .eq("id", user.id)
     .select(
-      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, last_daily_bonus_at, created_at, updated_at"
+      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, last_daily_bonus_at, last_seen_at, created_at, updated_at"
     )
     .single();
 
