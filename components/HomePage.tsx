@@ -11,6 +11,7 @@ import PinBottomSheet from "@/components/PinBottomSheet";
 import RandomPointBottomSheet from "@/components/RandomPointBottomSheet";
 import MapActionButtons from "@/components/layout/MapActionButtons";
 import PremiumPromotionModal from "@/components/PremiumPromotionModal";
+import PremiumPromotionLocationPicker from "@/components/PremiumPromotionLocationPicker";
 import PremiumPlaceBottomSheet from "@/components/PremiumPlaceBottomSheet";
 import PremiumCouponBottomSheet from "@/components/PremiumCouponBottomSheet";
 import CelebrationOverlay, {
@@ -49,6 +50,14 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [selectedCouponSpawn, setSelectedCouponSpawn] =
     useState<SerializedCouponSpawn | null>(null);
   const [showPremiumPromotionModal, setShowPremiumPromotionModal] = useState(false);
+  const [promotionLocationPickMode, setPromotionLocationPickMode] = useState(false);
+  const [promotionPickedLocation, setPromotionPickedLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [promotionPickedAddress, setPromotionPickedAddress] = useState<string | null>(
+    null
+  );
   const [couponClaimRadius, setCouponClaimRadius] = useState(15);
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
   const [selectedRandomPoint, setSelectedRandomPoint] =
@@ -201,6 +210,9 @@ export default function HomePage({ active = true }: HomePageProps) {
     setShowCreateModal(false);
     setShowConquerModal(false);
     setShowPremiumPromotionModal(false);
+    setPromotionLocationPickMode(false);
+    setPromotionPickedLocation(null);
+    setPromotionPickedAddress(null);
     setCelebration(null);
     setToast(null);
   }, [active]);
@@ -468,13 +480,63 @@ export default function HomePage({ active = true }: HomePageProps) {
       return;
     }
 
-    if (!position) {
-      showToast("현재 위치를 먼저 확인해주세요.");
-      return;
-    }
+    setSelectedPin(null);
+    setSelectedRandomPoint(null);
+    setSelectedPremiumPlace(null);
+    setSelectedCouponSpawn(null);
+    setPromotionPickedLocation(
+      position ? { lat: position.lat, lng: position.lng } : null
+    );
+    setPromotionPickedAddress(position ? "현재 위치" : null);
+    setPromotionLocationPickMode(true);
+  };
 
+  const handleCancelPromotionLocationPick = () => {
+    setPromotionLocationPickMode(false);
+    setPromotionPickedLocation(null);
+    setPromotionPickedAddress(null);
+  };
+
+  const handleConfirmPromotionLocationPick = () => {
+    if (!promotionPickedLocation) return;
+    setPromotionLocationPickMode(false);
     setShowPremiumPromotionModal(true);
   };
+
+  const handleReselectPromotionLocation = () => {
+    setShowPremiumPromotionModal(false);
+    setPromotionLocationPickMode(true);
+  };
+
+  const handlePromotionMapClick = useCallback((lat: number, lng: number) => {
+    setPromotionPickedLocation({ lat, lng });
+    setPromotionPickedAddress("지도에서 선택한 위치");
+  }, []);
+
+  const handleSearchPromotionAddress = useCallback(
+    async (query: string) => {
+      const res = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error ?? "주소 검색에 실패했습니다.");
+      }
+
+      setPromotionPickedLocation({ lat: data.lat, lng: data.lng });
+      setPromotionPickedAddress(data.roadAddress ?? query);
+      recenterNonceRef.current += 1;
+      setRecenterRequest({
+        lat: data.lat,
+        lng: data.lng,
+        nonce: recenterNonceRef.current,
+      });
+    },
+    []
+  );
 
   const handleClaimCouponSpawn = async () => {
     if (!position || !selectedCouponSpawn || !user) return;
@@ -534,14 +596,25 @@ export default function HomePage({ active = true }: HomePageProps) {
         currentPosition={position}
         currentUserId={user?.id ?? null}
         recenterRequest={recenterRequest}
-        onPinClick={handlePinClick}
+        onPinClick={(pin) => {
+          if (promotionLocationPickMode) return;
+          handlePinClick(pin);
+        }}
         onRandomPointClick={(point) => {
+          if (promotionLocationPickMode) return;
           requireAuth(() => setSelectedRandomPoint(point));
         }}
-        onPremiumPlaceClick={setSelectedPremiumPlace}
+        onPremiumPlaceClick={(place) => {
+          if (promotionLocationPickMode) return;
+          setSelectedPremiumPlace(place);
+        }}
         onCouponSpawnClick={(spawn) => {
+          if (promotionLocationPickMode) return;
           requireAuth(() => setSelectedCouponSpawn(spawn));
         }}
+        locationPickMode={promotionLocationPickMode}
+        pickedLocation={promotionPickedLocation}
+        onMapClick={promotionLocationPickMode ? handlePromotionMapClick : undefined}
       />
 
       {user && profile && (
@@ -560,8 +633,18 @@ export default function HomePage({ active = true }: HomePageProps) {
         onCreatePin={handleCreatePinClick}
         onSpawnPoints={handleSpawnRandomPoints}
         onPremiumPromotion={handlePremiumPromotionClick}
-        disabled={actionLoading}
+        disabled={actionLoading || promotionLocationPickMode}
       />
+
+      {promotionLocationPickMode && (
+        <PremiumPromotionLocationPicker
+          pickedAddress={promotionPickedAddress}
+          onCancel={handleCancelPromotionLocationPick}
+          onConfirm={handleConfirmPromotionLocationPick}
+          onSearchAddress={handleSearchPromotionAddress}
+          canConfirm={promotionPickedLocation !== null}
+        />
+      )}
 
       {inPremiumZone && user && (
         <div className="fixed bottom-[calc(11.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 pointer-events-none">
@@ -620,8 +703,11 @@ export default function HomePage({ active = true }: HomePageProps) {
       <PremiumPromotionModal
         open={showPremiumPromotionModal}
         onClose={() => setShowPremiumPromotionModal(false)}
-        currentLat={position?.lat ?? 0}
-        currentLng={position?.lng ?? 0}
+        selectedLocation={
+          promotionPickedLocation ?? { lat: 0, lng: 0 }
+        }
+        selectedAddress={promotionPickedAddress}
+        onReselectLocation={handleReselectPromotionLocation}
         onSuccess={showToast}
       />
 

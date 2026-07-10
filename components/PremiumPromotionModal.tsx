@@ -10,16 +10,18 @@ interface CommonCodeOption {
 interface PremiumPromotionModalProps {
   open: boolean;
   onClose: () => void;
-  currentLat: number;
-  currentLng: number;
+  selectedLocation: { lat: number; lng: number };
+  selectedAddress: string | null;
+  onReselectLocation: () => void;
   onSuccess: (message: string) => void;
 }
 
 export default function PremiumPromotionModal({
   open,
   onClose,
-  currentLat,
-  currentLng,
+  selectedLocation,
+  selectedAddress,
+  onReselectLocation,
   onSuccess,
 }: PremiumPromotionModalProps) {
   const [categories, setCategories] = useState<CommonCodeOption[]>([]);
@@ -31,8 +33,6 @@ export default function PremiumPromotionModal({
     contactPhone: "",
     contactEmail: "",
     contactName: "",
-    lat: "",
-    lng: "",
     benefit: "",
     promoText: "",
     promoLink: "",
@@ -48,13 +48,8 @@ export default function PremiumPromotionModal({
           setCategories(data.codes ?? []);
         }
       })();
-      setForm((prev) => ({
-        ...prev,
-        lat: String(currentLat),
-        lng: String(currentLng),
-      }));
     });
-  }, [open, currentLat, currentLng]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -72,8 +67,8 @@ export default function PremiumPromotionModal({
         contactPhone: form.contactPhone,
         contactEmail: form.contactEmail,
         contactName: form.contactName,
-        lat: Number(form.lat),
-        lng: Number(form.lng),
+        lat: selectedLocation.lat,
+        lng: selectedLocation.lng,
         benefit: form.benefit,
         promoText: form.promoText,
         promoLink: form.promoLink || null,
@@ -100,6 +95,19 @@ export default function PremiumPromotionModal({
           <button type="button" onClick={onClose} className="text-gray-400 text-xl">×</button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-3">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-sm font-semibold text-amber-800">선택한 가게 위치</p>
+            <p className="text-sm text-amber-900 mt-1">
+              {selectedAddress ?? "지도에서 선택한 위치"}
+            </p>
+            <button
+              type="button"
+              onClick={onReselectLocation}
+              className="mt-2 text-xs font-semibold text-amber-700 underline"
+            >
+              위치 다시 선택
+            </button>
+          </div>
           <label className="block text-sm">
             <span className="font-medium text-gray-700">카테고리</span>
             <select
@@ -133,17 +141,6 @@ export default function PremiumPromotionModal({
               />
             </label>
           ))}
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block text-sm">
-              <span className="font-medium text-gray-700">위도</span>
-              <input className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5" value={form.lat} onChange={(e) => setForm({ ...form, lat: e.target.value })} required />
-            </label>
-            <label className="block text-sm">
-              <span className="font-medium text-gray-700">경도</span>
-              <input className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5" value={form.lng} onChange={(e) => setForm({ ...form, lng: e.target.value })} required />
-            </label>
-          </div>
-          <p className="text-xs text-gray-500">기본값은 현재 위치입니다. 필요하면 수정하세요.</p>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <button
             type="submit"

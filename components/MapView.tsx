@@ -35,6 +35,9 @@ interface MapViewProps {
   onRandomPointClick: (point: RandomPoint) => void;
   onPremiumPlaceClick: (place: SerializedPremiumPlace) => void;
   onCouponSpawnClick: (spawn: SerializedCouponSpawn) => void;
+  locationPickMode?: boolean;
+  pickedLocation?: { lat: number; lng: number } | null;
+  onMapClick?: (lat: number, lng: number) => void;
 }
 
 const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
@@ -258,6 +261,23 @@ function focusClusterOnMap(
   map.setZoom(targetZoom);
 }
 
+function createLocationPickMarkerContent(): string {
+  return `
+    <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; pointer-events: none;">
+      <div style="
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+        width: 36px; height: 36px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 14px rgba(245,158,11,0.5);
+        border: 3px solid white;
+      "><span style="transform: rotate(45deg); font-size: 16px;">📍</span></div>
+    </div>
+  `;
+}
+
 function createCurrentLocationContent(): string {
   return `
     <div style="transform: translate(-50%, -50%); position: relative; width: 18px; height: 18px;">
@@ -297,6 +317,9 @@ export default function MapView({
   onRandomPointClick,
   onPremiumPlaceClick,
   onCouponSpawnClick,
+  locationPickMode = false,
+  pickedLocation = null,
+  onMapClick,
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<InstanceType<typeof naver.maps.Map> | null>(null);
@@ -307,6 +330,9 @@ export default function MapView({
   const randomMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
   const premiumMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
   const couponMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
+  const pickMarkerRef = useRef<InstanceType<typeof naver.maps.Marker> | null>(null);
+  const mapClickListenerRef = useRef<unknown>(null);
+  const onMapClickRef = useRef(onMapClick);
   const pinsRef = useRef(pins);
   const currentUserIdRef = useRef(currentUserId);
   const onPinClickRef = useRef(onPinClick);
@@ -314,6 +340,10 @@ export default function MapView({
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const scriptId = "naver-maps-sdk-script";
+
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  }, [onMapClick]);
 
   useEffect(() => {
     pinsRef.current = pins;
@@ -702,6 +732,62 @@ export default function MapView({
       couponMarkersRef.current.push(marker);
     });
   }, [mapReady, couponSpawns, onCouponSpawnClick]);
+
+  // 홍보 요청 위치 선택 모드
+  useEffect(() => {
+    const naverObj = (window as Window & { naver?: typeof naver }).naver;
+    const map = mapInstanceRef.current;
+    if (!mapReady || !map || !naverObj?.maps) return;
+
+    if (mapClickListenerRef.current) {
+      naverObj.maps.Event.removeListener(mapClickListenerRef.current);
+      mapClickListenerRef.current = null;
+    }
+
+    if (!locationPickMode) return;
+
+    mapClickListenerRef.current = naverObj.maps.Event.addListener(
+      map,
+      "click",
+      (e: { coord: { lat: () => number; lng: () => number } }) => {
+        onMapClickRef.current?.(e.coord.lat(), e.coord.lng());
+      }
+    );
+
+    return () => {
+      if (mapClickListenerRef.current) {
+        naverObj.maps.Event.removeListener(mapClickListenerRef.current);
+        mapClickListenerRef.current = null;
+      }
+    };
+  }, [mapReady, locationPickMode]);
+
+  useEffect(() => {
+    const naverObj = (window as Window & { naver?: typeof naver }).naver;
+    const map = mapInstanceRef.current;
+    if (!mapReady || !map || !naverObj?.maps) return;
+
+    if (pickMarkerRef.current) {
+      pickMarkerRef.current.setMap(null);
+      pickMarkerRef.current = null;
+    }
+
+    if (!locationPickMode || !pickedLocation) return;
+
+    const pos = new naverObj.maps.LatLng(
+      pickedLocation.lat,
+      pickedLocation.lng
+    );
+    pickMarkerRef.current = new naverObj.maps.Marker({
+      position: pos,
+      map,
+      zIndex: 350,
+      icon: {
+        content: createLocationPickMarkerContent(),
+        anchor: new naverObj.maps.Point(0, 0),
+      },
+    });
+  }, [mapReady, locationPickMode, pickedLocation]);
 
   if (!clientId) {
     return (
