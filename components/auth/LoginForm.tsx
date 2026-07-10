@@ -8,7 +8,7 @@ import { REMEMBERED_USERNAME_KEY } from "@/lib/auth/constants";
 interface LoginFormProps {
   loading: boolean;
   setLoading: (loading: boolean) => void;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
 }
 
 export default function LoginForm({
@@ -45,6 +45,7 @@ export default function LoginForm({
 
       if (!res.ok) {
         setError(data.error ?? "로그인에 실패했습니다.");
+        setLoading(false);
         return;
       }
 
@@ -56,10 +57,9 @@ export default function LoginForm({
 
       const supabase = createClient();
       await establishSession(supabase, data.session);
-      onSuccess();
+      await onSuccess();
     } catch {
       setError("로그인 처리 중 오류가 발생했습니다.");
-    } finally {
       setLoading(false);
     }
   };

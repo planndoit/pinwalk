@@ -33,7 +33,7 @@ interface HomePageProps {
 }
 
 export default function HomePage({ active = true }: HomePageProps) {
-  const { user, profile, loading: authLoading, refreshProfile, requireAuth } =
+  const { user, profile, loading: authLoading, refreshProfile, requireAuth, openAuthModal } =
     useAuth();
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(
     null
@@ -460,13 +460,20 @@ export default function HomePage({ active = true }: HomePageProps) {
   };
 
   const handlePremiumPromotionClick = () => {
-    requireAuth(() => {
-      if (!position) {
-        showToast("현재 위치를 먼저 확인해주세요.");
-        return;
-      }
-      setShowPremiumPromotionModal(true);
-    });
+    if (authLoading) return;
+
+    if (!user) {
+      showToast("로그인해야 프리미엄 깃발 홍보 요청이 가능합니다.");
+      openAuthModal("login");
+      return;
+    }
+
+    if (!position) {
+      showToast("현재 위치를 먼저 확인해주세요.");
+      return;
+    }
+
+    setShowPremiumPromotionModal(true);
   };
 
   const handleClaimCouponSpawn = async () => {

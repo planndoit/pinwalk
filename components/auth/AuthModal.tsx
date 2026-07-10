@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
 
@@ -8,7 +8,7 @@ interface AuthModalProps {
   open: boolean;
   mode: "login" | "signup";
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
   onSwitchMode: (mode: "login" | "signup") => void;
 }
 
@@ -20,6 +20,12 @@ export default function AuthModal({
   onSwitchMode,
 }: AuthModalProps) {
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setLoading(false);
+    }
+  }, [open]);
 
   if (!open) return null;
 

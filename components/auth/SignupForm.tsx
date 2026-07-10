@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 interface SignupFormProps {
   loading: boolean;
   setLoading: (loading: boolean) => void;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
 }
 
 export default function SignupForm({
@@ -42,15 +42,15 @@ export default function SignupForm({
 
       if (!res.ok) {
         setError(data.error ?? "회원가입에 실패했습니다.");
+        setLoading(false);
         return;
       }
 
       const supabase = createClient();
       await establishSession(supabase, data.session);
-      onSuccess();
+      await onSuccess();
     } catch {
       setError("회원가입 처리 중 오류가 발생했습니다.");
-    } finally {
       setLoading(false);
     }
   };
