@@ -35,8 +35,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div
         className={
           isMapTab
-            ? "absolute inset-0 z-0"
-            : "absolute inset-0 z-0 invisible pointer-events-none"
+            ? "absolute inset-0"
+            : "absolute inset-0 invisible pointer-events-none"
         }
         aria-hidden={!isMapTab}
       >
@@ -44,7 +44,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {!isMapTab && (
-        <div className="relative z-10 h-dvh w-full overflow-hidden">
+        <div className="absolute inset-0 z-10 overflow-hidden">
           {children}
         </div>
       )}

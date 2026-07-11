@@ -470,7 +470,7 @@ export default function HomePage({ active = true }: HomePageProps) {
   const handlePremiumPromotionClick = () => {
     if (authLoading) return;
 
-    requireAuth(() => {
+    const ok = requireAuth(() => {
       setSelectedPin(null);
       setSelectedRandomPoint(null);
       setSelectedPremiumPlace(null);
@@ -478,6 +478,9 @@ export default function HomePage({ active = true }: HomePageProps) {
       setPromotionLocationPickMode(false);
       setShowPremiumPromotionModal(true);
     });
+    if (!ok) {
+      showToast("프리미엄 깃발 홍보 요청은 로그인 후 이용할 수 있어요.");
+    }
   };
 
   const handleSelectPromotionOnMap = () => {

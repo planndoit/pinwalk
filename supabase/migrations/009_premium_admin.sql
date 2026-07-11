@@ -74,6 +74,9 @@ CREATE TABLE IF NOT EXISTS public.premium_places (
 );
 
 ALTER TABLE public.premium_promotion_requests
+  DROP CONSTRAINT IF EXISTS premium_promotion_requests_premium_place_id_fkey;
+
+ALTER TABLE public.premium_promotion_requests
   ADD CONSTRAINT premium_promotion_requests_premium_place_id_fkey
   FOREIGN KEY (premium_place_id) REFERENCES public.premium_places(id) ON DELETE SET NULL;
 
@@ -150,30 +153,37 @@ ALTER TABLE public.user_coupons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.premium_coupon_spawns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "common_code_groups_select" ON public.common_code_groups;
 CREATE POLICY "common_code_groups_select"
   ON public.common_code_groups FOR SELECT
   USING (is_active = TRUE);
 
+DROP POLICY IF EXISTS "common_codes_select" ON public.common_codes;
 CREATE POLICY "common_codes_select"
   ON public.common_codes FOR SELECT
   USING (is_active = TRUE);
 
+DROP POLICY IF EXISTS "premium_places_select_active" ON public.premium_places;
 CREATE POLICY "premium_places_select_active"
   ON public.premium_places FOR SELECT
   USING (is_active = TRUE);
 
+DROP POLICY IF EXISTS "premium_coupons_select_active" ON public.premium_coupons;
 CREATE POLICY "premium_coupons_select_active"
   ON public.premium_coupons FOR SELECT
   USING (is_active = TRUE);
 
+DROP POLICY IF EXISTS "user_coupons_select_own" ON public.user_coupons;
 CREATE POLICY "user_coupons_select_own"
   ON public.user_coupons FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "premium_coupon_spawns_select_own" ON public.premium_coupon_spawns;
 CREATE POLICY "premium_coupon_spawns_select_own"
   ON public.premium_coupon_spawns FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "premium_promotion_requests_select_own" ON public.premium_promotion_requests;
 CREATE POLICY "premium_promotion_requests_select_own"
   ON public.premium_promotion_requests FOR SELECT
   USING (requester_user_id = auth.uid());
