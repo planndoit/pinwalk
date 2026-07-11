@@ -109,7 +109,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setUser(currentUser);
-    await fetchProfile();
+
+    let profileOk = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      profileOk = await fetchProfile();
+      if (profileOk) break;
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
+
+    if (!profileOk) {
+      await supabase.auth.signOut();
+      clearActivity();
+      setUser(null);
+      setProfile(null);
+      return;
+    }
+
     touchActivity();
   }, [supabase, fetchProfile, logout]);
 
@@ -124,14 +139,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const requireAuth = useCallback(
     (onAuthed?: () => void) => {
-      if (user) {
+      if (user && profile) {
         onAuthed?.();
         return true;
       }
       openAuthModal("login");
       return false;
     },
-    [user, openAuthModal]
+    [user, profile, openAuthModal]
   );
 
   const handleAuthSuccess = useCallback(async () => {
@@ -145,11 +160,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (session?.user) {
       setProfile(null);
+      let profileOk = false;
       for (let attempt = 0; attempt < 5; attempt++) {
-        const ok = await fetchProfile();
-        if (ok) break;
+        profileOk = await fetchProfile();
+        if (profileOk) break;
         await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
       }
+
+      if (!profileOk) {
+        await supabase.auth.signOut();
+        clearActivity();
+        setUser(null);
+        setProfile(null);
+        return;
+      }
+
       touchActivity();
       setAuthModalOpen(false);
       return;

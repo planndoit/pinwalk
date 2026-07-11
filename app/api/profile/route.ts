@@ -16,20 +16,23 @@ export async function GET() {
   const admin = createAdminClient();
   const now = new Date().toISOString();
 
-  await admin
+  const { error: seenError } = await admin
     .from("profiles")
     .update({ last_seen_at: now, updated_at: now })
     .eq("id", user.id);
 
+  if (seenError) {
+    console.warn("last_seen_at update skipped:", seenError.message);
+  }
+
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select(
-      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, last_daily_bonus_at, last_seen_at, created_at, updated_at"
-    )
+    .select("*")
     .eq("id", user.id)
     .single();
 
   if (error || !profile) {
+    console.error("profile fetch failed:", error);
     return jsonError("프로필을 찾을 수 없습니다.", 404);
   }
 
@@ -110,9 +113,7 @@ export async function PATCH(request: Request) {
     .from("profiles")
     .update(updates)
     .eq("id", user.id)
-    .select(
-      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, last_daily_bonus_at, last_seen_at, created_at, updated_at"
-    )
+    .select("*")
     .single();
 
   if (error || !profile) {

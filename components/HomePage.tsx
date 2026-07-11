@@ -34,7 +34,7 @@ interface HomePageProps {
 }
 
 export default function HomePage({ active = true }: HomePageProps) {
-  const { user, profile, loading: authLoading, refreshProfile, requireAuth, openAuthModal } =
+  const { user, profile, loading: authLoading, refreshProfile, requireAuth } =
     useAuth();
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(
     null
@@ -470,18 +470,14 @@ export default function HomePage({ active = true }: HomePageProps) {
   const handlePremiumPromotionClick = () => {
     if (authLoading) return;
 
-    if (!user) {
-      showToast("로그인해야 프리미엄 깃발 홍보 요청이 가능합니다.");
-      openAuthModal("login");
-      return;
-    }
-
-    setSelectedPin(null);
-    setSelectedRandomPoint(null);
-    setSelectedPremiumPlace(null);
-    setSelectedCouponSpawn(null);
-    setPromotionLocationPickMode(false);
-    setShowPremiumPromotionModal(true);
+    requireAuth(() => {
+      setSelectedPin(null);
+      setSelectedRandomPoint(null);
+      setSelectedPremiumPlace(null);
+      setSelectedCouponSpawn(null);
+      setPromotionLocationPickMode(false);
+      setShowPremiumPromotionModal(true);
+    });
   };
 
   const handleSelectPromotionOnMap = () => {
