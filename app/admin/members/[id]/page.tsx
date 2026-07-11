@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import ActivityTimeline from "@/components/ActivityTimeline";
 import {
   AdminButton,
   AdminCard,
@@ -15,6 +16,24 @@ type AdminMemberStats = UserStats & {
   attendance_count: number;
   attended_today: boolean;
 };
+
+function normalizeTimeline(rows: unknown[]): TimelineEvent[] {
+  return rows.map((row) => {
+    const event = row as Record<string, unknown>;
+    return {
+      id: String(event.id),
+      event_type: event.event_type as TimelineEvent["event_type"],
+      title: String(event.title ?? ""),
+      description:
+        event.description == null ? null : String(event.description),
+      amount:
+        event.amount == null || event.amount === ""
+          ? null
+          : Number(event.amount),
+      created_at: String(event.created_at),
+    };
+  });
+}
 
 export default function AdminMemberDetailPage() {
   const params = useParams();
@@ -32,7 +51,7 @@ export default function AdminMemberDetailPage() {
       const data = await res.json();
       setMember(data.member);
       setStats(data.stats);
-      setTimeline(data.timeline ?? []);
+      setTimeline(normalizeTimeline(data.timeline ?? []));
     }
   }, [id]);
 
@@ -76,7 +95,6 @@ export default function AdminMemberDetailPage() {
           <p><span className="text-gray-500">포인트:</span> {Number(member.points).toLocaleString()}P</p>
           <p><span className="text-gray-500">가입일:</span> {formatActivityDate(String(member.createdAt))}</p>
           <p><span className="text-gray-500">마지막 접속:</span> {member.lastSeenAt ? formatActivityDate(String(member.lastSeenAt)) : "-"}</p>
-          <p><span className="text-gray-500">마지막 출석:</span> {member.lastDailyBonusAt ? formatActivityDate(String(member.lastDailyBonusAt)) : "-"}</p>
         </AdminCard>
         <AdminCard className="p-5">
           <h3 className="font-semibold mb-3">활동 통계</h3>
@@ -142,15 +160,7 @@ export default function AdminMemberDetailPage() {
 
       <AdminCard className="p-5">
         <h3 className="font-semibold mb-3">활동 내역</h3>
-        <div className="space-y-2">
-          {timeline.map((event) => (
-            <div key={event.id} className="text-sm border-b border-gray-50 pb-2">
-              <p className="font-medium">{event.title}</p>
-              <p className="text-gray-500 text-xs">{formatActivityDate(event.created_at)}</p>
-            </div>
-          ))}
-          {timeline.length === 0 && <p className="text-sm text-gray-500">활동 내역이 없습니다.</p>}
-        </div>
+        <ActivityTimeline events={timeline} />
       </AdminCard>
     </div>
   );

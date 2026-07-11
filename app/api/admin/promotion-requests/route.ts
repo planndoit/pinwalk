@@ -3,12 +3,22 @@ import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { serializePromotionRequest } from "@/lib/premium/serialize";
 
+function splitCsv(value: string | null): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export async function GET(request: Request) {
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status");
+  const q = searchParams.get("q")?.trim() ?? "";
+  const statuses = splitCsv(searchParams.get("status"));
+  const categories = splitCsv(searchParams.get("category"));
   const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10));
   const limit = 20;
   const offset = (page - 1) * limit;
@@ -23,8 +33,18 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (status) {
-    query = query.eq("status", status);
+  if (q) {
+    query = query.or(`store_name.ilike.%${q}%,contact_name.ilike.%${q}%`);
+  }
+  if (statuses.length === 1) {
+    query = query.eq("status", statuses[0]);
+  } else if (statuses.length > 1) {
+    query = query.in("status", statuses);
+  }
+  if (categories.length === 1) {
+    query = query.eq("category_code", categories[0]);
+  } else if (categories.length > 1) {
+    query = query.in("category_code", categories);
   }
 
   const { data, error, count } = await query;

@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import ActivityTimeline from "@/components/ActivityTimeline";
 import { useAuth } from "@/components/AuthProvider";
 import ProfileEditorSection from "@/components/my/ProfileEditorSection";
-import { formatActivityDate } from "@/lib/formatDate";
 import type { TimelineEvent, UserStats } from "@/types/ranking";
 
 export default function MyPage() {
@@ -45,7 +45,13 @@ export default function MyPage() {
       const res = await fetch(`/api/my/timeline?${params}`);
       if (res.ok) {
         const data = await res.json();
-        const newEvents = (data.events ?? []) as TimelineEvent[];
+  const newEvents = ((data.events ?? []) as TimelineEvent[]).map((event) => ({
+          ...event,
+          amount:
+            event.amount == null || Number.isNaN(Number(event.amount))
+              ? null
+              : Number(event.amount),
+        }));
         setEvents((prev) => (append ? [...prev, ...newEvents] : newEvents));
         setHasMore(newEvents.length === 20);
       }
@@ -170,8 +176,12 @@ export default function MyPage() {
               {profile.points.toLocaleString()}
               <span className="text-lg font-bold ml-1">P</span>
             </p>
-            <p className="text-xs text-blue-100/80 mt-1.5">
-              누적 획득 {(stats?.total_earned ?? 0).toLocaleString()}P
+            <p className="text-xs text-blue-100/80 mt-1.5 flex items-center justify-center gap-2">
+              <span>
+                누적 획득 {(stats?.total_earned ?? 0).toLocaleString()}P
+              </span>
+              <span className="text-blue-200/50">·</span>
+              <span>{(stats?.earn_count ?? 0).toLocaleString()}회</span>
             </p>
           </div>
         </section>
@@ -192,14 +202,6 @@ export default function MyPage() {
         <section className="px-4 py-4">
           <h2 className="text-sm font-bold text-gray-800 mb-3">나의 활동</h2>
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-white rounded-2xl border border-gray-100 px-3 py-3">
-              <p className="text-[11px] text-gray-400">포인트 획득</p>
-              <p className="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">
-                {(stats?.earn_count ?? 0).toLocaleString()}
-                <span className="text-xs font-semibold text-gray-400 ml-0.5">회</span>
-              </p>
-            </div>
-
             <div className="bg-white rounded-2xl border border-gray-100 px-3 py-3">
               <p className="text-[11px] text-gray-400">현재 깃발</p>
               <p className="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">
@@ -234,72 +236,26 @@ export default function MyPage() {
                 </span>
               </p>
             </div>
+
+            <div className="bg-white rounded-2xl border border-gray-100 px-3 py-3">
+              <p className="text-[11px] text-gray-400">출석</p>
+              <p className="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">
+                {(stats?.attendance_count ?? 0).toLocaleString()}
+                <span className="text-xs font-semibold text-gray-400 ml-0.5">회</span>
+              </p>
+              <p className="text-[11px] text-gray-400 mt-1">
+                연속{" "}
+                <span className="font-semibold text-gray-600">
+                  {(stats?.attendance_streak ?? 0).toLocaleString()}일
+                </span>
+              </p>
+            </div>
           </div>
         </section>
 
         <section className="px-4 pb-6">
           <h2 className="text-sm font-bold text-gray-800 mb-3">활동 내역</h2>
-          <div className="space-y-0">
-            {events.map((event, index) => {
-              const dotColor = (() => {
-                if (event.event_type === "conquered_by") return "bg-rose-500";
-                if (event.event_type === "conquer") {
-                  return event.title === "점령 성공"
-                    ? "bg-blue-500"
-                    : "bg-rose-500";
-                }
-                if (event.title === "깃발 꽂기") return "bg-blue-500";
-                if (event.amount != null && event.amount > 0) {
-                  return "bg-emerald-500";
-                }
-                if (event.amount != null && event.amount < 0) {
-                  return "bg-rose-500";
-                }
-                return "bg-gray-400";
-              })();
-
-              return (
-                <div
-                  key={`${event.event_type}-${event.id}`}
-                  className="flex gap-3"
-                >
-                  <div className="flex flex-col items-center">
-                    <div className={`w-2.5 h-2.5 rounded-full mt-2 ${dotColor}`} />
-                    {index < events.length - 1 && (
-                      <div className="w-px flex-1 bg-gray-200 my-1" />
-                    )}
-                  </div>
-                  <div className="flex-1 pb-5 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-400">
-                        {formatActivityDate(event.created_at)}
-                      </p>
-                      <p className="text-sm font-bold text-gray-900 mt-0.5">
-                        {event.title}
-                      </p>
-                      {event.description && (
-                        <p className="text-sm text-gray-600 mt-0.5">
-                          {event.description}
-                        </p>
-                      )}
-                    </div>
-                    {event.amount != null && (
-                      <span
-                        className={`text-sm font-bold tabular-nums whitespace-nowrap mt-4 ${
-                          event.amount > 0 ? "text-emerald-600" : "text-rose-500"
-                        }`}
-                      >
-                        {event.amount > 0
-                          ? `+${event.amount.toLocaleString()}`
-                          : event.amount.toLocaleString()}
-                        P
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <ActivityTimeline events={events} />
           <div ref={loadMoreRef} className="h-8" />
           {timelineLoading && (
             <p className="text-center text-xs text-gray-400 py-3">더 불러오는 중...</p>

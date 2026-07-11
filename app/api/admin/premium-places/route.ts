@@ -3,14 +3,22 @@ import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { serializePremiumPlace } from "@/lib/premium/serialize";
 
+function splitCsv(value: string | null): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export async function GET(request: Request) {
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim() ?? "";
-  const category = searchParams.get("category");
-  const active = searchParams.get("active");
+  const categories = splitCsv(searchParams.get("category"));
+  const activeValues = splitCsv(searchParams.get("active"));
   const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10));
   const limit = 20;
   const offset = (page - 1) * limit;
@@ -25,12 +33,17 @@ export async function GET(request: Request) {
   if (q) {
     query = query.ilike("store_name", `%${q}%`);
   }
-  if (category) {
-    query = query.eq("category_code", category);
+  if (categories.length === 1) {
+    query = query.eq("category_code", categories[0]);
+  } else if (categories.length > 1) {
+    query = query.in("category_code", categories);
   }
-  if (active === "true") {
+
+  const wantsActive = activeValues.includes("true");
+  const wantsInactive = activeValues.includes("false");
+  if (wantsActive && !wantsInactive) {
     query = query.eq("is_active", true);
-  } else if (active === "false") {
+  } else if (!wantsActive && wantsInactive) {
     query = query.eq("is_active", false);
   }
 
@@ -69,7 +82,10 @@ export async function POST(request: Request) {
   } = body;
 
   if (!categoryCode || !storeName || typeof lat !== "number" || typeof lng !== "number") {
-    return NextResponse.json({ error: "필수 항목을 입력해주세요." }, { status: 400 });
+    return NextResponse.json(
+      { error: "필수 항목을 입력해주세요. 지도에서 위치를 선택해주세요." },
+      { status: 400 }
+    );
   }
 
   const admin = createAdminClient();

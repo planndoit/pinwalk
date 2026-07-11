@@ -7,6 +7,24 @@ import {
 } from "@/lib/dailyBonus";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+function normalizeTimeline(rows: unknown[] | null) {
+  return (rows ?? []).map((row) => {
+    const event = row as Record<string, unknown>;
+    return {
+      id: String(event.id),
+      event_type: event.event_type,
+      title: String(event.title ?? ""),
+      description:
+        event.description == null ? null : String(event.description),
+      amount:
+        event.amount == null || event.amount === ""
+          ? null
+          : Number(event.amount),
+      created_at: String(event.created_at),
+    };
+  });
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -33,18 +51,18 @@ export async function GET(
 
   const [
     { data: statsRows, error: statsError },
-    { data: timeline },
+    { data: timelineRows },
     { data: pointTxs },
   ] = await Promise.all([
     admin.rpc("get_user_stats", { target_user_id: id }),
     admin.rpc("get_user_timeline", {
       target_user_id: id,
-      page_limit: 30,
+      page_limit: 50,
       before_at: null,
     }),
     admin
       .from("point_transactions")
-      .select("type, description")
+      .select("description, created_at")
       .eq("user_id", id),
   ]);
 
@@ -52,6 +70,7 @@ export async function GET(
     return jsonError("통계 조회에 실패했습니다.", 500);
   }
 
+  const timeline = normalizeTimeline(timelineRows);
   const lastDailyBonusAt = profile.last_daily_bonus_at as string | null;
   const attendedToday =
     lastDailyBonusAt != null &&
@@ -59,10 +78,8 @@ export async function GET(
 
   const attendanceFromTxs = (pointTxs ?? []).filter(isAttendanceTransaction)
     .length;
-  const attendanceFromTimeline = (
-    Array.isArray(timeline) ? timeline : []
-  ).filter(
-    (event: { title?: string }) => event.title === "출석 보너스"
+  const attendanceFromTimeline = timeline.filter(
+    (event) => event.title === "출석 보너스"
   ).length;
   const attendanceCount = Math.max(attendanceFromTxs, attendanceFromTimeline);
 
@@ -92,6 +109,6 @@ export async function GET(
       lastDailyBonusAt,
     },
     stats,
-    timeline: timeline ?? [],
+    timeline,
   });
 }

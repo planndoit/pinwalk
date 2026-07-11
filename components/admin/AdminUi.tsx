@@ -19,7 +19,6 @@ export function AdminPageHeader({
 
   useEffect(() => {
     setPageMeta({ title, description });
-    return () => setPageMeta({ title: "" });
   }, [title, description, setPageMeta]);
 
   if (!backHref && !action) return null;

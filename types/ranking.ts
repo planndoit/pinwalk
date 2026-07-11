@@ -19,6 +19,8 @@ export interface UserStats {
   total_pins: number;
   conquers: number;
   conquer_fails?: number;
+  attendance_count?: number;
+  attendance_streak?: number;
 }
 
 export interface TimelineEvent {

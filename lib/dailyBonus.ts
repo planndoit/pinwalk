@@ -44,3 +44,32 @@ export function getLatestDailyResetUtc(now: Date = new Date()): Date {
 
   return new Date(resetWallMs - KST_OFFSET_MS);
 }
+
+export function getAttendancePeriodKey(at: Date = new Date()): string {
+  return getLatestDailyResetUtc(at).toISOString();
+}
+
+/** 출석 시각 목록으로 현재 연속 출석 일수를 계산한다. */
+export function computeAttendanceStreak(
+  attendanceAts: Array<string | Date>,
+  now: Date = new Date()
+): number {
+  const periods = new Set(
+    attendanceAts.map((at) =>
+      getAttendancePeriodKey(at instanceof Date ? at : new Date(at))
+    )
+  );
+  if (periods.size === 0) return 0;
+
+  let cursor = getLatestDailyResetUtc(now);
+  if (!periods.has(cursor.toISOString())) {
+    cursor = new Date(cursor.getTime() - DAY_MS);
+  }
+
+  let streak = 0;
+  while (periods.has(cursor.toISOString())) {
+    streak += 1;
+    cursor = new Date(cursor.getTime() - DAY_MS);
+  }
+  return streak;
+}

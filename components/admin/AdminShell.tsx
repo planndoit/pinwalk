@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   AdminPageMetaProvider,
+  getAdminRouteMeta,
   useAdminPageMeta,
 } from "@/components/admin/AdminPageMeta";
 import { SERVICE_NAME } from "@/lib/constants";
@@ -56,7 +57,11 @@ function AdminTopBar({
   isMobile: boolean;
   onToggleSidebar: () => void;
 }) {
+  const pathname = usePathname();
   const { meta } = useAdminPageMeta();
+  const routeMeta = getAdminRouteMeta(pathname);
+  const title = meta.title || routeMeta.title;
+  const description = meta.description ?? routeMeta.description;
 
   return (
     <div className="shrink-0 z-20 bg-gray-50/90 backdrop-blur border-b border-gray-200 px-4 sm:px-8 py-2.5 flex items-center gap-3 min-w-0">
@@ -70,10 +75,10 @@ function AdminTopBar({
       </button>
       <div className="flex items-baseline gap-2.5 min-w-0 flex-1">
         <h1 className="text-base font-semibold text-gray-900 shrink-0">
-          {meta.title || "관리자"}
+          {title}
         </h1>
-        {meta.description ? (
-          <p className="text-sm text-gray-500 truncate">{meta.description}</p>
+        {description ? (
+          <p className="text-sm text-gray-500 truncate">{description}</p>
         ) : null}
       </div>
     </div>
@@ -83,7 +88,6 @@ function AdminTopBar({
 function AdminShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { setPageMeta } = useAdminPageMeta();
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -100,10 +104,6 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
-
-  useEffect(() => {
-    setPageMeta({ title: "" });
-  }, [pathname, setPageMeta]);
 
   useEffect(() => {
     if (isLoginPage) {
