@@ -67,7 +67,13 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !inserted) {
-    return jsonError("홍보 요청 저장에 실패했습니다.", 500);
+    console.error("premium_promotion_requests insert failed:", error);
+    return jsonError(
+      error?.message
+        ? `홍보 요청 저장에 실패했습니다. (${error.message})`
+        : "홍보 요청 저장에 실패했습니다.",
+      500
+    );
   }
 
   const categoryName = await getCommonCodeName("PREMIUM_CATEGORY", data.categoryCode);

@@ -15,6 +15,37 @@ interface PremiumPromotionModalProps {
   onSuccess: (message: string) => void;
 }
 
+type FormFieldKey =
+  | "storeName"
+  | "contactPhone"
+  | "contactEmail"
+  | "contactName"
+  | "address"
+  | "benefit"
+  | "promoText"
+  | "promoLink";
+
+const FORM_FIELDS: {
+  key: FormFieldKey;
+  label: string;
+  required: boolean;
+  placeholder?: string;
+}[] = [
+  { key: "storeName", label: "가게명", required: true },
+  { key: "contactPhone", label: "연락처", required: true },
+  { key: "contactEmail", label: "이메일", required: false },
+  { key: "contactName", label: "담당자 이름", required: false },
+  {
+    key: "address",
+    label: "도로명 주소",
+    required: true,
+    placeholder: "예: 서울특별시 강남구 테헤란로 123",
+  },
+  { key: "benefit", label: "혜택", required: true },
+  { key: "promoText", label: "홍보 문구", required: true },
+  { key: "promoLink", label: "홍보 링크", required: false },
+];
+
 export default function PremiumPromotionModal({
   open,
   onClose,
@@ -54,14 +85,6 @@ export default function PremiumPromotionModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedLocation) {
-      setError("지도에서 가게 위치를 선택해주세요.");
-      return;
-    }
-    if (!form.address.trim()) {
-      setError("도로명 주소를 입력해주세요.");
-      return;
-    }
 
     setLoading(true);
     setError(null);
@@ -73,11 +96,11 @@ export default function PremiumPromotionModal({
         categoryCode: form.categoryCode,
         storeName: form.storeName,
         contactPhone: form.contactPhone,
-        contactEmail: form.contactEmail,
-        contactName: form.contactName,
+        contactEmail: form.contactEmail || null,
+        contactName: form.contactName || null,
         address: form.address,
-        lat: selectedLocation.lat,
-        lng: selectedLocation.lng,
+        lat: selectedLocation?.lat ?? null,
+        lng: selectedLocation?.lng ?? null,
         benefit: form.benefit,
         promoText: form.promoText,
         promoLink: form.promoLink || null,
@@ -122,36 +145,34 @@ export default function PremiumPromotionModal({
               ))}
             </select>
           </label>
-          {[
-            ["storeName", "가게명"],
-            ["contactPhone", "연락처"],
-            ["contactEmail", "이메일"],
-            ["contactName", "담당자 이름"],
-            ["address", "도로명 주소"],
-            ["benefit", "혜택"],
-            ["promoText", "홍보 문구"],
-            ["promoLink", "홍보 링크 (선택)"],
-          ].map(([key, label]) => (
+
+          {FORM_FIELDS.map(({ key, label, required, placeholder }) => (
             <label key={key} className="block text-sm">
-              <span className="font-medium text-gray-700">{label}</span>
+              <span className="font-medium text-gray-700">
+                {label}
+                {!required && (
+                  <span className="text-gray-400 font-normal"> (선택)</span>
+                )}
+              </span>
               <input
                 className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5"
-                value={form[key as keyof typeof form]}
+                value={form[key]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                required={key !== "promoLink"}
-                placeholder={
-                  key === "address" ? "예: 서울특별시 강남구 테헤란로 123" : undefined
-                }
+                required={required}
+                placeholder={placeholder}
               />
             </label>
           ))}
 
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <p className="text-sm font-semibold text-amber-800">지도 위치</p>
+            <p className="text-sm font-semibold text-amber-800">
+              지도 위치
+              <span className="text-amber-700/70 font-normal"> (선택)</span>
+            </p>
             <p className="text-sm text-amber-900 mt-1">
               {selectedLocation
                 ? "지도에서 위치가 선택되었습니다."
-                : "지도에서 가게 위치를 선택해주세요."}
+                : "필요하면 지도에서 가게 위치를 선택할 수 있습니다."}
             </p>
             <button
               type="button"

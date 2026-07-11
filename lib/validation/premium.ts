@@ -4,11 +4,11 @@ export interface PromotionRequestInput {
   categoryCode: string;
   storeName: string;
   contactPhone: string;
-  contactEmail: string;
-  contactName: string;
+  contactEmail: string | null;
+  contactName: string | null;
   address: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   benefit: string;
   promoText: string;
   promoLink?: string | null;
@@ -36,15 +36,8 @@ export function validatePromotionRequestInput(
     return { valid: false, error: "가게명을 50자 이내로 입력해주세요." };
   }
   if (!contactPhone?.trim()) return { valid: false, error: "연락처를 입력해주세요." };
-  if (!contactEmail?.trim() || !contactEmail.includes("@")) {
-    return { valid: false, error: "이메일을 올바르게 입력해주세요." };
-  }
-  if (!contactName?.trim()) return { valid: false, error: "담당자 이름을 입력해주세요." };
   if (!address?.trim() || address.trim().length > 200) {
     return { valid: false, error: "도로명 주소를 200자 이내로 입력해주세요." };
-  }
-  if (typeof lat !== "number" || typeof lng !== "number") {
-    return { valid: false, error: "지도에서 가게 위치를 선택해주세요." };
   }
   if (!benefit?.trim() || benefit.trim().length > 200) {
     return { valid: false, error: "혜택을 200자 이내로 입력해주세요." };
@@ -52,6 +45,23 @@ export function validatePromotionRequestInput(
   if (!promoText?.trim() || promoText.trim().length > 500) {
     return { valid: false, error: "홍보 문구를 500자 이내로 입력해주세요." };
   }
+
+  const trimmedEmail = contactEmail?.trim() || "";
+  if (trimmedEmail && !trimmedEmail.includes("@")) {
+    return { valid: false, error: "이메일을 올바르게 입력해주세요." };
+  }
+
+  const trimmedName = contactName?.trim() || "";
+  if (trimmedName.length > 50) {
+    return { valid: false, error: "담당자 이름은 50자 이내로 입력해주세요." };
+  }
+
+  const hasLat = typeof lat === "number" && Number.isFinite(lat);
+  const hasLng = typeof lng === "number" && Number.isFinite(lng);
+  if ((hasLat && !hasLng) || (!hasLat && hasLng)) {
+    return { valid: false, error: "지도 위치가 올바르지 않습니다." };
+  }
+
   if (promoLink && promoLink.trim() && !URL_PATTERN.test(promoLink.trim())) {
     return { valid: false, error: "홍보 링크는 http(s) URL이어야 합니다." };
   }
@@ -62,11 +72,11 @@ export function validatePromotionRequestInput(
       categoryCode: categoryCode.trim(),
       storeName: storeName.trim(),
       contactPhone: contactPhone.trim(),
-      contactEmail: contactEmail.trim(),
-      contactName: contactName.trim(),
+      contactEmail: trimmedEmail || null,
+      contactName: trimmedName || null,
       address: address.trim(),
-      lat,
-      lng,
+      lat: hasLat ? (lat as number) : null,
+      lng: hasLng ? (lng as number) : null,
       benefit: benefit.trim(),
       promoText: promoText.trim(),
       promoLink: promoLink?.trim() || null,
@@ -75,15 +85,36 @@ export function validatePromotionRequestInput(
 }
 
 export function validatePremiumPlaceInput(
-  body: Partial<PromotionRequestInput & { isActive?: boolean; promotionRequestId?: string | null }>
-): { valid: true; data: PromotionRequestInput & { isActive: boolean; promotionRequestId: string | null } } | { valid: false; error: string } {
+  body: Partial<
+    PromotionRequestInput & {
+      isActive?: boolean;
+      promotionRequestId?: string | null;
+    }
+  >
+):
+  | {
+      valid: true;
+      data: PromotionRequestInput & {
+        lat: number;
+        lng: number;
+        isActive: boolean;
+        promotionRequestId: string | null;
+      };
+    }
+  | { valid: false; error: string } {
   const base = validatePromotionRequestInput(body);
   if (!base.valid) return base;
+
+  if (typeof base.data.lat !== "number" || typeof base.data.lng !== "number") {
+    return { valid: false, error: "지도에서 가게 위치를 선택해주세요." };
+  }
 
   return {
     valid: true,
     data: {
       ...base.data,
+      lat: base.data.lat,
+      lng: base.data.lng,
       isActive: body.isActive === true,
       promotionRequestId: body.promotionRequestId ?? null,
     },
@@ -96,9 +127,22 @@ export function validateCouponInput(body: {
   benefit?: string;
   isActive?: boolean;
   expiresAt?: string | null;
-}): { valid: true; data: { title: string; description: string; benefit: string; isActive: boolean; expiresAt: string | null } } | { valid: false; error: string } {
+}):
+  | {
+      valid: true;
+      data: {
+        title: string;
+        description: string;
+        benefit: string;
+        isActive: boolean;
+        expiresAt: string | null;
+      };
+    }
+  | { valid: false; error: string } {
   if (!body.title?.trim()) return { valid: false, error: "쿠폰 제목을 입력해주세요." };
-  if (!body.description?.trim()) return { valid: false, error: "쿠폰 설명을 입력해주세요." };
+  if (!body.description?.trim()) {
+    return { valid: false, error: "쿠폰 설명을 입력해주세요." };
+  }
   if (!body.benefit?.trim()) return { valid: false, error: "쿠폰 혜택을 입력해주세요." };
 
   return {

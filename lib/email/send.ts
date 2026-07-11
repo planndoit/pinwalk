@@ -45,30 +45,35 @@ export async function sendAdminNotificationEmail(
 export function buildPromotionRequestEmailHtml(data: {
   storeName: string;
   categoryName: string;
-  contactName: string;
+  contactName: string | null;
   contactPhone: string;
-  contactEmail: string;
+  contactEmail: string | null;
   benefit: string;
   promoText: string;
   promoLink: string | null;
   address: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   requesterNickname: string;
 }): string {
+  const location =
+    typeof data.lat === "number" && typeof data.lng === "number"
+      ? `${data.lat}, ${data.lng}`
+      : "-";
+
   return `
     <h2>프리미엄 홍보 요청이 접수되었습니다</h2>
     <ul>
       <li><strong>가게명:</strong> ${escapeHtml(data.storeName)}</li>
       <li><strong>카테고리:</strong> ${escapeHtml(data.categoryName)}</li>
-      <li><strong>담당자:</strong> ${escapeHtml(data.contactName)}</li>
+      <li><strong>담당자:</strong> ${escapeHtml(data.contactName ?? "-")}</li>
       <li><strong>연락처:</strong> ${escapeHtml(data.contactPhone)}</li>
-      <li><strong>이메일:</strong> ${escapeHtml(data.contactEmail)}</li>
+      <li><strong>이메일:</strong> ${escapeHtml(data.contactEmail ?? "-")}</li>
       <li><strong>도로명 주소:</strong> ${escapeHtml(data.address)}</li>
       <li><strong>혜택:</strong> ${escapeHtml(data.benefit)}</li>
       <li><strong>홍보 문구:</strong> ${escapeHtml(data.promoText)}</li>
       <li><strong>홍보 링크:</strong> ${data.promoLink ? escapeHtml(data.promoLink) : "-"}</li>
-      <li><strong>위치:</strong> ${data.lat}, ${data.lng}</li>
+      <li><strong>위치:</strong> ${location}</li>
       <li><strong>요청 회원:</strong> ${escapeHtml(data.requesterNickname)}</li>
     </ul>
   `;

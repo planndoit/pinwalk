@@ -26,11 +26,11 @@ export interface PremiumPromotionRequest {
   category_code: string;
   store_name: string;
   contact_phone: string;
-  contact_email: string;
-  contact_name: string;
+  contact_email: string | null;
+  contact_name: string | null;
   address: string | null;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   benefit: string;
   promo_text: string;
   promo_link: string | null;
