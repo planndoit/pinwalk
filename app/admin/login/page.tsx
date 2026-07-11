@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AdminButton, AdminInput } from "@/components/admin/AdminUi";
+import { SERVICE_NAME } from "@/lib/constants";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function AdminLoginPage() {
       >
         <div className="text-center mb-2">
           <h1 className="text-xl font-bold text-gray-900">관리자 로그인</h1>
-          <p className="text-sm text-gray-500 mt-1">깃발 관리자 사이트</p>
+          <p className="text-sm text-gray-500 mt-1">{SERVICE_NAME} 관리자 사이트</p>
         </div>
         <AdminInput
           label="아이디"

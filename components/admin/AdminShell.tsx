@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { SERVICE_NAME } from "@/lib/constants";
 
 const MENU = [
   { href: "/admin", label: "대시보드" },
@@ -64,7 +65,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <div className="min-h-screen bg-gray-50 flex">
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
         <div className="px-5 py-5 border-b border-gray-100">
-          <p className="text-lg font-bold text-gray-900">깃발 관리자</p>
+          <p className="text-lg font-bold text-gray-900">{SERVICE_NAME} 관리자</p>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {MENU.map((item) => {

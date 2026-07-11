@@ -8,6 +8,7 @@ import {
 import { getCommonCodeName } from "@/lib/premium/places";
 import { serializePromotionRequest } from "@/lib/premium/serialize";
 import { validatePromotionRequestInput } from "@/lib/validation/premium";
+import { SERVICE_NAME } from "@/lib/constants";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
 
   const categoryName = await getCommonCodeName("PREMIUM_CATEGORY", data.categoryCode);
   const emailResult = await sendAdminNotificationEmail({
-    subject: `[깃발] 프리미엄 홍보 요청: ${data.storeName}`,
+    subject: `[${SERVICE_NAME}] 프리미엄 홍보 요청: ${data.storeName}`,
     html: buildPromotionRequestEmailHtml({
       storeName: data.storeName,
       categoryName,

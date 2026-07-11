@@ -18,7 +18,7 @@ export default function PointBalance({
       <div className="px-4 pt-safe">
         <div className="mt-3 flex items-center justify-between gap-2 pointer-events-auto max-w-lg mx-auto">
           <div className="flex items-center gap-2.5 bg-white/95 backdrop-blur rounded-2xl pl-3.5 pr-4 py-2.5 shadow-lg">
-            <span className="text-xl leading-none">👣</span>
+            <span className="text-xl leading-none">🚩</span>
             <div>
               <h1 className="text-gray-900 text-base font-extrabold leading-tight tracking-tight">
                 {SERVICE_NAME}
