@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { SERVICE_NAME } from "@/lib/constants";
 
 const MENU = [
@@ -24,11 +24,44 @@ const MENU = [
   },
 ] as const;
 
+function MenuIcon({ open }: { open: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      {open ? (
+        <>
+          <path d="M6 6l12 12" />
+          <path d="M18 6L6 18" />
+        </>
+      ) : (
+        <>
+          <path d="M4 7h16" />
+          <path d="M4 12h16" />
+          <path d="M4 17h16" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const isLoginPage = pathname === "/admin/login";
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => {
+      const mobile = mq.matches;
+      setIsMobile(mobile);
+      setSidebarOpen(!mobile);
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   useEffect(() => {
     if (isLoginPage) {
@@ -49,6 +82,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     });
   }, [isLoginPage, router, pathname]);
 
+  const closeSidebarOnMobile = useCallback(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
+
   if (isLoginPage) {
     return <div className="min-h-screen bg-gray-50">{children}</div>;
   }
@@ -63,11 +100,44 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
-        <div className="px-5 py-5 border-b border-gray-100">
-          <p className="text-lg font-bold text-gray-900">{SERVICE_NAME} 관리자</p>
+      {sidebarOpen && isMobile && (
+        <button
+          type="button"
+          aria-label="메뉴 닫기"
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`bg-white border-r border-gray-200 flex flex-col shrink-0 z-40 transition-transform duration-200 ${
+          isMobile
+            ? `fixed inset-y-0 left-0 w-64 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`
+            : sidebarOpen
+              ? "relative w-64"
+              : "relative w-0 overflow-hidden border-r-0"
+        }`}
+      >
+        <div className="px-5 py-5 border-b border-gray-100 flex items-center justify-between gap-2">
+          <Link
+            href="/admin"
+            onClick={closeSidebarOnMobile}
+            className="text-lg font-bold text-gray-900 hover:text-blue-700 truncate"
+          >
+            {SERVICE_NAME} 관리자
+          </Link>
+          {isMobile && (
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              className="w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 flex items-center justify-center shrink-0"
+              aria-label="메뉴 닫기"
+            >
+              <MenuIcon open />
+            </button>
+          )}
         </div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto w-64">
           {MENU.map((item) => {
             if ("href" in item) {
               const active = pathname === item.href;
@@ -75,6 +145,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={closeSidebarOnMobile}
                   className={`block px-3 py-2 rounded-lg text-sm font-medium ${
                     active
                       ? "bg-blue-50 text-blue-700"
@@ -97,6 +168,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                     <Link
                       key={child.href}
                       href={child.href}
+                      onClick={closeSidebarOnMobile}
                       className={`block px-3 py-2 rounded-lg text-sm ${
                         active
                           ? "bg-blue-50 text-blue-700 font-medium"
@@ -111,7 +183,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             );
           })}
         </nav>
-        <div className="p-3 border-t border-gray-100">
+        <div className="p-3 border-t border-gray-100 w-64">
           <button
             type="button"
             onClick={async () => {
@@ -124,8 +196,20 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </button>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-6xl mx-auto p-8">{children}</div>
+
+      <main className="flex-1 overflow-auto min-w-0">
+        <div className="sticky top-0 z-20 bg-gray-50/90 backdrop-blur border-b border-gray-200 px-4 sm:px-8 py-2.5 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="w-9 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 flex items-center justify-center"
+            aria-label={sidebarOpen ? "메뉴 숨기기" : "메뉴 열기"}
+          >
+            <MenuIcon open={sidebarOpen && isMobile} />
+          </button>
+          <span className="text-sm text-gray-500 truncate">관리자</span>
+        </div>
+        <div className="max-w-6xl mx-auto p-4 sm:p-8">{children}</div>
       </main>
     </div>
   );

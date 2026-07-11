@@ -55,8 +55,22 @@ export default function CouponsPage() {
   return (
     <div className="h-dvh overflow-y-auto bg-gray-50 pb-safe">
       <div className="max-w-lg mx-auto px-4 py-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-1">쿠폰함</h1>
-        <p className="text-sm text-gray-500 mb-6">프리미엄 장소에서 획득한 쿠폰입니다.</p>
+        <div className="flex items-start gap-2 mb-6">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="mt-0.5 -ml-1 w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-gray-700 hover:bg-gray-200/70 active:bg-gray-200"
+            aria-label="뒤로 가기"
+          >
+            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-gray-900">쿠폰함</h1>
+            <p className="text-sm text-gray-500 mt-0.5">프리미엄 장소에서 획득한 쿠폰입니다.</p>
+          </div>
+        </div>
 
         {message && (
           <p className="mb-4 text-sm bg-gray-900 text-white rounded-xl px-4 py-2">{message}</p>
