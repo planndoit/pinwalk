@@ -8,13 +8,6 @@ import ProfileEditorSection from "@/components/my/ProfileEditorSection";
 import { formatActivityDate } from "@/lib/formatDate";
 import type { TimelineEvent, UserStats } from "@/types/ranking";
 
-const STAT_LABELS: { key: keyof UserStats; label: string; unit: string }[] = [
-  { key: "earn_count", label: "포인트 획득", unit: "회" },
-  { key: "active_pins", label: "현재 깃발", unit: "개" },
-  { key: "total_pins", label: "누적 깃발", unit: "개" },
-  { key: "conquers", label: "점령 수", unit: "회" },
-];
-
 export default function MyPage() {
   const {
     user,
@@ -199,20 +192,48 @@ export default function MyPage() {
         <section className="px-4 py-4">
           <h2 className="text-sm font-bold text-gray-800 mb-3">나의 활동</h2>
           <div className="grid grid-cols-2 gap-2">
-            {STAT_LABELS.map((item) => (
-              <div
-                key={item.key}
-                className="bg-white rounded-2xl border border-gray-100 px-3 py-3"
-              >
-                <p className="text-[11px] text-gray-400">{item.label}</p>
-                <p className="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">
-                  {(stats?.[item.key] ?? 0).toLocaleString()}
-                  <span className="text-xs font-semibold text-gray-400 ml-0.5">
-                    {item.unit}
-                  </span>
-                </p>
-              </div>
-            ))}
+            <div className="bg-white rounded-2xl border border-gray-100 px-3 py-3">
+              <p className="text-[11px] text-gray-400">포인트 획득</p>
+              <p className="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">
+                {(stats?.earn_count ?? 0).toLocaleString()}
+                <span className="text-xs font-semibold text-gray-400 ml-0.5">회</span>
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-100 px-3 py-3">
+              <p className="text-[11px] text-gray-400">현재 깃발</p>
+              <p className="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">
+                {(stats?.active_pins ?? 0).toLocaleString()}
+                <span className="text-xs font-semibold text-gray-400 ml-0.5">개</span>
+              </p>
+              <p className="text-[11px] text-gray-400 mt-1">
+                누적{" "}
+                <span className="font-semibold text-gray-600">
+                  {(stats?.total_pins ?? 0).toLocaleString()}개
+                </span>
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-100 px-3 py-3">
+              <p className="text-[11px] text-gray-400">점령 수</p>
+              <p className="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">
+                {(
+                  (stats?.conquers ?? 0) + (stats?.conquer_fails ?? 0)
+                ).toLocaleString()}
+                <span className="text-xs font-semibold text-gray-400 ml-0.5">회</span>
+              </p>
+              <p className="text-[11px] text-gray-400 mt-1">
+                성공{" "}
+                <span className="font-semibold text-emerald-600">
+                  {(stats?.conquers ?? 0).toLocaleString()}
+                </span>
+                <span className="mx-1 text-gray-300">·</span>
+                실패{" "}
+                <span className="font-semibold text-red-500">
+                  {(stats?.conquer_fails ?? 0).toLocaleString()}
+                </span>
+              </p>
+            </div>
           </div>
         </section>
 

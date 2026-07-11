@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { addPoints } from "@/lib/pins";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { DAILY_BONUS_AMOUNT } from "@/lib/constants";
-import { getLatestDailyResetUtc } from "@/lib/dailyBonus";
+import {
+  DAILY_BONUS_DESCRIPTION,
+  DAILY_BONUS_TYPE,
+  getLatestDailyResetUtc,
+} from "@/lib/dailyBonus";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST() {
   const user = await getAuthenticatedUser();
@@ -45,8 +49,8 @@ export async function POST() {
   const result = await addPoints(
     user.id,
     DAILY_BONUS_AMOUNT,
-    "daily_bonus",
-    "매일 출석 보너스"
+    DAILY_BONUS_TYPE,
+    DAILY_BONUS_DESCRIPTION
   );
 
   if (!result.success) {

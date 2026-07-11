@@ -95,7 +95,7 @@ export default function AdminPremiumPlaceNewPage() {
 
   return (
     <div>
-      <AdminPageHeader title="프리미엄 장소 추가" />
+      <AdminPageHeader title="프리미엄 장소 추가" backHref="/admin/premium-places" />
       <form onSubmit={handleSubmit}>
         <AdminCard className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <AdminSelect

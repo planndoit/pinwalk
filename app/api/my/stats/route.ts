@@ -9,9 +9,16 @@ export async function GET() {
   }
 
   const admin = createAdminClient();
-  const { data, error } = await admin.rpc("get_user_stats", {
-    target_user_id: user.id,
-  });
+  const [{ data, error }, failAttempts] = await Promise.all([
+    admin.rpc("get_user_stats", {
+      target_user_id: user.id,
+    }),
+    admin
+      .from("pin_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("attacker_id", user.id)
+      .eq("success", false),
+  ]);
 
   if (error || !data?.[0]) {
     return jsonError("통계 조회에 실패했습니다.", 500);
@@ -25,6 +32,7 @@ export async function GET() {
       active_pins: Number(stats.active_pins),
       total_pins: Number(stats.total_pins),
       conquers: Number(stats.conquers),
+      conquer_fails: failAttempts.count ?? 0,
     },
   });
 }

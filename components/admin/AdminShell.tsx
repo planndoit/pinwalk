@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import {
+  AdminPageMetaProvider,
+  useAdminPageMeta,
+} from "@/components/admin/AdminPageMeta";
 import { SERVICE_NAME } from "@/lib/constants";
 
 const MENU = [
@@ -43,9 +47,43 @@ function MenuIcon({ open }: { open: boolean }) {
   );
 }
 
-export default function AdminShell({ children }: { children: React.ReactNode }) {
+function AdminTopBar({
+  sidebarOpen,
+  isMobile,
+  onToggleSidebar,
+}: {
+  sidebarOpen: boolean;
+  isMobile: boolean;
+  onToggleSidebar: () => void;
+}) {
+  const { meta } = useAdminPageMeta();
+
+  return (
+    <div className="shrink-0 z-20 bg-gray-50/90 backdrop-blur border-b border-gray-200 px-4 sm:px-8 py-2.5 flex items-center gap-3 min-w-0">
+      <button
+        type="button"
+        onClick={onToggleSidebar}
+        className="w-9 h-9 shrink-0 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 flex items-center justify-center"
+        aria-label={sidebarOpen ? "메뉴 숨기기" : "메뉴 열기"}
+      >
+        <MenuIcon open={sidebarOpen && isMobile} />
+      </button>
+      <div className="flex items-baseline gap-2.5 min-w-0 flex-1">
+        <h1 className="text-base font-semibold text-gray-900 shrink-0">
+          {meta.title || "관리자"}
+        </h1>
+        {meta.description ? (
+          <p className="text-sm text-gray-500 truncate">{meta.description}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function AdminShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { setPageMeta } = useAdminPageMeta();
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -62,6 +100,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
+
+  useEffect(() => {
+    setPageMeta({ title: "" });
+  }, [pathname, setPageMeta]);
 
   useEffect(() => {
     if (isLoginPage) {
@@ -87,19 +129,21 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   }, [isMobile]);
 
   if (isLoginPage) {
-    return <div className="min-h-screen bg-gray-50">{children}</div>;
+    return (
+      <div className="h-dvh overflow-y-auto bg-gray-50">{children}</div>
+    );
   }
 
   if (!ready) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center text-sm text-gray-500">
+      <div className="h-dvh bg-white flex items-center justify-center text-sm text-gray-500">
         로딩 중...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-dvh bg-gray-50 flex overflow-hidden">
       {sidebarOpen && isMobile && (
         <button
           type="button"
@@ -197,20 +241,24 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto min-w-0">
-        <div className="sticky top-0 z-20 bg-gray-50/90 backdrop-blur border-b border-gray-200 px-4 sm:px-8 py-2.5 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen((v) => !v)}
-            className="w-9 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 flex items-center justify-center"
-            aria-label={sidebarOpen ? "메뉴 숨기기" : "메뉴 열기"}
-          >
-            <MenuIcon open={sidebarOpen && isMobile} />
-          </button>
-          <span className="text-sm text-gray-500 truncate">관리자</span>
+      <main className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+        <AdminTopBar
+          sidebarOpen={sidebarOpen}
+          isMobile={isMobile}
+          onToggleSidebar={() => setSidebarOpen((v) => !v)}
+        />
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="max-w-6xl mx-auto p-4 sm:p-8">{children}</div>
         </div>
-        <div className="max-w-6xl mx-auto p-4 sm:p-8">{children}</div>
       </main>
     </div>
+  );
+}
+
+export default function AdminShell({ children }: { children: React.ReactNode }) {
+  return (
+    <AdminPageMetaProvider>
+      <AdminShellInner>{children}</AdminShellInner>
+    </AdminPageMetaProvider>
   );
 }

@@ -120,7 +120,7 @@ export default function AdminPremiumPlaceDetailPage() {
 
   return (
     <div>
-      <AdminPageHeader title="프리미엄 장소 상세" />
+      <AdminPageHeader title="프리미엄 장소 상세" backHref="/admin/premium-places" />
       <AdminCard className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <AdminSelect label="카테고리" value={form.categoryCode} onChange={(e) => setForm({ ...form, categoryCode: e.target.value })}>
           {categories.map((c) => (

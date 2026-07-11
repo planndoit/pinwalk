@@ -49,12 +49,23 @@ export default function AdminPromotionRequestDetailPage() {
     if (res.ok) void fetchDetail();
   };
 
-  if (!request) return <p className="text-sm text-gray-500">로딩 중...</p>;
+  if (!request) {
+    return (
+      <div>
+        <AdminPageHeader
+          title="홍보 요청 상세"
+          backHref="/admin/promotion-requests"
+        />
+        <p className="text-sm text-gray-500">로딩 중...</p>
+      </div>
+    );
+  }
 
   return (
     <div>
       <AdminPageHeader
         title="홍보 요청 상세"
+        backHref="/admin/promotion-requests"
         action={
           <AdminButton
             onClick={() =>
