@@ -64,7 +64,6 @@ export async function POST(request: Request) {
   }
 
   const probability = selected_probability as ConquerProbability;
-  const cost = calculateConquerCost(probability);
   const admin = createAdminClient();
 
   const { data: targetPin, error: pinError } = await admin
@@ -92,6 +91,10 @@ export async function POST(request: Request) {
     return jsonError("핀 반경 안에 있어야 점령할 수 있습니다.");
   }
 
+  const pinCost =
+    typeof targetPin.cost === "number" ? targetPin.cost : DEFAULT_PIN_COST;
+  const cost = calculateConquerCost(probability, pinCost);
+
   const deductResult = await deductPoints(
     user.id,
     cost,
@@ -104,9 +107,7 @@ export async function POST(request: Request) {
     return jsonError(deductResult.error!);
   }
 
-  const pinCost =
-    typeof targetPin.cost === "number" ? targetPin.cost : DEFAULT_PIN_COST;
-  const success = rollConquerSuccess(probability, pinCost);
+  const success = rollConquerSuccess(probability);
   const now = new Date().toISOString();
 
   if (!success) {
@@ -118,7 +119,7 @@ export async function POST(request: Request) {
       success: false,
     });
 
-    const defenseReward = calculateDefenseReward(probability);
+    const defenseReward = calculateDefenseReward(probability, pinCost);
     if (defenseReward > 0 && targetPin.user_id !== user.id) {
       await addPoints(
         targetPin.user_id,

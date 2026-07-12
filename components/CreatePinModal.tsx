@@ -70,8 +70,8 @@ export default function CreatePinModal({
         <h2 className="text-xl font-bold text-gray-900">
           현재 위치에 깃발을 꽂을까요?
         </h2>
-        <p className="text-sm text-gray-500 mt-1.5">
-          포인트를 더 쓰면 점령이 더 어려워집니다.
+        <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">
+          투자한 포인트만큼 점령할 때도 포인트가 필요합니다.
         </p>
 
         <p className="text-xs text-gray-500 font-medium mt-4 mb-2">투자 포인트</p>
@@ -104,7 +104,7 @@ export default function CreatePinModal({
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value.slice(0, PIN_TEXT_MAX_LENGTH))}
-          placeholder="여기를 지나갔어요"
+          placeholder="하고 싶은 이야기를 작성해 주세요"
           disabled={busy}
           className="w-full mt-4 p-3.5 bg-gray-50 border border-gray-200 rounded-2xl resize-none h-20 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors disabled:opacity-60"
           maxLength={PIN_TEXT_MAX_LENGTH}

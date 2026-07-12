@@ -6,10 +6,7 @@ import {
   DEFAULT_PIN_COST,
   PIN_TEXT_MAX_LENGTH,
 } from "@/lib/constants";
-import {
-  calculateConquerCost,
-  getEffectiveConquerProbability,
-} from "@/lib/points";
+import { calculateConquerCost } from "@/lib/points";
 import type { ConquerProbability } from "@/lib/constants";
 
 interface ConquerModalProps {
@@ -42,7 +39,6 @@ export default function ConquerModal({
   if (!open) return null;
 
   const busy = loading || submitting;
-  const isHardened = targetPinCost > DEFAULT_PIN_COST;
 
   const handleSubmit = async () => {
     if (busy || !text.trim()) return;
@@ -99,60 +95,40 @@ export default function ConquerModal({
             <p className="text-sm text-gray-500 mt-1.5">
               이미 누군가 점령한 영역이에요. 확률 점령에 도전해보세요.
             </p>
-            {isHardened ? (
-              <p className="text-xs text-amber-600 mt-1 font-medium">
-                상대 깃발 {targetPinCost}P — 투자 포인트만큼 성공 확률이
-                낮아집니다.
-              </p>
-            ) : (
-              <p className="text-xs text-amber-600 mt-1 font-medium">
-                최대 성공 확률은 75%입니다.
-              </p>
-            )}
+            <p className="text-xs text-amber-600 mt-1 font-medium">
+              상대 깃발 {targetPinCost}P — 투자 포인트만큼 점령 비용이
+              늘어납니다. 최대 성공 확률은 75%입니다.
+            </p>
 
             <div className="mt-4 grid grid-cols-2 gap-2">
-              {CONQUER_PROBABILITIES.map((p) => {
-                const effective = Math.round(
-                  getEffectiveConquerProbability(p, targetPinCost) * 10
-                ) / 10;
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setProbability(p)}
-                    disabled={busy}
-                    className={`py-3 rounded-2xl border-2 transition-colors disabled:opacity-50 ${
-                      probability === p
-                        ? "border-red-500 bg-red-50"
-                        : "border-gray-200"
+              {CONQUER_PROBABILITIES.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setProbability(p)}
+                  disabled={busy}
+                  className={`py-3 rounded-2xl border-2 transition-colors disabled:opacity-50 ${
+                    probability === p
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <span
+                    className={`block text-base font-extrabold ${
+                      probability === p ? "text-red-600" : "text-gray-700"
                     }`}
                   >
-                    <span
-                      className={`block text-base font-extrabold ${
-                        probability === p ? "text-red-600" : "text-gray-700"
-                      }`}
-                    >
-                      {isHardened ? `${effective}%` : `${p}%`}
-                    </span>
-                    {isHardened && (
-                      <span
-                        className={`block text-[10px] mt-0.5 line-through ${
-                          probability === p ? "text-red-300" : "text-gray-300"
-                        }`}
-                      >
-                        기본 {p}%
-                      </span>
-                    )}
-                    <span
-                      className={`block text-xs mt-0.5 ${
-                        probability === p ? "text-red-400" : "text-gray-400"
-                      }`}
-                    >
-                      {calculateConquerCost(p)}P
-                    </span>
-                  </button>
-                );
-              })}
+                    {p}%
+                  </span>
+                  <span
+                    className={`block text-xs mt-0.5 ${
+                      probability === p ? "text-red-400" : "text-gray-400"
+                    }`}
+                  >
+                    {calculateConquerCost(p, targetPinCost)}P
+                  </span>
+                </button>
+              ))}
             </div>
 
             <textarea
@@ -190,7 +166,7 @@ export default function ConquerModal({
               >
                 {busy
                   ? "도전 중..."
-                  : `${calculateConquerCost(probability)}P로 도전하기`}
+                  : `${calculateConquerCost(probability, targetPinCost)}P로 도전하기`}
               </button>
             </div>
           </>
