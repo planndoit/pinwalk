@@ -6,11 +6,15 @@ import { toTelHref } from "@/lib/validation/premium";
 interface PremiumPlaceBottomSheetProps {
   place: SerializedPremiumPlace | null;
   onClose: () => void;
+  onIssueCoupons?: () => void;
+  issuing?: boolean;
 }
 
 export default function PremiumPlaceBottomSheet({
   place,
   onClose,
+  onIssueCoupons,
+  issuing = false,
 }: PremiumPlaceBottomSheetProps) {
   if (!place) return null;
 
@@ -30,6 +34,16 @@ export default function PremiumPlaceBottomSheet({
             className="bg-gradient-to-br from-amber-50 to-white border-2 border-amber-300 rounded-2xl shadow-xl p-5"
             onClick={(e) => e.stopPropagation()}
           >
+            {onIssueCoupons && (
+              <button
+                type="button"
+                onClick={onIssueCoupons}
+                disabled={issuing}
+                className="mb-3 w-full rounded-xl bg-violet-600 text-white px-4 py-3 text-sm font-bold shadow-md shadow-violet-600/20 disabled:opacity-50"
+              >
+                {issuing ? "발행 중..." : "쿠폰 발행"}
+              </button>
+            )}
             <div className="flex items-start justify-between gap-3">
               <div>
                 <span className="inline-block px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold mb-2">

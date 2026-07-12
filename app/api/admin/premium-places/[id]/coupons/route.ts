@@ -39,6 +39,7 @@ export async function POST(
       description: validation.data.description,
       benefit: validation.data.benefit,
       is_active: validation.data.isActive,
+      issue_limit: validation.data.issueLimit,
       expires_at: validation.data.expiresAt,
       created_at: now,
       updated_at: now,
@@ -50,5 +51,10 @@ export async function POST(
     return jsonError("쿠폰 생성에 실패했습니다.", 500);
   }
 
-  return NextResponse.json({ coupon: serializePremiumCoupon(data) });
+  return NextResponse.json({
+    coupon: serializePremiumCoupon(data, {
+      registeredCount: 0,
+      usedCount: 0,
+    }),
+  });
 }

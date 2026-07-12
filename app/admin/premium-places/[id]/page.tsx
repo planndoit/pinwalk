@@ -11,6 +11,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminUi";
+import { formatActivityDate } from "@/lib/formatDate";
 
 function SectionTitle({
   title,
@@ -55,6 +56,8 @@ export default function AdminPremiumPlaceDetailPage() {
     description: "",
     benefit: "",
     expiresAt: "",
+    issueLimit: "100",
+    isActive: true,
   });
   const [message, setMessage] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -137,6 +140,11 @@ export default function AdminPremiumPlaceDetailPage() {
   };
 
   const handleCreateCoupon = async () => {
+    const issueLimit = Number(couponForm.issueLimit);
+    if (!Number.isInteger(issueLimit) || issueLimit < 0) {
+      setMessage("발행 개수는 0 이상의 정수로 입력해주세요.");
+      return;
+    }
     const res = await fetch(`/api/admin/premium-places/${id}/coupons`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -145,15 +153,43 @@ export default function AdminPremiumPlaceDetailPage() {
         description: couponForm.description,
         benefit: couponForm.benefit,
         expiresAt: couponForm.expiresAt || null,
+        issueLimit,
+        isActive: couponForm.isActive,
       }),
     });
     const data = await res.json();
     if (res.ok) {
-      setCouponForm({ title: "", description: "", benefit: "", expiresAt: "" });
+      setCouponForm({
+        title: "",
+        description: "",
+        benefit: "",
+        expiresAt: "",
+        issueLimit: "100",
+        isActive: true,
+      });
+      setMessage(null);
       void fetchDetail();
     } else {
       setMessage(data.error);
     }
+  };
+
+  const handleUpdateCoupon = async (
+    couponId: string,
+    patch: { isActive?: boolean; issueLimit?: number }
+  ) => {
+    const res = await fetch(`/api/admin/coupons/${couponId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setMessage(data.error);
+      return;
+    }
+    setMessage(null);
+    void fetchDetail();
   };
 
   if (!loaded) {
@@ -330,24 +366,121 @@ export default function AdminPremiumPlaceDetailPage() {
               }
             />
           </div>
+          <AdminInput
+            label="발행 개수"
+            type="number"
+            min={0}
+            step={1}
+            value={couponForm.issueLimit}
+            onChange={(e) =>
+              setCouponForm({ ...couponForm, issueLimit: e.target.value })
+            }
+          />
+          <label className="flex items-center gap-2 text-sm self-end pb-2">
+            <input
+              type="checkbox"
+              checked={couponForm.isActive}
+              onChange={(e) =>
+                setCouponForm({ ...couponForm, isActive: e.target.checked })
+              }
+            />
+            활성
+          </label>
         </div>
         <AdminButton onClick={handleCreateCoupon}>쿠폰 추가</AdminButton>
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 space-y-3">
           {coupons.map((c) => (
-            <div
+            <CouponListItem
               key={String(c.id)}
-              className="text-sm border border-gray-100 rounded-lg p-3"
-            >
-              <p className="font-medium">{String(c.title)}</p>
-              <p className="text-gray-500">{String(c.benefit)}</p>
-              <p className="text-xs text-gray-400">
-                {c.isActive ? "활성" : "비활성"}
-              </p>
-            </div>
+              coupon={c}
+              onToggleActive={(isActive) =>
+                void handleUpdateCoupon(String(c.id), { isActive })
+              }
+              onSaveIssueLimit={(issueLimit) =>
+                void handleUpdateCoupon(String(c.id), { issueLimit })
+              }
+            />
           ))}
         </div>
       </AdminCard>
       {message && <p className="text-sm text-gray-600 mt-2">{message}</p>}
     </div>
+  );
+}
+
+function CouponListItem({
+  coupon,
+  onToggleActive,
+  onSaveIssueLimit,
+}: {
+  coupon: Record<string, unknown>;
+  onToggleActive: (isActive: boolean) => void;
+  onSaveIssueLimit: (issueLimit: number) => void;
+}) {
+  const [issueLimitDraft, setIssueLimitDraft] = useState(
+    String(coupon.issueLimit ?? 0)
+  );
+
+  useEffect(() => {
+    setIssueLimitDraft(String(coupon.issueLimit ?? 0));
+  }, [coupon.issueLimit]);
+
+  const expiresAt =
+    typeof coupon.expiresAt === "string" && coupon.expiresAt
+      ? formatActivityDate(coupon.expiresAt)
+      : "-";
+
+  return (
+    <div className="text-sm border border-gray-100 rounded-lg p-3 space-y-2">
+      <DetailLine label="제목" value={String(coupon.title ?? "")} />
+      <DetailLine label="설명" value={String(coupon.description ?? "")} />
+      <DetailLine label="혜택" value={String(coupon.benefit ?? "")} />
+      <DetailLine label="만료일" value={expiresAt} />
+      <DetailLine
+        label="등록 / 사용"
+        value={`${Number(coupon.registeredCount ?? 0)} / ${Number(coupon.usedCount ?? 0)}`}
+      />
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-[8rem] flex-1">
+          <AdminInput
+            label="발행 개수"
+            type="number"
+            min={0}
+            step={1}
+            value={issueLimitDraft}
+            onChange={(e) => setIssueLimitDraft(e.target.value)}
+          />
+        </div>
+        <AdminButton
+          onClick={() => {
+            const next = Number(issueLimitDraft);
+            if (!Number.isInteger(next) || next < 0) {
+              window.alert("발행 개수는 0 이상의 정수로 입력해주세요.");
+              return;
+            }
+            onSaveIssueLimit(next);
+          }}
+        >
+          발행 개수 저장
+        </AdminButton>
+      </div>
+      <label className="flex items-center gap-2 text-sm pt-1">
+        <input
+          type="checkbox"
+          checked={coupon.isActive === true}
+          onChange={(e) => onToggleActive(e.target.checked)}
+        />
+        활성
+      </label>
+    </div>
+  );
+}
+
+function DetailLine({ label, value }: { label: string; value: string }) {
+  return (
+    <p>
+      <span className="text-gray-500">{label}: </span>
+      <span className="text-gray-900 whitespace-pre-line">{value || "-"}</span>
+    </p>
   );
 }

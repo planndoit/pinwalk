@@ -7,7 +7,7 @@ export interface PromotionRequestInput {
   contactEmail: string | null;
   contactName: string | null;
   address: string;
-  placePhone: string;
+  placePhone: string | null;
   lat: number | null;
   lng: number | null;
   promoText: string;
@@ -39,8 +39,9 @@ export function validatePromotionRequestInput(
   if (!address?.trim() || address.trim().length > 200) {
     return { valid: false, error: "도로명 주소를 200자 이내로 입력해주세요." };
   }
-  if (!placePhone?.trim() || placePhone.trim().length > 30) {
-    return { valid: false, error: "장소 전화번호를 30자 이내로 입력해주세요." };
+  const trimmedPlacePhone = placePhone?.trim() || "";
+  if (trimmedPlacePhone.length > 30) {
+    return { valid: false, error: "장소 전화번호는 30자 이내로 입력해주세요." };
   }
   if (!promoText?.trim() || promoText.trim().length > 500) {
     return { valid: false, error: "홍보 문구를 500자 이내로 입력해주세요." };
@@ -75,7 +76,7 @@ export function validatePromotionRequestInput(
       contactEmail: trimmedEmail || null,
       contactName: trimmedName || null,
       address: address.trim(),
-      placePhone: placePhone.trim(),
+      placePhone: trimmedPlacePhone || null,
       lat: hasLat ? (lat as number) : null,
       lng: hasLng ? (lng as number) : null,
       promoText: promoText.trim(),
@@ -127,6 +128,7 @@ export function validateCouponInput(body: {
   benefit?: string;
   isActive?: boolean;
   expiresAt?: string | null;
+  issueLimit?: number;
 }):
   | {
       valid: true;
@@ -136,6 +138,7 @@ export function validateCouponInput(body: {
         benefit: string;
         isActive: boolean;
         expiresAt: string | null;
+        issueLimit: number;
       };
     }
   | { valid: false; error: string } {
@@ -145,6 +148,20 @@ export function validateCouponInput(body: {
   }
   if (!body.benefit?.trim()) return { valid: false, error: "쿠폰 혜택을 입력해주세요." };
 
+  const issueLimit = Number(body.issueLimit);
+  if (!Number.isInteger(issueLimit) || issueLimit < 0) {
+    return { valid: false, error: "발행 개수는 0 이상의 정수로 입력해주세요." };
+  }
+
+  let expiresAt: string | null = null;
+  if (body.expiresAt != null && String(body.expiresAt).trim()) {
+    const parsed = new Date(body.expiresAt);
+    if (Number.isNaN(parsed.getTime())) {
+      return { valid: false, error: "만료일이 올바르지 않습니다." };
+    }
+    expiresAt = parsed.toISOString();
+  }
+
   return {
     valid: true,
     data: {
@@ -152,7 +169,8 @@ export function validateCouponInput(body: {
       description: body.description.trim(),
       benefit: body.benefit.trim(),
       isActive: body.isActive !== false,
-      expiresAt: body.expiresAt ?? null,
+      expiresAt,
+      issueLimit,
     },
   };
 }

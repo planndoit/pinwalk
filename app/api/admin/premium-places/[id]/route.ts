@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api/auth";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCouponRegistrationCounts } from "@/lib/premium/coupons";
 import {
   serializePremiumCoupon,
   serializePremiumPlace,
@@ -33,6 +34,9 @@ export async function GET(
     .eq("premium_place_id", id)
     .order("created_at", { ascending: false });
 
+  const couponRows = coupons ?? [];
+  const counts = await getCouponRegistrationCounts(couponRows.map((c) => c.id));
+
   let linkedRequest = null;
   if (place.promotion_request_id) {
     const { data } = await admin
@@ -45,7 +49,9 @@ export async function GET(
 
   return NextResponse.json({
     place: serializePremiumPlace(place),
-    coupons: (coupons ?? []).map(serializePremiumCoupon),
+    coupons: couponRows.map((coupon) =>
+      serializePremiumCoupon(coupon, counts.get(coupon.id))
+    ),
     linkedRequest,
   });
 }

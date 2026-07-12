@@ -208,7 +208,6 @@ export default function AdminPremiumPlaceNewPage() {
               onChange={(e) =>
                 setForm({ ...form, placePhone: e.target.value })
               }
-              required
             />
             <div className="sm:col-span-2">
               <AdminInput

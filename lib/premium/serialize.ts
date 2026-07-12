@@ -58,7 +58,10 @@ export function serializePromotionRequest(
   };
 }
 
-export function serializePremiumCoupon(row: PremiumCoupon) {
+export function serializePremiumCoupon(
+  row: PremiumCoupon,
+  counts?: { registeredCount?: number; usedCount?: number }
+) {
   return {
     id: row.id,
     premiumPlaceId: row.premium_place_id,
@@ -66,7 +69,10 @@ export function serializePremiumCoupon(row: PremiumCoupon) {
     description: row.description,
     benefit: row.benefit,
     isActive: row.is_active,
+    issueLimit: row.issue_limit,
     expiresAt: row.expires_at,
+    registeredCount: counts?.registeredCount ?? 0,
+    usedCount: counts?.usedCount ?? 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

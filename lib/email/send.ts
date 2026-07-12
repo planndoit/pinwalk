@@ -48,7 +48,7 @@ export function buildPromotionRequestEmailHtml(data: {
   contactName: string | null;
   contactPhone: string;
   contactEmail: string | null;
-  placePhone: string;
+  placePhone: string | null;
   promoText: string;
   promoLink: string | null;
   address: string;
@@ -69,7 +69,7 @@ export function buildPromotionRequestEmailHtml(data: {
       <li><strong>담당자:</strong> ${escapeHtml(data.contactName ?? "-")}</li>
       <li><strong>담당자 연락처:</strong> ${escapeHtml(data.contactPhone)}</li>
       <li><strong>이메일:</strong> ${escapeHtml(data.contactEmail ?? "-")}</li>
-      <li><strong>장소 전화번호:</strong> ${escapeHtml(data.placePhone)}</li>
+      <li><strong>장소 전화번호:</strong> ${escapeHtml(data.placePhone ?? "-")}</li>
       <li><strong>도로명 주소:</strong> ${escapeHtml(data.address)}</li>
       <li><strong>홍보 문구:</strong> ${escapeHtml(data.promoText)}</li>
       <li><strong>홍보 링크:</strong> ${data.promoLink ? escapeHtml(data.promoLink) : "-"}</li>

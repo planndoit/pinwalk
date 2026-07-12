@@ -44,7 +44,6 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [randomPoints, setRandomPoints] = useState<RandomPoint[]>([]);
   const [premiumPlaces, setPremiumPlaces] = useState<SerializedPremiumPlace[]>([]);
   const [couponSpawns, setCouponSpawns] = useState<SerializedCouponSpawn[]>([]);
-  const [inPremiumZone, setInPremiumZone] = useState(false);
   const [selectedPremiumPlace, setSelectedPremiumPlace] =
     useState<SerializedPremiumPlace | null>(null);
   const [selectedCouponSpawn, setSelectedCouponSpawn] =
@@ -106,7 +105,6 @@ export default function HomePage({ active = true }: HomePageProps) {
     async (lat: number, lng: number) => {
       if (!user) {
         setCouponSpawns([]);
-        setInPremiumZone(false);
         return;
       }
 
@@ -119,7 +117,6 @@ export default function HomePage({ active = true }: HomePageProps) {
       if (res.ok) {
         const data = await res.json();
         setCouponSpawns(data.spawns ?? []);
-        setInPremiumZone(data.inPremiumZone === true);
       }
     },
     [user]
@@ -529,6 +526,7 @@ export default function HomePage({ active = true }: HomePageProps) {
 
       if (!res.ok) {
         showToast(data.error);
+        await syncCouponSpawns(position.lat, position.lng);
         return;
       }
 
@@ -538,6 +536,45 @@ export default function HomePage({ active = true }: HomePageProps) {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleIssueCoupons = () => {
+    requireAuth(() => {
+      void (async () => {
+        if (!selectedPremiumPlace) return;
+
+        let coords = position;
+        if (!coords) {
+          coords = await getCurrentPosition();
+        }
+        if (!coords) return;
+
+        setActionLoading(true);
+        try {
+          const res = await fetch("/api/premium-coupon-spawns/issue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              premium_place_id: selectedPremiumPlace.id,
+              current_lat: coords.lat,
+              current_lng: coords.lng,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            window.alert(data.error ?? "쿠폰 발행에 실패했습니다.");
+            return;
+          }
+
+          setCouponSpawns(data.spawns ?? []);
+          if (data.message) {
+            window.alert(data.message);
+          }
+        } finally {
+          setActionLoading(false);
+        }
+      })();
+    });
   };
 
   const randomPointDistance = selectedRandomPoint && position
@@ -615,16 +652,6 @@ export default function HomePage({ active = true }: HomePageProps) {
         />
       )}
 
-      {inPremiumZone && user && (
-        <div className="fixed bottom-[calc(11.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 pointer-events-none">
-          <div className="max-w-lg mx-auto px-4">
-            <p className="text-center text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-200 rounded-full py-2 px-4 shadow-sm">
-              프리미엄 쿠폰을 획득할 수 있는 영역입니다
-            </p>
-          </div>
-        </div>
-      )}
-
       <CreatePinModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -659,6 +686,8 @@ export default function HomePage({ active = true }: HomePageProps) {
       <PremiumPlaceBottomSheet
         place={selectedPremiumPlace}
         onClose={() => setSelectedPremiumPlace(null)}
+        onIssueCoupons={handleIssueCoupons}
+        issuing={actionLoading}
       />
 
       <PremiumCouponBottomSheet

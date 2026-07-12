@@ -70,6 +70,7 @@ export interface PremiumCoupon {
   description: string;
   benefit: string;
   is_active: boolean;
+  issue_limit: number;
   expires_at: string | null;
   created_at: string;
   updated_at: string;

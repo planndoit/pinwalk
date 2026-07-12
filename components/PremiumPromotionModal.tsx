@@ -214,14 +214,13 @@ export default function PremiumPromotionModal({
             </label>
 
             <label className="block text-sm">
-              <FieldLabel>전화번호</FieldLabel>
+              <FieldLabel optional>전화번호</FieldLabel>
               <input
                 className={inputClassName}
                 value={form.placePhone}
                 onChange={(e) =>
                   setForm({ ...form, placePhone: e.target.value })
                 }
-                required
                 placeholder="02-1234-5678"
                 inputMode="tel"
               />

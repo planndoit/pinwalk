@@ -3,6 +3,7 @@ import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPremiumCouponClaimRadiusMeters } from "@/lib/env";
 import { getDistanceMeters } from "@/lib/geo";
+import { countCouponRegistrations } from "@/lib/premium/coupons";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -67,12 +68,33 @@ export async function POST(request: Request) {
     .eq("id", spawn.coupon_id)
     .single();
 
-  if (!coupon || !coupon.is_active) {
+  if (!coupon) {
     return jsonError("유효하지 않은 쿠폰입니다.");
   }
 
+  if (!coupon.is_active) {
+    await admin
+      .from("premium_coupon_spawns")
+      .update({ status: "expired" })
+      .eq("id", spawn_id);
+    return jsonError("비활성화된 쿠폰입니다.");
+  }
+
   if (coupon.expires_at && new Date(coupon.expires_at) <= new Date()) {
+    await admin
+      .from("premium_coupon_spawns")
+      .update({ status: "expired" })
+      .eq("id", spawn_id);
     return jsonError("만료된 쿠폰입니다.");
+  }
+
+  const registeredCount = await countCouponRegistrations(spawn.coupon_id);
+  if (registeredCount >= coupon.issue_limit) {
+    await admin
+      .from("premium_coupon_spawns")
+      .update({ status: "expired" })
+      .eq("id", spawn_id);
+    return jsonError("준비된 쿠폰이 모두 소진되었습니다.");
   }
 
   const { data: existing } = await admin
