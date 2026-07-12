@@ -119,7 +119,6 @@ export default function AdminPromotionRequestDetailPage() {
         <DetailRow label="연락처">{displayText(request.contactPhone)}</DetailRow>
         <DetailRow label="이메일">{displayText(request.contactEmail)}</DetailRow>
         <DetailRow label="도로명 주소">{displayText(request.address)}</DetailRow>
-        <DetailRow label="혜택">{displayText(request.benefit)}</DetailRow>
         <DetailRow label="홍보 문구">{displayText(request.promoText)}</DetailRow>
         <DetailRow label="홍보 링크">{displayText(request.promoLink)}</DetailRow>
         <DetailRow label="위치">

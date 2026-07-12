@@ -9,7 +9,6 @@ export interface PromotionRequestInput {
   address: string;
   lat: number | null;
   lng: number | null;
-  benefit: string;
   promoText: string;
   promoLink?: string | null;
 }
@@ -26,7 +25,6 @@ export function validatePromotionRequestInput(
     address,
     lat,
     lng,
-    benefit,
     promoText,
     promoLink,
   } = body;
@@ -38,9 +36,6 @@ export function validatePromotionRequestInput(
   if (!contactPhone?.trim()) return { valid: false, error: "연락처를 입력해주세요." };
   if (!address?.trim() || address.trim().length > 200) {
     return { valid: false, error: "도로명 주소를 200자 이내로 입력해주세요." };
-  }
-  if (!benefit?.trim() || benefit.trim().length > 200) {
-    return { valid: false, error: "혜택을 200자 이내로 입력해주세요." };
   }
   if (!promoText?.trim() || promoText.trim().length > 500) {
     return { valid: false, error: "홍보 문구를 500자 이내로 입력해주세요." };
@@ -77,7 +72,6 @@ export function validatePromotionRequestInput(
       address: address.trim(),
       lat: hasLat ? (lat as number) : null,
       lng: hasLng ? (lng as number) : null,
-      benefit: benefit.trim(),
       promoText: promoText.trim(),
       promoLink: promoLink?.trim() || null,
     },

@@ -28,7 +28,6 @@ export default function AdminPremiumPlaceNewPage() {
     address: "",
     lat: null as number | null,
     lng: null as number | null,
-    benefit: "",
     promoText: "",
     promoLink: "",
     isActive: false,
@@ -69,7 +68,6 @@ export default function AdminPremiumPlaceNewPage() {
             address: r.address ?? "",
             lat: lat != null && Number.isFinite(lat) ? lat : null,
             lng: lng != null && Number.isFinite(lng) ? lng : null,
-            benefit: r.benefit ?? "",
             promoText: r.promoText ?? "",
             promoLink: r.promoLink ?? "",
             isActive: false,
@@ -101,7 +99,6 @@ export default function AdminPremiumPlaceNewPage() {
         address: form.address || null,
         lat: form.lat,
         lng: form.lng,
-        benefit: form.benefit,
         promoText: form.promoText,
         promoLink: form.promoLink || null,
         isActive: form.isActive,
@@ -171,14 +168,6 @@ export default function AdminPremiumPlaceNewPage() {
               pickable
               onPick={handlePick}
               height={360}
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <AdminTextarea
-              label="혜택"
-              rows={2}
-              value={form.benefit}
-              onChange={(e) => setForm({ ...form, benefit: e.target.value })}
             />
           </div>
           <div className="sm:col-span-2">

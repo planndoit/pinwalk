@@ -3,16 +3,19 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getNaverMapScriptUrl } from "@/lib/naverMap";
 import {
+  clusterItemsByGrid,
   clusterPinsByGrid,
+  countNearbyPoints,
   countNearbyPins,
   expandClusterBounds,
-  getClusterBounds,
   getClusterFocusZoom,
   getClusterGridSizePx,
+  getItemsClusterBounds,
   PIN_RADIUS_CIRCLE_ZOOM,
   PIN_TEXT_VISIBLE_ZOOM,
   SPARSE_NEARBY_RADIUS_PX,
   shouldShowPinText,
+  type LatLngPoint,
   type PinCluster,
 } from "@/lib/pinClustering";
 import type { Pin } from "@/types/pin";
@@ -150,6 +153,30 @@ function createPremiumPlaceMarkerContent(storeName: string): string {
   `;
 }
 
+function createPremiumPlaceIconContent(): string {
+  return `
+    <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+      <div style="
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 14px;
+        box-shadow: 0 3px 10px rgba(245,158,11,0.45);
+        border: 2px solid #fff7ed;
+      ">👑</div>
+      <div style="
+        width: 0; height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 7px solid #d97706;
+        margin-top: -1px;
+      "></div>
+    </div>
+  `;
+}
+
 function createCouponSpawnMarkerContent(title: string): string {
   const display = title.length > 6 ? title.slice(0, 6) + "…" : title;
   return `
@@ -216,18 +243,18 @@ const MAP_FIT_PADDING = {
 function focusClusterOnMap(
   map: InstanceType<typeof naver.maps.Map>,
   naverObj: typeof naver,
-  cluster: PinCluster
+  items: LatLngPoint[],
+  count: number
 ) {
-  const bounds = expandClusterBounds(getClusterBounds(cluster));
+  const bounds = expandClusterBounds(getItemsClusterBounds(items));
   const sw = new naverObj.maps.LatLng(bounds.minLat, bounds.minLng);
   const ne = new naverObj.maps.LatLng(bounds.maxLat, bounds.maxLng);
   const latLngBounds = new naverObj.maps.LatLngBounds(sw, ne);
   const center = latLngBounds.getCenter();
-  const targetZoom = getClusterFocusZoom(map.getZoom(), cluster);
+  const targetZoom = getClusterFocusZoom(map.getZoom(), count);
   const latSpan = bounds.maxLat - bounds.minLat;
   const lngSpan = bounds.maxLng - bounds.minLng;
-  const isWideArea =
-    cluster.count > 12 || latSpan > 0.02 || lngSpan > 0.02;
+  const isWideArea = count > 12 || latSpan > 0.02 || lngSpan > 0.02;
 
   const ensureTextVisibleZoom = () => {
     if (map.getZoom() >= PIN_TEXT_VISIBLE_ZOOM) {
@@ -329,13 +356,16 @@ export default function MapView({
   const pinListenersRef = useRef<unknown[]>([]);
   const randomMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
   const premiumMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
+  const premiumListenersRef = useRef<unknown[]>([]);
   const couponMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
   const pickMarkerRef = useRef<InstanceType<typeof naver.maps.Marker> | null>(null);
   const mapClickListenerRef = useRef<unknown>(null);
   const onMapClickRef = useRef(onMapClick);
   const pinsRef = useRef(pins);
+  const premiumPlacesRef = useRef(premiumPlaces);
   const currentUserIdRef = useRef(currentUserId);
   const onPinClickRef = useRef(onPinClick);
+  const onPremiumPlaceClickRef = useRef(onPremiumPlaceClick);
   const renderRafRef = useRef<number | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -347,9 +377,11 @@ export default function MapView({
 
   useEffect(() => {
     pinsRef.current = pins;
+    premiumPlacesRef.current = premiumPlaces;
     currentUserIdRef.current = currentUserId;
     onPinClickRef.current = onPinClick;
-  }, [pins, currentUserId, onPinClick]);
+    onPremiumPlaceClickRef.current = onPremiumPlaceClick;
+  }, [pins, premiumPlaces, currentUserId, onPinClick, onPremiumPlaceClick]);
 
   const clearPinOverlays = useCallback(() => {
     pinMarkersRef.current.forEach((marker) => marker.setMap(null));
@@ -420,7 +452,7 @@ export default function MapView({
         });
 
         const listener = naverObj.maps.Event.addListener(marker, "click", () => {
-          focusClusterOnMap(map, naverObj, cluster);
+          focusClusterOnMap(map, naverObj, cluster.pins, cluster.count);
         });
         pinListenersRef.current.push(listener);
         pinMarkersRef.current.push(marker);
@@ -440,7 +472,7 @@ export default function MapView({
         createLatLng,
         SPARSE_NEARBY_RADIUS_PX
       );
-      const showText = shouldShowPinText(zoom, cluster, nearbyCount);
+      const showText = shouldShowPinText(zoom, cluster.count, nearbyCount);
 
       if (showRadiusCircle) {
         const circle = new naverObj.maps.Circle({
@@ -476,13 +508,100 @@ export default function MapView({
     });
   }, [mapReady, buildClusters, clearPinOverlays]);
 
+  const clearPremiumOverlays = useCallback(() => {
+    premiumMarkersRef.current.forEach((marker) => marker.setMap(null));
+    premiumMarkersRef.current = [];
+    premiumListenersRef.current.forEach((listener) => {
+      naver.maps.Event.removeListener(listener);
+    });
+    premiumListenersRef.current = [];
+  }, []);
+
+  const renderPremiumOverlays = useCallback(() => {
+    const naverObj = (window as Window & { naver?: typeof naver }).naver;
+    const map = mapInstanceRef.current;
+    if (!mapReady || !map || !naverObj?.maps) return;
+
+    clearPremiumOverlays();
+
+    const zoom = map.getZoom();
+    const gridSizePx = getClusterGridSizePx(zoom);
+    const places = premiumPlacesRef.current;
+    const projection = map.getProjection();
+    const createLatLng = (lat: number, lng: number) =>
+      new naverObj.maps.LatLng(lat, lng);
+
+    const clusters =
+      gridSizePx === null
+        ? places.map((place) => ({
+            lat: place.lat,
+            lng: place.lng,
+            items: [place],
+            count: 1,
+          }))
+        : clusterItemsByGrid(places, projection, createLatLng, gridSizePx);
+
+    clusters.forEach((cluster) => {
+      const pos = new naverObj.maps.LatLng(cluster.lat, cluster.lng);
+
+      if (cluster.count > 1) {
+        const marker = new naverObj.maps.Marker({
+          position: pos,
+          map,
+          zIndex: 240,
+          icon: {
+            content: createClusterMarkerContent(cluster.count),
+            anchor: new naverObj.maps.Point(0, 0),
+          },
+        });
+
+        const listener = naverObj.maps.Event.addListener(marker, "click", () => {
+          focusClusterOnMap(map, naverObj, cluster.items, cluster.count);
+        });
+        premiumListenersRef.current.push(listener);
+        premiumMarkersRef.current.push(marker);
+        return;
+      }
+
+      const place = cluster.items[0];
+      const nearbyCount = countNearbyPoints(
+        place,
+        places,
+        projection,
+        createLatLng,
+        SPARSE_NEARBY_RADIUS_PX
+      );
+      const showText = shouldShowPinText(zoom, cluster.count, nearbyCount);
+      const placePos = new naverObj.maps.LatLng(place.lat, place.lng);
+
+      const marker = new naverObj.maps.Marker({
+        position: placePos,
+        map,
+        zIndex: 250,
+        icon: {
+          content: showText
+            ? createPremiumPlaceMarkerContent(place.storeName)
+            : createPremiumPlaceIconContent(),
+          anchor: new naverObj.maps.Point(0, 0),
+        },
+      });
+
+      const listener = naverObj.maps.Event.addListener(marker, "click", () =>
+        onPremiumPlaceClickRef.current(place)
+      );
+      premiumListenersRef.current.push(listener);
+      premiumMarkersRef.current.push(marker);
+    });
+  }, [mapReady, clearPremiumOverlays]);
+
   const schedulePinRender = useCallback(() => {
     if (renderRafRef.current !== null) return;
     renderRafRef.current = window.requestAnimationFrame(() => {
       renderRafRef.current = null;
       renderPinOverlays();
+      renderPremiumOverlays();
     });
-  }, [renderPinOverlays]);
+  }, [renderPinOverlays, renderPremiumOverlays]);
 
   // 네이버 지도 인증 실패 공식 훅. maps.js 실행 전에 등록되어야 한다.
   useEffect(() => {
@@ -628,6 +747,10 @@ export default function MapView({
   }, [pins, renderPinOverlays]);
 
   useEffect(() => {
+    renderPremiumOverlays();
+  }, [premiumPlaces, renderPremiumOverlays]);
+
+  useEffect(() => {
     const naverObj = (window as Window & { naver?: typeof naver }).naver;
     const map = mapInstanceRef.current;
     if (!mapReady || !map || !naverObj?.maps) return;
@@ -678,33 +801,6 @@ export default function MapView({
       randomMarkersRef.current.push(marker);
     });
   }, [mapReady, randomPoints, onRandomPointClick]);
-
-  // 프리미엄 장소 마커
-  useEffect(() => {
-    const naverObj = (window as Window & { naver?: typeof naver }).naver;
-    const map = mapInstanceRef.current;
-    if (!mapReady || !map || !naverObj?.maps) return;
-
-    premiumMarkersRef.current.forEach((m) => m.setMap(null));
-    premiumMarkersRef.current = [];
-
-    premiumPlaces.forEach((place) => {
-      const marker = new naverObj.maps.Marker({
-        position: new naverObj.maps.LatLng(place.lat, place.lng),
-        map,
-        zIndex: 250,
-        icon: {
-          content: createPremiumPlaceMarkerContent(place.storeName),
-          anchor: new naverObj.maps.Point(0, 0),
-        },
-      });
-
-      naverObj.maps.Event.addListener(marker, "click", () =>
-        onPremiumPlaceClick(place)
-      );
-      premiumMarkersRef.current.push(marker);
-    });
-  }, [mapReady, premiumPlaces, onPremiumPlaceClick]);
 
   // 프리미엄 쿠폰 스폰 마커
   useEffect(() => {

@@ -5,7 +5,6 @@ export interface SerializedPremiumPlace {
   storeName: string;
   lat: number;
   lng: number;
-  benefit: string;
   promoText: string;
   promoLink: string | null;
   isActive: boolean;

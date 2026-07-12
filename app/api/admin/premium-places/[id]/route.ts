@@ -72,7 +72,6 @@ export async function PATCH(
     ["address", "address"],
     ["lat", "lat"],
     ["lng", "lng"],
-    ["benefit", "benefit"],
     ["promoText", "promo_text"],
     ["promoLink", "promo_link"],
     ["isActive", "is_active"],

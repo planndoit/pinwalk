@@ -21,7 +21,6 @@ type FormFieldKey =
   | "contactEmail"
   | "contactName"
   | "address"
-  | "benefit"
   | "promoText"
   | "promoLink";
 
@@ -41,7 +40,6 @@ const FORM_FIELDS: {
     required: true,
     placeholder: "예: 서울특별시 강남구 테헤란로 123",
   },
-  { key: "benefit", label: "혜택", required: true },
   { key: "promoText", label: "홍보 문구", required: true },
   { key: "promoLink", label: "홍보 링크", required: false },
 ];
@@ -63,7 +61,6 @@ export default function PremiumPromotionModal({
     contactEmail: "",
     contactName: "",
     address: "",
-    benefit: "",
     promoText: "",
     promoLink: "",
   });
@@ -101,7 +98,6 @@ export default function PremiumPromotionModal({
         address: form.address,
         lat: selectedLocation?.lat ?? null,
         lng: selectedLocation?.lng ?? null,
-        benefit: form.benefit,
         promoText: form.promoText,
         promoLink: form.promoLink || null,
       }),
