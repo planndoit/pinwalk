@@ -85,6 +85,14 @@ export function serializeUserCoupon(
     coupon_benefit?: string;
     store_name?: string;
     category_code?: string;
+    category_name?: string | null;
+    place_address?: string | null;
+    place_phone?: string | null;
+    place_promo_text?: string | null;
+    place_promo_link?: string | null;
+    place_lat?: number | null;
+    place_lng?: number | null;
+    place_is_active?: boolean;
   }
 ) {
   return {
@@ -99,6 +107,14 @@ export function serializeUserCoupon(
     benefit: row.coupon_benefit ?? row.coupon?.benefit ?? "",
     storeName: row.store_name ?? row.place?.store_name ?? "",
     categoryCode: row.category_code ?? row.place?.category_code ?? "",
+    categoryName: row.category_name ?? null,
+    placeAddress: row.place_address ?? null,
+    placePhone: row.place_phone ?? null,
+    placePromoText: row.place_promo_text ?? null,
+    placePromoLink: row.place_promo_link ?? null,
+    placeLat: row.place_lat ?? null,
+    placeLng: row.place_lng ?? null,
+    placeIsActive: row.place_is_active === true,
   };
 }
 

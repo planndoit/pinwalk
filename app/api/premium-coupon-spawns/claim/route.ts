@@ -72,6 +72,20 @@ export async function POST(request: Request) {
     return jsonError("유효하지 않은 쿠폰입니다.");
   }
 
+  const { data: place } = await admin
+    .from("premium_places")
+    .select("is_active")
+    .eq("id", spawn.premium_place_id)
+    .maybeSingle();
+
+  if (!place?.is_active) {
+    await admin
+      .from("premium_coupon_spawns")
+      .update({ status: "expired" })
+      .eq("id", spawn_id);
+    return jsonError("비활성화된 장소의 쿠폰입니다.");
+  }
+
   if (!coupon.is_active) {
     await admin
       .from("premium_coupon_spawns")

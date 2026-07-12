@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { formatActivityDate } from "@/lib/formatDate";
+import { saveFocusPremiumPlace } from "@/lib/premium/focusPlace";
 import type { SerializedUserCoupon } from "@/types/premiumClient";
 
 export default function CouponsPage() {
@@ -48,6 +49,33 @@ export default function CouponsPage() {
     setSelected(null);
     setLoading(false);
     if (res.ok) void fetchCoupons();
+  };
+
+  const handleViewPlace = () => {
+    if (!selected) return;
+    if (
+      typeof selected.placeLat !== "number" ||
+      typeof selected.placeLng !== "number"
+    ) {
+      window.alert("장소 위치 정보가 없습니다.");
+      return;
+    }
+
+    saveFocusPremiumPlace({
+      id: selected.premiumPlaceId,
+      categoryCode: selected.categoryCode,
+      categoryName: selected.categoryName ?? selected.categoryCode,
+      storeName: selected.storeName,
+      placePhone: selected.placePhone,
+      lat: selected.placeLat,
+      lng: selected.placeLng,
+      promoText: selected.placePromoText ?? "",
+      promoLink: selected.placePromoLink,
+      isActive: selected.placeIsActive,
+    });
+    setSelected(null);
+    setConfirmUse(false);
+    router.push("/");
   };
 
   if (!user) return null;
@@ -108,17 +136,48 @@ export default function CouponsPage() {
 
       {selected && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl p-5">
+          <div className="w-full max-w-lg bg-white rounded-2xl p-5 max-h-[85dvh] overflow-y-auto">
             <h3 className="text-lg font-bold">{selected.title}</h3>
-            <p className="text-sm text-gray-500 mt-1">{selected.storeName}</p>
             <p className="text-sm text-gray-700 mt-3">{selected.description}</p>
             <p className="text-sm font-semibold text-violet-700 mt-2">{selected.benefit}</p>
+
+            <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-3 space-y-1.5">
+              <p className="text-xs font-bold text-amber-800">프리미엄 장소</p>
+              <p className="text-sm font-semibold text-gray-900">{selected.storeName}</p>
+              <p className="text-xs text-amber-700">
+                {selected.categoryName ?? selected.categoryCode}
+              </p>
+              {selected.placeAddress && (
+                <p className="text-xs text-gray-600">{selected.placeAddress}</p>
+              )}
+              {selected.placePhone && (
+                <p className="text-xs text-gray-600 tabular-nums">{selected.placePhone}</p>
+              )}
+              {selected.placePromoText && (
+                <p className="text-xs text-gray-600 whitespace-pre-line line-clamp-3">
+                  {selected.placePromoText}
+                </p>
+              )}
+              {!selected.placeIsActive && (
+                <p className="text-xs text-red-600 font-medium">
+                  현재 지도에 비활성 상태입니다.
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleViewPlace}
+              className="w-full mt-4 py-3 rounded-xl bg-amber-500 text-white font-bold"
+            >
+              프리미엄 장소 보기
+            </button>
 
             {selected.status === "available" && !confirmUse && (
               <button
                 type="button"
                 onClick={() => setConfirmUse(true)}
-                className="w-full mt-5 py-3 rounded-xl bg-violet-600 text-white font-bold"
+                className="w-full mt-3 py-3 rounded-xl bg-violet-600 text-white font-bold"
               >
                 사용하기
               </button>

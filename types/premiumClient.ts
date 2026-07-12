@@ -35,4 +35,12 @@ export interface SerializedUserCoupon {
   benefit: string;
   storeName: string;
   categoryCode: string;
+  categoryName: string | null;
+  placeAddress: string | null;
+  placePhone: string | null;
+  placePromoText: string | null;
+  placePromoLink: string | null;
+  placeLat: number | null;
+  placeLng: number | null;
+  placeIsActive: boolean;
 }

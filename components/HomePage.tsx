@@ -19,6 +19,7 @@ import CelebrationOverlay, {
 } from "@/components/CelebrationOverlay";
 import { getDistanceMeters } from "@/lib/geo";
 import { PIN_RADIUS_METERS } from "@/lib/constants";
+import { consumeFocusPremiumPlace } from "@/lib/premium/focusPlace";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
 import type {
@@ -229,6 +230,28 @@ export default function HomePage({ active = true }: HomePageProps) {
 
     return () => navigator.geolocation.clearWatch(watchId);
   }, [active, user, syncCouponSpawns]);
+
+  useEffect(() => {
+    if (!active) return;
+
+    const focused = consumeFocusPremiumPlace();
+    if (!focused) return;
+
+    setSelectedPin(null);
+    setSelectedRandomPoint(null);
+    setSelectedCouponSpawn(null);
+    setSelectedPremiumPlace(focused);
+    recenterNonceRef.current += 1;
+    setRecenterRequest({
+      lat: focused.lat,
+      lng: focused.lng,
+      nonce: recenterNonceRef.current,
+    });
+
+    if (!focused.isActive) {
+      showToast("비활성 장소입니다. 정보는 확인할 수 있어요.");
+    }
+  }, [active, showToast]);
 
   useEffect(() => {
     if (authLoading) return;

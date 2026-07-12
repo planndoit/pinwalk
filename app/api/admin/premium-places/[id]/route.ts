@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api/auth";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCouponRegistrationCounts } from "@/lib/premium/coupons";
+import { getCouponRegistrationCounts, expireActiveSpawnsForPlace } from "@/lib/premium/coupons";
 import {
   serializePremiumCoupon,
   serializePremiumPlace,
@@ -68,6 +68,16 @@ export async function PATCH(
   const admin = createAdminClient();
   const now = new Date().toISOString();
 
+  const { data: existing } = await admin
+    .from("premium_places")
+    .select("is_active")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!existing) {
+    return jsonError("프리미엄 장소를 찾을 수 없습니다.", 404);
+  }
+
   const updates: Record<string, unknown> = { updated_at: now };
   const fields = [
     ["categoryCode", "category_code"],
@@ -100,6 +110,12 @@ export async function PATCH(
 
   if (error || !data) {
     return jsonError("프리미엄 장소 수정에 실패했습니다.", 500);
+  }
+
+  const wasActive = existing.is_active === true;
+  const nextActive = data.is_active === true;
+  if (wasActive && !nextActive) {
+    await expireActiveSpawnsForPlace(id);
   }
 
   return NextResponse.json({ place: serializePremiumPlace(data) });

@@ -34,7 +34,9 @@ export async function POST(request: Request) {
 
   const { data: activeSpawns } = await admin
     .from("premium_coupon_spawns")
-    .select("*, premium_coupons(title, is_active), premium_places(store_name, lat, lng)")
+    .select(
+      "*, premium_coupons(title, is_active), premium_places(store_name, lat, lng, is_active)"
+    )
     .eq("user_id", user.id)
     .eq("status", "active")
     .gt("expires_at", nowIso);
@@ -48,19 +50,20 @@ export async function POST(request: Request) {
       is_active?: boolean;
     } | null;
 
-    if (!coupon?.is_active) {
+    const place = spawn.premium_places as {
+      store_name?: string;
+      lat?: number;
+      lng?: number;
+      is_active?: boolean;
+    } | null;
+
+    if (!coupon?.is_active || !place?.is_active) {
       await admin
         .from("premium_coupon_spawns")
         .update({ status: "expired" })
         .eq("id", spawn.id);
       continue;
     }
-
-    const place = spawn.premium_places as {
-      store_name?: string;
-      lat?: number;
-      lng?: number;
-    } | null;
 
     const offset =
       place &&

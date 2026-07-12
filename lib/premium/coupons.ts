@@ -44,3 +44,12 @@ export async function expireActiveSpawnsForCoupon(couponId: string): Promise<voi
     .eq("coupon_id", couponId)
     .eq("status", "active");
 }
+
+export async function expireActiveSpawnsForPlace(placeId: string): Promise<void> {
+  const admin = createAdminClient();
+  await admin
+    .from("premium_coupon_spawns")
+    .update({ status: "expired" })
+    .eq("premium_place_id", placeId)
+    .eq("status", "active");
+}
