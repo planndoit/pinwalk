@@ -6,7 +6,6 @@ const VALID_TYPES: RankingType[] = [
   "combat_power",
   "active_pins",
   "total_earned",
-  "earn_count",
   "conquers",
 ];
 
@@ -30,13 +29,20 @@ export async function GET(request: Request) {
 
   const entries = (data ?? []).map(
     (
-      row: { user_id: string; nickname: string; value: number },
+      row: {
+        user_id: string;
+        nickname: string;
+        value: number;
+        secondary_value?: number | null;
+      },
       index: number
     ) => ({
       rank: index + 1,
       user_id: row.user_id,
       nickname: row.nickname,
       value: Number(row.value),
+      earn_count:
+        row.secondary_value == null ? null : Number(row.secondary_value),
     })
   );
 

@@ -31,7 +31,7 @@ export function validatePromotionRequestInput(
 
   if (!categoryCode?.trim()) return { valid: false, error: "카테고리를 선택해주세요." };
   if (!storeName?.trim() || storeName.trim().length > 50) {
-    return { valid: false, error: "가게명을 50자 이내로 입력해주세요." };
+    return { valid: false, error: "업체명을 50자 이내로 입력해주세요." };
   }
   if (!contactPhone?.trim()) return { valid: false, error: "연락처를 입력해주세요." };
   if (!address?.trim() || address.trim().length > 200) {

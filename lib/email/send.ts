@@ -63,7 +63,7 @@ export function buildPromotionRequestEmailHtml(data: {
   return `
     <h2>프리미엄 홍보 요청이 접수되었습니다</h2>
     <ul>
-      <li><strong>가게명:</strong> ${escapeHtml(data.storeName)}</li>
+      <li><strong>업체명:</strong> ${escapeHtml(data.storeName)}</li>
       <li><strong>카테고리:</strong> ${escapeHtml(data.categoryName)}</li>
       <li><strong>담당자:</strong> ${escapeHtml(data.contactName ?? "-")}</li>
       <li><strong>연락처:</strong> ${escapeHtml(data.contactPhone)}</li>

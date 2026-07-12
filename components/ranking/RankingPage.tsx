@@ -25,13 +25,7 @@ const TABS: {
     type: "total_earned",
     label: "누적 포인트",
     unit: "P",
-    description: "지금까지 획득한 포인트의 총합입니다.",
-  },
-  {
-    type: "earn_count",
-    label: "포인트 획득",
-    unit: "회",
-    description: "포인트를 획득한 횟수입니다.",
+    description: "지금까지 획득한 포인트의 총합입니다. 획득 횟수도 함께 표시됩니다.",
   },
   {
     type: "conquers",
@@ -148,18 +142,24 @@ export default function RankingPage() {
                   >
                     {entry.nickname}
                   </p>
-                  <p className="text-xs text-gray-400">{activeTab.label}</p>
                 </div>
-                <p
-                  className={`font-extrabold tabular-nums ${
-                    entry.rank <= 3 ? "text-lg text-gray-900" : "text-base text-gray-800"
-                  }`}
-                >
-                  {entry.value.toLocaleString()}
-                  <span className="text-xs font-semibold text-gray-400 ml-0.5">
-                    {activeTab.unit}
-                  </span>
-                </p>
+                <div className="text-right shrink-0 min-h-[40px] flex flex-col justify-center">
+                  <p
+                    className={`font-extrabold tabular-nums leading-none ${
+                      entry.rank <= 3 ? "text-lg text-gray-900" : "text-base text-gray-800"
+                    }`}
+                  >
+                    {entry.value.toLocaleString()}
+                    <span className="text-xs font-semibold text-gray-400 ml-0.5">
+                      {activeTab.unit}
+                    </span>
+                  </p>
+                  {activeType === "total_earned" && entry.earn_count != null ? (
+                    <p className="text-[11px] text-gray-400 mt-1 tabular-nums leading-none">
+                      획득 {entry.earn_count.toLocaleString()}회
+                    </p>
+                  ) : null}
+                </div>
               </div>
             ))
           )}

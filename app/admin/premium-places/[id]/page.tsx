@@ -12,6 +12,21 @@ import {
   AdminTextarea,
 } from "@/components/admin/AdminUi";
 
+function SectionTitle({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="mb-4">
+      <h3 className="text-sm font-bold text-gray-900">{title}</h3>
+      <p className="text-xs text-gray-500 mt-1 leading-relaxed">{description}</p>
+    </div>
+  );
+}
+
 export default function AdminPremiumPlaceDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -147,81 +162,120 @@ export default function AdminPremiumPlaceDetailPage() {
   return (
     <div>
       <AdminPageHeader title="프리미엄 장소 상세" backHref="/admin/premium-places" />
-      <AdminCard className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <AdminSelect
-          label="카테고리"
-          value={form.categoryCode}
-          onChange={(e) => setForm({ ...form, categoryCode: e.target.value })}
-        >
-          {categories.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.name}
-            </option>
-          ))}
-        </AdminSelect>
-        <AdminInput
-          label="가게명"
-          value={form.storeName}
-          onChange={(e) => setForm({ ...form, storeName: e.target.value })}
-        />
-        <AdminInput
-          label="연락처"
-          value={form.contactPhone}
-          onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
-        />
-        <AdminInput
-          label="이메일"
-          value={form.contactEmail}
-          onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
-        />
-        <AdminInput
-          label="담당자"
-          value={form.contactName}
-          onChange={(e) => setForm({ ...form, contactName: e.target.value })}
-        />
-        <div className="sm:col-span-2">
-          <AdminInput
-            label="도로명 주소"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
+      <div className="space-y-4 mb-6">
+        <AdminCard className="p-5">
+          <SectionTitle
+            title="담당자 정보"
+            description="관리자가 컨택할 때 사용하는 정보입니다. 앱 화면에 공개되지 않습니다."
           />
-        </div>
-        <div className="sm:col-span-2 space-y-2">
-          <p className="text-sm font-medium text-gray-700">위치</p>
-          <p className="text-xs text-gray-500">지도를 클릭해 핀 위치를 변경할 수 있습니다.</p>
-          <AdminLocationMap
-            lat={form.lat}
-            lng={form.lng}
-            pickable
-            onPick={handlePick}
-            height={360}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <AdminInput
+              label="담당자 이름"
+              value={form.contactName}
+              onChange={(e) =>
+                setForm({ ...form, contactName: e.target.value })
+              }
+            />
+            <AdminInput
+              label="연락처"
+              value={form.contactPhone}
+              onChange={(e) =>
+                setForm({ ...form, contactPhone: e.target.value })
+              }
+            />
+            <div className="sm:col-span-2">
+              <AdminInput
+                label="이메일"
+                value={form.contactEmail}
+                onChange={(e) =>
+                  setForm({ ...form, contactEmail: e.target.value })
+                }
+              />
+            </div>
+          </div>
+        </AdminCard>
+
+        <AdminCard className="p-5">
+          <SectionTitle
+            title="깃발 홍보 정보"
+            description="지도의 프리미엄 깃발에 표시되는 내용입니다."
           />
-        </div>
-        <div className="sm:col-span-2">
-          <AdminTextarea
-            label="홍보 문구"
-            rows={3}
-            value={form.promoText}
-            onChange={(e) => setForm({ ...form, promoText: e.target.value })}
-          />
-        </div>
-        <div className="sm:col-span-2">
-          <AdminInput
-            label="홍보 링크"
-            value={form.promoLink}
-            onChange={(e) => setForm({ ...form, promoLink: e.target.value })}
-          />
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={form.isActive}
-            onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-          />
-          활성화
-        </label>
-        <AdminButton onClick={handleSave}>저장</AdminButton>
-      </AdminCard>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <AdminSelect
+              label="카테고리"
+              value={form.categoryCode}
+              onChange={(e) =>
+                setForm({ ...form, categoryCode: e.target.value })
+              }
+            >
+              {categories.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </AdminSelect>
+            <AdminInput
+              label="업체명"
+              value={form.storeName}
+              onChange={(e) =>
+                setForm({ ...form, storeName: e.target.value })
+              }
+            />
+            <div className="sm:col-span-2">
+              <AdminInput
+                label="도로명 주소"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <AdminTextarea
+                label="홍보 문구"
+                rows={3}
+                value={form.promoText}
+                onChange={(e) =>
+                  setForm({ ...form, promoText: e.target.value })
+                }
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <AdminInput
+                label="홍보 링크"
+                value={form.promoLink}
+                onChange={(e) =>
+                  setForm({ ...form, promoLink: e.target.value })
+                }
+              />
+            </div>
+            <div className="sm:col-span-2 space-y-2">
+              <p className="text-sm font-medium text-gray-700">지도 위치</p>
+              <p className="text-xs text-gray-500">
+                지도를 클릭해 핀 위치를 변경할 수 있습니다.
+              </p>
+              <AdminLocationMap
+                lat={form.lat}
+                lng={form.lng}
+                pickable
+                onPick={handlePick}
+                height={360}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={form.isActive}
+                onChange={(e) =>
+                  setForm({ ...form, isActive: e.target.checked })
+                }
+              />
+              활성화 (지도에 표시)
+            </label>
+            <div className="sm:col-span-2">
+              <AdminButton onClick={handleSave}>저장</AdminButton>
+            </div>
+          </div>
+        </AdminCard>
+      </div>
 
       <AdminCard className="p-5">
         <h3 className="font-semibold mb-4">쿠폰 관리</h3>

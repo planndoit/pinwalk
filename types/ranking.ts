@@ -2,7 +2,6 @@ export type RankingType =
   | "combat_power"
   | "active_pins"
   | "total_earned"
-  | "earn_count"
   | "conquers";
 
 export interface RankingEntry {
@@ -10,6 +9,7 @@ export interface RankingEntry {
   user_id: string;
   nickname: string;
   value: number;
+  earn_count?: number | null;
 }
 
 export interface UserStats {

@@ -18,33 +18,48 @@ export async function PATCH(
     isActive?: boolean;
   };
 
-  const updates: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-  };
-  if (typeof name === "string") updates.name = name.trim();
-  if (typeof sortOrder === "number") updates.sort_order = sortOrder;
-  if (typeof isActive === "boolean") updates.is_active = isActive;
+  if (
+    typeof name !== "string" &&
+    typeof sortOrder !== "number" &&
+    typeof isActive !== "boolean"
+  ) {
+    return jsonError("수정할 항목이 없습니다.");
+  }
 
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("common_codes")
-    .update(updates)
-    .eq("id", id)
-    .select("*")
-    .single();
+  const { data, error } = await admin.rpc("admin_upsert_common_code_result", {
+    p_id: id,
+    p_group_code: null,
+    p_code: null,
+    p_name: typeof name === "string" ? name : null,
+    p_sort_order: typeof sortOrder === "number" ? sortOrder : null,
+    p_is_active: typeof isActive === "boolean" ? isActive : null,
+    p_mode: "update",
+  });
 
-  if (error || !data) {
+  if (error) {
+    if (error.message.includes("common code not found")) {
+      return jsonError("수정할 코드를 찾을 수 없습니다.", 404);
+    }
+    return jsonError(
+      `공통코드 수정에 실패했습니다. (${error.message})`,
+      500
+    );
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
     return jsonError("공통코드 수정에 실패했습니다.", 500);
   }
 
   return NextResponse.json({
     code: {
-      id: data.id,
-      groupCode: data.group_code,
-      code: data.code,
-      name: data.name,
-      sortOrder: data.sort_order,
-      isActive: data.is_active,
+      id: row.id,
+      groupCode: row.group_code,
+      code: row.code,
+      name: row.name,
+      sortOrder: row.sort_order,
+      isActive: row.is_active,
     },
   });
 }

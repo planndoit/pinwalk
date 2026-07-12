@@ -24,8 +24,23 @@ function displayText(value: unknown): string {
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2 text-sm">
-      <span className="text-gray-500 w-24 shrink-0 pt-0.5">{label}</span>
-      <div className="min-w-0 flex-1">{children}</div>
+      <span className="text-gray-500 w-28 shrink-0 pt-0.5">{label}</span>
+      <div className="min-w-0 flex-1">{children || "-"}</div>
+    </div>
+  );
+}
+
+function SectionTitle({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="mb-4">
+      <h3 className="text-sm font-bold text-gray-900">{title}</h3>
+      <p className="text-xs text-gray-500 mt-1 leading-relaxed">{description}</p>
     </div>
   );
 }
@@ -109,48 +124,81 @@ export default function AdminPromotionRequestDetailPage() {
           </AdminButton>
         }
       />
-      <AdminCard className="p-5 mb-4 space-y-3">
-        <DetailRow label="상태">
-          <StatusBadge status={status} />
-        </DetailRow>
-        <DetailRow label="가게명">{displayText(request.storeName)}</DetailRow>
-        <DetailRow label="카테고리">{displayText(request.categoryName)}</DetailRow>
-        <DetailRow label="담당자">{displayText(request.contactName)}</DetailRow>
-        <DetailRow label="연락처">{displayText(request.contactPhone)}</DetailRow>
-        <DetailRow label="이메일">{displayText(request.contactEmail)}</DetailRow>
-        <DetailRow label="도로명 주소">{displayText(request.address)}</DetailRow>
-        <DetailRow label="홍보 문구">{displayText(request.promoText)}</DetailRow>
-        <DetailRow label="홍보 링크">{displayText(request.promoLink)}</DetailRow>
-        <DetailRow label="위치">
-          {hasLocation ? (
-            <AdminButton
-              type="button"
-              variant="secondary"
-              onClick={() => setMapOpen(true)}
-            >
-              지도에서 보기
-            </AdminButton>
-          ) : (
-            ""
+
+      <div className="space-y-4 mb-4">
+        <AdminCard className="p-5 space-y-3">
+          <DetailRow label="상태">
+            <StatusBadge status={status} />
+          </DetailRow>
+          <DetailRow label="요청 회원">
+            {displayText(request.requesterNickname)}
+          </DetailRow>
+          <DetailRow label="요청일">
+            {formatActivityDate(String(request.createdAt))}
+          </DetailRow>
+          {request.premiumPlaceId != null && request.premiumPlaceId !== "" && (
+            <p>
+              <Link
+                href={`/admin/premium-places/${String(request.premiumPlaceId)}`}
+                className="text-blue-600 text-sm"
+              >
+                연결된 프리미엄 장소 보기
+              </Link>
+            </p>
           )}
-        </DetailRow>
-        <DetailRow label="요청 회원">
-          {displayText(request.requesterNickname)}
-        </DetailRow>
-        <DetailRow label="요청일">
-          {formatActivityDate(String(request.createdAt))}
-        </DetailRow>
-        {request.premiumPlaceId != null && request.premiumPlaceId !== "" && (
-          <p>
-            <Link
-              href={`/admin/premium-places/${String(request.premiumPlaceId)}`}
-              className="text-blue-600 text-sm"
-            >
-              연결된 프리미엄 장소 보기
-            </Link>
-          </p>
-        )}
-      </AdminCard>
+        </AdminCard>
+
+        <AdminCard className="p-5 space-y-3">
+          <SectionTitle
+            title="담당자 정보"
+            description="관리자가 요청을 검토한 뒤 연락드릴 때 사용합니다. 앱 화면에 공개되지 않습니다."
+          />
+          <DetailRow label="담당자 이름">
+            {displayText(request.contactName)}
+          </DetailRow>
+          <DetailRow label="연락처">
+            {displayText(request.contactPhone)}
+          </DetailRow>
+          <DetailRow label="이메일">
+            {displayText(request.contactEmail)}
+          </DetailRow>
+        </AdminCard>
+
+        <AdminCard className="p-5 space-y-3">
+          <SectionTitle
+            title="깃발 홍보 정보"
+            description="승인 후 프리미엄 깃발에 표시될 내용입니다. 장소 생성 시 그대로 반영됩니다."
+          />
+          <DetailRow label="카테고리">
+            {displayText(request.categoryName)}
+          </DetailRow>
+          <DetailRow label="업체명">
+            {displayText(request.storeName)}
+          </DetailRow>
+          <DetailRow label="도로명 주소">
+            {displayText(request.address)}
+          </DetailRow>
+          <DetailRow label="홍보 문구">
+            {displayText(request.promoText)}
+          </DetailRow>
+          <DetailRow label="홍보 링크">
+            {displayText(request.promoLink)}
+          </DetailRow>
+          <DetailRow label="지도 위치">
+            {hasLocation ? (
+              <AdminButton
+                type="button"
+                variant="secondary"
+                onClick={() => setMapOpen(true)}
+              >
+                지도에서 보기
+              </AdminButton>
+            ) : (
+              ""
+            )}
+          </DetailRow>
+        </AdminCard>
+      </div>
 
       <AdminCard className="p-5 space-y-4">
         <AdminSelect
