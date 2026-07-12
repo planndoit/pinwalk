@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import FlagIcon from "@/components/icons/FlagIcon";
 import type { Pin, PinAttempt } from "@/types/pin";
-import { formatRemainingTime } from "@/lib/naverMap";
 import { DEFAULT_NICKNAME } from "@/lib/constants";
+import { getFlagLabel, getFlagTier } from "@/lib/flagVisual";
 
 interface PinBottomSheetProps {
   pin: Pin | null;
@@ -57,6 +57,8 @@ export default function PinBottomSheet({
 
   if (!pin) return null;
 
+  const tier = getFlagTier(pin.cost);
+
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center">
       <div
@@ -72,7 +74,11 @@ export default function PinBottomSheet({
               isOwner ? "bg-blue-50" : "bg-red-50"
             }`}
           >
-            <FlagIcon size={22} color="#ef4444" />
+            <FlagIcon
+              size={22}
+              tier={tier}
+              color={isOwner ? "#2563eb" : "#ef4444"}
+            />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-lg font-bold text-gray-900 break-all leading-snug">
@@ -90,20 +96,12 @@ export default function PinBottomSheet({
         </div>
 
         <div className="mt-4 flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-xl px-3.5 py-2.5 shrink-0">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="w-3.5 h-3.5 text-gray-400"
-          >
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v5l3 3" strokeLinecap="round" />
-          </svg>
-          남은 노출 시간{" "}
+          <FlagIcon size={14} tier={tier} color="#6b7280" />
+          투자 포인트{" "}
           <span className="font-semibold text-gray-700">
-            {formatRemainingTime(pin.expires_at)}
+            {getFlagLabel(tier)}
           </span>
+          <span className="text-gray-400">· 점령될 때까지 유지</span>
         </div>
 
         {!isOwner && (

@@ -119,6 +119,12 @@ export default function AdminMemberDetailPage() {
                 </span>
               </p>
               <p>
+                전투력:{" "}
+                <span className="font-semibold">
+                  {stats.combat_power.toLocaleString()}P
+                </span>
+              </p>
+              <p>
                 누적 깃발:{" "}
                 <span className="font-semibold">
                   {stats.total_pins.toLocaleString()}개

@@ -18,6 +18,13 @@ import {
   type LatLngPoint,
   type PinCluster,
 } from "@/lib/pinClustering";
+import {
+  createFlagIconSvg,
+  getFlagAccentColor,
+  getFlagBorderColor,
+  getFlagMarkerScale,
+  getFlagTier,
+} from "@/lib/flagVisual";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
 import type {
@@ -45,30 +52,37 @@ interface MapViewProps {
 
 const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
 
-function createFlagIcon(size = 14): string {
-  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="display:block;flex-shrink:0" aria-hidden="true"><line x1="5" y1="21" x2="5" y2="3" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/><path d="M5 3 L19 7.5 L5 12 Z" fill="#ffffff"/></svg>`;
-}
-
-function createPinMarkerContent(text: string, isMine: boolean): string {
+function createPinMarkerContent(
+  text: string,
+  isMine: boolean,
+  cost: number
+): string {
+  const tier = getFlagTier(cost);
   const display = text.length > 8 ? text.slice(0, 8) + "…" : text;
-  const bg = isMine ? "#2563eb" : "#ef4444";
+  const bg = getFlagAccentColor(tier, isMine);
+  const border = getFlagBorderColor(tier);
+  const scale = getFlagMarkerScale(tier);
+  const shadow =
+    tier === 1000
+      ? "0 4px 16px rgba(180,83,9,0.45)"
+      : "0 4px 12px rgba(0,0,0,0.25)";
   return `
     <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: pointer;">
       <div style="
         background: ${bg};
         color: white;
-        padding: 7px 12px;
+        padding: ${scale.paddingY}px ${scale.paddingX}px;
         border-radius: 999px;
-        font-size: 12px;
+        font-size: ${scale.fontSize}px;
         font-weight: 700;
         white-space: nowrap;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-        border: 2px solid white;
+        box-shadow: ${shadow};
+        border: ${scale.borderWidth}px solid ${border};
         letter-spacing: -0.02em;
         display: flex;
         align-items: center;
         gap: 5px;
-      ">${createFlagIcon()}<span>${display}</span></div>
+      ">${createFlagIconSvg(tier, scale.flagSize)}<span>${display}</span></div>
       <div style="
         width: 0; height: 0;
         border-left: 6px solid transparent;
@@ -81,20 +95,27 @@ function createPinMarkerContent(text: string, isMine: boolean): string {
   `;
 }
 
-function createEmojiPinMarkerContent(isMine: boolean): string {
-  const bg = isMine ? "#2563eb" : "#ef4444";
+function createEmojiPinMarkerContent(isMine: boolean, cost: number): string {
+  const tier = getFlagTier(cost);
+  const bg = getFlagAccentColor(tier, isMine);
+  const border = getFlagBorderColor(tier);
+  const scale = getFlagMarkerScale(tier);
+  const shadow =
+    tier === 1000
+      ? "0 3px 14px rgba(180,83,9,0.45)"
+      : "0 3px 10px rgba(0,0,0,0.25)";
   return `
     <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: pointer;">
       <div style="
         background: ${bg};
         color: white;
-        width: 28px; height: 28px;
+        width: ${scale.emojiSize}px; height: ${scale.emojiSize}px;
         border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         font-size: 14px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.25);
-        border: 2px solid white;
-      ">${createFlagIcon(16)}</div>
+        box-shadow: ${shadow};
+        border: ${scale.borderWidth}px solid ${border};
+      ">${createFlagIconSvg(tier, Math.round(scale.flagSize * 1.15))}</div>
       <div style="
         width: 0; height: 0;
         border-left: 5px solid transparent;
@@ -463,7 +484,7 @@ export default function MapView({
       const isMine =
         currentUserIdRef.current !== null &&
         pin.user_id === currentUserIdRef.current;
-      const color = isMine ? "#2563eb" : "#ef4444";
+      const color = getFlagAccentColor(getFlagTier(pin.cost), isMine);
       const pinPos = new naverObj.maps.LatLng(pin.lat, pin.lng);
       const nearbyCount = countNearbyPins(
         pin,
@@ -491,11 +512,11 @@ export default function MapView({
       const marker = new naverObj.maps.Marker({
         position: pinPos,
         map,
-        zIndex: isMine ? 120 : 100,
+        zIndex: (isMine ? 120 : 100) + Math.floor(getFlagTier(pin.cost) / 100),
         icon: {
           content: showText
-            ? createPinMarkerContent(pin.text, isMine)
-            : createEmojiPinMarkerContent(isMine),
+            ? createPinMarkerContent(pin.text, isMine, pin.cost)
+            : createEmojiPinMarkerContent(isMine, pin.cost),
           anchor: new naverObj.maps.Point(0, 0),
         },
       });

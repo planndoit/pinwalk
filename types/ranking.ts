@@ -18,6 +18,7 @@ export interface UserStats {
   active_pins: number;
   total_pins: number;
   conquers: number;
+  combat_power: number;
   conquer_fails?: number;
   attendance_count?: number;
   attendance_streak?: number;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   CONQUER_PROBABILITIES,
-  PIN_DURATION_HOURS,
+  DEFAULT_PIN_COST,
   PIN_RADIUS_METERS,
   type ConquerProbability,
 } from "@/lib/constants";
@@ -78,11 +78,7 @@ export async function POST(request: Request) {
   }
 
   if (targetPin.status !== "active") {
-    return jsonError("이미 만료되거나 점령된 핀입니다.");
-  }
-
-  if (new Date(targetPin.expires_at) <= new Date()) {
-    return jsonError("만료된 핀입니다.");
+    return jsonError("이미 점령된 핀입니다.");
   }
 
   const distance = getDistanceMeters(
@@ -108,7 +104,9 @@ export async function POST(request: Request) {
     return jsonError(deductResult.error!);
   }
 
-  const success = rollConquerSuccess(probability);
+  const pinCost =
+    typeof targetPin.cost === "number" ? targetPin.cost : DEFAULT_PIN_COST;
+  const success = rollConquerSuccess(probability, pinCost);
   const now = new Date().toISOString();
 
   if (!success) {
@@ -138,9 +136,6 @@ export async function POST(request: Request) {
     });
   }
 
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + PIN_DURATION_HOURS);
-
   await admin
     .from("pins")
     .update({
@@ -160,7 +155,8 @@ export async function POST(request: Request) {
       lng: targetPin.lng,
       radius_meters: PIN_RADIUS_METERS,
       status: "active",
-      expires_at: expiresAt.toISOString(),
+      cost: DEFAULT_PIN_COST,
+      expires_at: null,
     })
     .select()
     .single();

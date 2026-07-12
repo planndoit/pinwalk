@@ -172,8 +172,7 @@ export async function GET() {
     admin
       .from("pins")
       .select("id", { count: "exact", head: true })
-      .eq("status", "active")
-      .gt("expires_at", now.toISOString()),
+      .eq("status", "active"),
     admin.from("pins").select("id", { count: "exact", head: true }),
     admin
       .from("premium_promotion_requests")

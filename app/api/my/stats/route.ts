@@ -48,6 +48,7 @@ export async function GET() {
       active_pins: Number(stats.active_pins),
       total_pins: Number(stats.total_pins),
       conquers: Number(stats.conquers),
+      combat_power: Number(stats.combat_power ?? 0),
       conquer_fails: failAttempts.count ?? 0,
       attendance_count: attendanceCount,
       attendance_streak: attendanceStreak,

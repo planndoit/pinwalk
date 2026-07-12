@@ -2,18 +2,19 @@
 
 import { useState } from "react";
 import {
-  DEFAULT_PIN_DURATION_DAYS,
-  PIN_DURATION_OPTIONS,
+  DEFAULT_PIN_COST,
+  PIN_COST_OPTIONS,
   PIN_TEXT_MAX_LENGTH,
-  type PinDurationDays,
+  type PinCost,
 } from "@/lib/constants";
+import FlagIcon from "@/components/icons/FlagIcon";
 
 interface CreatePinModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (
     text: string,
-    durationDays: PinDurationDays
+    cost: PinCost
   ) => Promise<{ success: boolean; error?: string }>;
   loading?: boolean;
 }
@@ -25,9 +26,7 @@ export default function CreatePinModal({
   loading,
 }: CreatePinModalProps) {
   const [text, setText] = useState("");
-  const [durationDays, setDurationDays] = useState<PinDurationDays>(
-    DEFAULT_PIN_DURATION_DAYS
-  );
+  const [cost, setCost] = useState<PinCost>(DEFAULT_PIN_COST);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,19 +34,15 @@ export default function CreatePinModal({
 
   const busy = loading || submitting;
 
-  const selectedCost =
-    PIN_DURATION_OPTIONS.find((option) => option.days === durationDays)?.cost ??
-    PIN_DURATION_OPTIONS[0].cost;
-
   const handleSubmit = async () => {
     if (busy || !text.trim()) return;
     setError("");
     setSubmitting(true);
     try {
-      const result = await onSubmit(text, durationDays);
+      const result = await onSubmit(text, cost);
       if (result.success) {
         setText("");
-        setDurationDays(DEFAULT_PIN_DURATION_DAYS);
+        setCost(DEFAULT_PIN_COST);
         onClose();
       } else {
         setError(result.error ?? "핀 생성에 실패했습니다.");
@@ -75,34 +70,31 @@ export default function CreatePinModal({
         <h2 className="text-xl font-bold text-gray-900">
           현재 위치에 깃발을 꽂을까요?
         </h2>
+        <p className="text-sm text-gray-500 mt-1.5">
+          포인트를 더 쓰면 점령이 더 어려워집니다.
+        </p>
 
-        <p className="text-xs text-gray-500 font-medium mt-4 mb-2">노출 기간</p>
-        <div className="grid grid-cols-3 gap-2">
-          {PIN_DURATION_OPTIONS.map((option) => {
-            const selected = option.days === durationDays;
+        <p className="text-xs text-gray-500 font-medium mt-4 mb-2">투자 포인트</p>
+        <div className="grid grid-cols-4 gap-2">
+          {PIN_COST_OPTIONS.map((option) => {
+            const selected = option === cost;
             return (
               <button
-                key={option.days}
+                key={option}
                 type="button"
-                onClick={() => setDurationDays(option.days)}
+                onClick={() => setCost(option)}
                 disabled={busy}
-                className={`py-3 rounded-2xl border-2 transition-colors disabled:opacity-50 ${
+                className={`py-3 rounded-2xl border-2 transition-colors disabled:opacity-50 flex flex-col items-center gap-1.5 ${
                   selected ? "border-blue-500 bg-blue-50" : "border-gray-200"
                 }`}
               >
+                <FlagIcon size={20} tier={option} color={selected ? "#2563eb" : "#6b7280"} />
                 <span
-                  className={`block text-base font-extrabold ${
+                  className={`block text-sm font-extrabold ${
                     selected ? "text-blue-600" : "text-gray-700"
                   }`}
                 >
-                  {option.days}일
-                </span>
-                <span
-                  className={`block text-xs mt-0.5 ${
-                    selected ? "text-blue-400" : "text-gray-400"
-                  }`}
-                >
-                  {option.cost}P
+                  {option}P
                 </span>
               </button>
             );
@@ -140,7 +132,7 @@ export default function CreatePinModal({
             disabled={busy || !text.trim()}
             className="flex-[1.6] py-3.5 rounded-2xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/25 disabled:opacity-40 disabled:shadow-none active:scale-98 transition-transform"
           >
-            {busy ? "생성 중..." : `🚩 ${selectedCost}P로 깃발 꽂기`}
+            {busy ? "생성 중..." : `🚩 ${cost}P로 깃발 꽂기`}
           </button>
         </div>
       </div>

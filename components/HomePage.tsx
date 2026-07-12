@@ -25,7 +25,7 @@ import type {
   SerializedCouponSpawn,
   SerializedPremiumPlace,
 } from "@/types/premiumClient";
-import type { ConquerProbability, PinDurationDays } from "@/lib/constants";
+import type { ConquerProbability, PinCost } from "@/lib/constants";
 
 const POSITION_UPDATE_THRESHOLD_METERS = 5;
 
@@ -342,7 +342,7 @@ export default function HomePage({ active = true }: HomePageProps) {
     });
   };
 
-  const handleCreatePin = async (text: string, durationDays: PinDurationDays) => {
+  const handleCreatePin = async (text: string, cost: PinCost) => {
     if (!position) return { success: false, error: "위치 정보가 없습니다." };
 
     setActionLoading(true);
@@ -354,7 +354,7 @@ export default function HomePage({ active = true }: HomePageProps) {
           lat: position.lat,
           lng: position.lng,
           text,
-          duration_days: durationDays,
+          cost,
         }),
       });
       const data = await res.json();
@@ -628,6 +628,7 @@ export default function HomePage({ active = true }: HomePageProps) {
         onClose={() => setShowConquerModal(false)}
         onSubmit={handleConquer}
         loading={actionLoading}
+        targetPinCost={selectedPin?.cost}
       />
 
       <PinBottomSheet

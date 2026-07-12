@@ -91,6 +91,7 @@ export async function GET(
         active_pins: Number(statsRow.active_pins),
         total_pins: Number(statsRow.total_pins),
         conquers: Number(statsRow.conquers),
+        combat_power: Number(statsRow.combat_power ?? 0),
         attendance_count: attendanceCount,
         attended_today: attendedToday,
       }

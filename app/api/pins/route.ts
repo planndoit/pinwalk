@@ -10,13 +10,11 @@ export async function GET(request: Request) {
   const radius = parseFloat(searchParams.get("radius") ?? "2000");
 
   const admin = createAdminClient();
-  const now = new Date().toISOString();
 
   let query = admin
     .from("pins")
     .select("*, profiles!pins_user_id_fkey(nickname)")
-    .eq("status", "active")
-    .gt("expires_at", now);
+    .eq("status", "active");
 
   if (!all) {
     if (isNaN(lat) || isNaN(lng)) {

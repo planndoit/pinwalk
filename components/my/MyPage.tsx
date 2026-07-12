@@ -217,6 +217,17 @@ export default function MyPage() {
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 px-3 py-3">
+              <p className="text-[11px] text-gray-400">전투력</p>
+              <p className="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">
+                {(stats?.combat_power ?? 0).toLocaleString()}
+                <span className="text-xs font-semibold text-gray-400 ml-0.5">P</span>
+              </p>
+              <p className="text-[11px] text-gray-400 mt-1">
+                보유 깃발 투자 합
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-100 px-3 py-3">
               <p className="text-[11px] text-gray-400">점령 수</p>
               <p className="text-lg font-extrabold text-gray-900 tabular-nums mt-0.5">
                 {(

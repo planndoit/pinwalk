@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  PIN_DURATION_OPTIONS,
   PIN_RADIUS_METERS,
+  isPinCost,
 } from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -15,11 +15,11 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { lat, lng, text, duration_days } = body as {
+  const { lat, lng, text, cost: rawCost } = body as {
     lat?: number;
     lng?: number;
     text?: string;
-    duration_days?: number;
+    cost?: number;
   };
 
   if (typeof lat !== "number" || typeof lng !== "number") {
@@ -30,11 +30,12 @@ export async function POST(request: Request) {
     return jsonError("핀 문구를 입력해주세요.");
   }
 
-  const durationOption = PIN_DURATION_OPTIONS.find(
-    (option) => option.days === duration_days
-  );
-  if (!durationOption) {
-    return jsonError("노출 기간이 올바르지 않습니다.");
+  const cost =
+    typeof rawCost === "number" && isPinCost(rawCost)
+      ? rawCost
+      : undefined;
+  if (cost === undefined) {
+    return jsonError("깃발 포인트가 올바르지 않습니다.");
   }
 
   const validation = validatePinText(text);
@@ -42,7 +43,6 @@ export async function POST(request: Request) {
     return jsonError(validation.error!);
   }
 
-  const cost = durationOption.cost;
   const admin = createAdminClient();
 
   const { data: profile } = await admin
@@ -63,9 +63,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + durationOption.days * 24);
-
   const { data: pin, error } = await admin
     .from("pins")
     .insert({
@@ -75,7 +72,8 @@ export async function POST(request: Request) {
       lng,
       radius_meters: PIN_RADIUS_METERS,
       status: "active",
-      expires_at: expiresAt.toISOString(),
+      cost,
+      expires_at: null,
     })
     .select()
     .single();
@@ -88,7 +86,7 @@ export async function POST(request: Request) {
     user.id,
     cost,
     "create_pin",
-    `깃발 생성 (${durationOption.days}일)`,
+    `깃발 생성 (${cost}P)`,
     pin.id
   );
 

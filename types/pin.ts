@@ -8,7 +8,8 @@ export interface Pin {
   lng: number;
   radius_meters: number;
   status: PinStatus;
-  expires_at: string;
+  cost: number;
+  expires_at: string | null;
   conquered_by: string | null;
   conquered_at: string | null;
   created_at: string;

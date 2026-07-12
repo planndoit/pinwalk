@@ -1,7 +1,24 @@
 import {
   CONQUER_BASE_COST,
+  CONQUER_SUCCESS_MULTIPLIER_BY_COST,
+  DEFAULT_PIN_COST,
+  isPinCost,
   type ConquerProbability,
 } from "./constants";
+
+export function getConquerSuccessMultiplier(pinCost: number): number {
+  if (isPinCost(pinCost)) {
+    return CONQUER_SUCCESS_MULTIPLIER_BY_COST[pinCost];
+  }
+  return CONQUER_SUCCESS_MULTIPLIER_BY_COST[DEFAULT_PIN_COST];
+}
+
+export function getEffectiveConquerProbability(
+  probability: ConquerProbability,
+  pinCost: number
+): number {
+  return probability * getConquerSuccessMultiplier(pinCost);
+}
 
 export function calculateConquerCost(
   probability: ConquerProbability
@@ -20,8 +37,10 @@ export function calculateDefenseReward(
 }
 
 export function rollConquerSuccess(
-  probability: ConquerProbability
+  probability: ConquerProbability,
+  pinCost: number = DEFAULT_PIN_COST
 ): boolean {
+  const effective = getEffectiveConquerProbability(probability, pinCost);
   const roll = Math.random() * 100;
-  return roll < probability;
+  return roll < effective;
 }

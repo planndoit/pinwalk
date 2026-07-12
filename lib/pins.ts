@@ -10,13 +10,11 @@ export async function findActivePinsNear(
 ): Promise<Pin[]> {
   const admin = createAdminClient();
   const { latDelta, lngDelta } = getBoundingBoxDelta(radiusMeters, lat);
-  const now = new Date().toISOString();
 
   const { data, error } = await admin
     .from("pins")
     .select("*")
     .eq("status", "active")
-    .gt("expires_at", now)
     .gte("lat", lat - latDelta)
     .lte("lat", lat + latDelta)
     .gte("lng", lng - lngDelta)
