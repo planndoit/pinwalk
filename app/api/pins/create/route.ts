@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   if (typeof text !== "string") {
-    return jsonError("핀 문구를 입력해주세요.");
+    return jsonError("깃발 문구를 입력해주세요.");
   }
 
   const cost =
@@ -79,7 +79,19 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !pin) {
-    return jsonError("핀 생성에 실패했습니다.", 500);
+    console.error("pins insert failed:", error);
+    if (error?.code === "42501") {
+      return jsonError(
+        "깃발 생성에 실패했습니다. 서버의 SUPABASE_SERVICE_ROLE_KEY가 service_role 키인지 확인해주세요.",
+        500
+      );
+    }
+    return jsonError(
+      error?.message
+        ? `깃발 생성에 실패했습니다. (${error.message})`
+        : "깃발 생성에 실패했습니다.",
+      500
+    );
   }
 
   const deductResult = await deductPoints(

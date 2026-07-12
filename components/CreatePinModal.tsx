@@ -45,7 +45,7 @@ export default function CreatePinModal({
         setCost(DEFAULT_PIN_COST);
         onClose();
       } else {
-        setError(result.error ?? "핀 생성에 실패했습니다.");
+        setError(result.error ?? "깃발 생성에 실패했습니다.");
       }
     } finally {
       setSubmitting(false);

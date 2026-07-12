@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   }
 
   if (typeof new_text !== "string") {
-    return jsonError("핀 문구를 입력해주세요.");
+    return jsonError("깃발 문구를 입력해주세요.");
   }
 
   if (typeof current_lat !== "number" || typeof current_lng !== "number") {
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
     .single();
 
   if (createError || !newPin) {
-    return jsonError("새 핀 생성에 실패했습니다.", 500);
+    return jsonError("새 깃발 생성에 실패했습니다.", 500);
   }
 
   await admin.from("pin_attempts").insert({

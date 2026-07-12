@@ -11,13 +11,13 @@ export function validatePinText(text: string): {
   const trimmed = text.trim();
 
   if (!trimmed) {
-    return { valid: false, error: "핀 문구를 입력해주세요." };
+    return { valid: false, error: "깃발 문구를 입력해주세요." };
   }
 
   if (trimmed.length > PIN_TEXT_MAX_LENGTH) {
     return {
       valid: false,
-      error: `핀 문구는 최대 ${PIN_TEXT_MAX_LENGTH}자까지 입력할 수 있어요.`,
+      error: `깃발 문구는 최대 ${PIN_TEXT_MAX_LENGTH}자까지 입력할 수 있어요.`,
     };
   }
 
