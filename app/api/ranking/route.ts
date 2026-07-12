@@ -3,16 +3,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { RankingType } from "@/types/ranking";
 
 const VALID_TYPES: RankingType[] = [
+  "combat_power",
+  "active_pins",
   "total_earned",
   "earn_count",
-  "active_pins",
-  "total_pins",
   "conquers",
 ];
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const type = (searchParams.get("type") ?? "total_earned") as RankingType;
+  const type = (searchParams.get("type") ?? "combat_power") as RankingType;
 
   if (!VALID_TYPES.includes(type)) {
     return NextResponse.json({ error: "잘못된 랭킹 유형입니다." }, { status: 400 });

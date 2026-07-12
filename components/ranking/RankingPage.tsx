@@ -3,12 +3,42 @@
 import { useCallback, useEffect, useState } from "react";
 import type { RankingEntry, RankingType } from "@/types/ranking";
 
-const TABS: { type: RankingType; label: string; unit: string }[] = [
-  { type: "total_earned", label: "누적 포인트", unit: "P" },
-  { type: "earn_count", label: "포인트 획득", unit: "회" },
-  { type: "active_pins", label: "현재 깃발", unit: "개" },
-  { type: "total_pins", label: "누적 깃발", unit: "개" },
-  { type: "conquers", label: "점령 수", unit: "회" },
+const TABS: {
+  type: RankingType;
+  label: string;
+  unit: string;
+  description: string;
+}[] = [
+  {
+    type: "combat_power",
+    label: "전투력",
+    unit: "P",
+    description: "지금 보유 중인 깃발에 투자한 포인트 합계입니다.",
+  },
+  {
+    type: "active_pins",
+    label: "현재 깃발",
+    unit: "개",
+    description: "지도에 남아 있는 내 깃발 수입니다.",
+  },
+  {
+    type: "total_earned",
+    label: "누적 포인트",
+    unit: "P",
+    description: "지금까지 획득한 포인트의 총합입니다.",
+  },
+  {
+    type: "earn_count",
+    label: "포인트 획득",
+    unit: "회",
+    description: "포인트를 획득한 횟수입니다.",
+  },
+  {
+    type: "conquers",
+    label: "점령 수",
+    unit: "회",
+    description: "다른 사람의 깃발을 점령에 성공한 횟수입니다.",
+  },
 ];
 
 function rankStyle(rank: number) {
@@ -35,7 +65,7 @@ function rankBadge(rank: number) {
 }
 
 export default function RankingPage() {
-  const [activeType, setActiveType] = useState<RankingType>("total_earned");
+  const [activeType, setActiveType] = useState<RankingType>("combat_power");
   const [entries, setEntries] = useState<RankingEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,20 +95,25 @@ export default function RankingPage() {
           <p className="text-xs text-gray-400 mt-1">상위 100위까지 표시됩니다</p>
         </header>
 
-        <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
-          {TABS.map((tab) => (
-            <button
-              key={tab.type}
-              onClick={() => setActiveType(tab.type)}
-              className={`shrink-0 px-3 py-2 rounded-full text-xs font-bold transition-colors ${
-                activeType === tab.type
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-500 border border-gray-200"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="px-4 pt-3 pb-2">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {TABS.map((tab) => (
+              <button
+                key={tab.type}
+                onClick={() => setActiveType(tab.type)}
+                className={`shrink-0 px-3 py-2 rounded-full text-xs font-bold transition-colors ${
+                  activeType === tab.type
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-500 border border-gray-200"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2.5 text-xs text-gray-500 leading-relaxed">
+            {activeTab.description}
+          </p>
         </div>
 
         <div className="px-4 pb-4 space-y-2">

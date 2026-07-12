@@ -3,28 +3,20 @@
 interface MapActionButtonsProps {
   onCreatePin: () => void;
   onSpawnPoints: () => void;
-  onPremiumPromotion: () => void;
   disabled?: boolean;
 }
 
 export default function MapActionButtons({
   onCreatePin,
   onSpawnPoints,
-  onPremiumPromotion,
   disabled,
 }: MapActionButtonsProps) {
   return (
     <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 pointer-events-none">
-      <div className="max-w-lg mx-auto px-4 pointer-events-auto space-y-2">
-        <button
-          onClick={onPremiumPromotion}
-          disabled={disabled}
-          className="w-full py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-bold shadow-lg shadow-amber-500/25 active:scale-98 transition-transform disabled:opacity-50"
-        >
-          ⭐ 프리미엄 깃발 홍보 요청
-        </button>
+      <div className="max-w-lg mx-auto px-4 pointer-events-auto">
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={onCreatePin}
             disabled={disabled}
             className="flex-[1.4] py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-600/25 active:scale-98 transition-transform disabled:opacity-50"
@@ -32,6 +24,7 @@ export default function MapActionButtons({
             🚩 깃발 꽂기
           </button>
           <button
+            type="button"
             onClick={onSpawnPoints}
             disabled={disabled}
             className="flex-1 py-2.5 rounded-xl bg-white text-amber-600 text-sm font-bold shadow-lg border border-amber-200 active:scale-98 transition-transform disabled:opacity-50"

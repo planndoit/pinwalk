@@ -363,8 +363,19 @@ export default function HomePage({ active = true }: HomePageProps) {
         return { success: false, error: data.error };
       }
 
+      const plantedLat =
+        typeof data.pin?.lat === "number" ? data.pin.lat : position.lat;
+      const plantedLng =
+        typeof data.pin?.lng === "number" ? data.pin.lng : position.lng;
+
       await refreshProfile();
       await fetchPins();
+      recenterNonceRef.current += 1;
+      setRecenterRequest({
+        lat: plantedLat,
+        lng: plantedLng,
+        nonce: recenterNonceRef.current,
+      });
       setCelebration("plant");
       showToast("깃발을 꽂았어요!");
       return { success: true };
@@ -579,12 +590,11 @@ export default function HomePage({ active = true }: HomePageProps) {
         onMapClick={promotionLocationPickMode ? handlePromotionMapClick : undefined}
       />
 
-      {user && profile && (
-        <PointBalance
-          points={profile.points}
-          nickname={profile.nickname}
-        />
-      )}
+      <PointBalance
+        points={user && profile ? profile.points : null}
+        onPremiumPromotion={handlePremiumPromotionClick}
+        premiumPromotionDisabled={actionLoading || promotionLocationPickMode}
+      />
 
       <CurrentLocationButton
         onClick={handlePanToCurrent}
@@ -594,7 +604,6 @@ export default function HomePage({ active = true }: HomePageProps) {
       <MapActionButtons
         onCreatePin={handleCreatePinClick}
         onSpawnPoints={handleSpawnRandomPoints}
-        onPremiumPromotion={handlePremiumPromotionClick}
         disabled={actionLoading || promotionLocationPickMode}
       />
 
