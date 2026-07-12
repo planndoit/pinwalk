@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import AdminLocationMap from "@/components/admin/AdminLocationMap";
 import {
@@ -29,6 +29,7 @@ function SectionTitle({
 
 export default function AdminPremiumPlaceDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
   const [categories, setCategories] = useState<{ code: string; name: string }[]>(
     []
@@ -127,7 +128,12 @@ export default function AdminPremiumPlaceDetailPage() {
       }),
     });
     const data = await res.json();
-    setMessage(res.ok ? "저장되었습니다." : data.error);
+    if (!res.ok) {
+      setMessage(data.error);
+      return;
+    }
+    window.alert("저장되었습니다.");
+    router.push("/admin/premium-places");
   };
 
   const handleCreateCoupon = async () => {
