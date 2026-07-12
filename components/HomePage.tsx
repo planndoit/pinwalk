@@ -694,6 +694,17 @@ export default function HomePage({ active = true }: HomePageProps) {
         pin={selectedPin}
         onClose={() => setSelectedPin(null)}
         onConquer={handleConquerClick}
+        onUpdated={(pin) => {
+          setSelectedPin(pin);
+          setPins((prev) => prev.map((p) => (p.id === pin.id ? pin : p)));
+          showToast("깃발 문구를 수정했어요.");
+        }}
+        onDeleted={(pinId) => {
+          setSelectedPin(null);
+          setPins((prev) => prev.filter((p) => p.id !== pinId));
+          void refreshProfile();
+          showToast("깃발을 삭제했어요.");
+        }}
         isOwner={selectedPin?.user_id === user?.id}
         disabled={actionLoading}
       />
