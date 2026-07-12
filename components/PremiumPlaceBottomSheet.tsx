@@ -1,6 +1,7 @@
 "use client";
 
 import type { SerializedPremiumPlace } from "@/types/premiumClient";
+import { toTelHref } from "@/lib/validation/premium";
 
 interface PremiumPlaceBottomSheetProps {
   place: SerializedPremiumPlace | null;
@@ -12,6 +13,8 @@ export default function PremiumPlaceBottomSheet({
   onClose,
 }: PremiumPlaceBottomSheetProps) {
   if (!place) return null;
+
+  const placePhone = place.placePhone?.trim() || null;
 
   return (
     <div className="fixed inset-0 z-40">
@@ -46,6 +49,17 @@ export default function PremiumPlaceBottomSheet({
               </button>
             </div>
             <p className="text-sm text-gray-700 mt-3">{place.promoText}</p>
+            {placePhone && (
+              <a
+                href={toTelHref(placePhone)}
+                className="mt-3 flex items-center justify-between gap-3 w-full rounded-xl bg-amber-500 text-white px-4 py-3 font-bold shadow-md shadow-amber-500/25 active:scale-98 transition-transform"
+              >
+                <span className="text-sm">전화하기</span>
+                <span className="text-base tabular-nums tracking-tight">
+                  {placePhone}
+                </span>
+              </a>
+            )}
             {place.promoLink && (
               <a
                 href={place.promoLink}

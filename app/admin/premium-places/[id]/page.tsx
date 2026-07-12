@@ -41,6 +41,7 @@ export default function AdminPremiumPlaceDetailPage() {
     contactEmail: "",
     contactName: "",
     address: "",
+    placePhone: "",
     lat: null as number | null,
     lng: null as number | null,
     promoText: "",
@@ -73,6 +74,7 @@ export default function AdminPremiumPlaceDetailPage() {
         contactEmail: p.contactEmail ?? "",
         contactName: p.contactName ?? "",
         address: p.address ?? "",
+        placePhone: p.placePhone ?? "",
         lat: lat != null && Number.isFinite(lat) ? lat : null,
         lng: lng != null && Number.isFinite(lng) ? lng : null,
         promoText: p.promoText,
@@ -115,6 +117,7 @@ export default function AdminPremiumPlaceDetailPage() {
         contactEmail: form.contactEmail,
         contactName: form.contactName,
         address: form.address || null,
+        placePhone: form.placePhone || null,
         lat: form.lat,
         lng: form.lng,
         promoText: form.promoText,
@@ -177,7 +180,7 @@ export default function AdminPremiumPlaceDetailPage() {
               }
             />
             <AdminInput
-              label="연락처"
+              label="담당자 연락처"
               value={form.contactPhone}
               onChange={(e) =>
                 setForm({ ...form, contactPhone: e.target.value })
@@ -215,10 +218,17 @@ export default function AdminPremiumPlaceDetailPage() {
               ))}
             </AdminSelect>
             <AdminInput
-              label="업체명"
+              label="장소명"
               value={form.storeName}
               onChange={(e) =>
                 setForm({ ...form, storeName: e.target.value })
+              }
+            />
+            <AdminInput
+              label="전화번호"
+              value={form.placePhone}
+              onChange={(e) =>
+                setForm({ ...form, placePhone: e.target.value })
               }
             />
             <div className="sm:col-span-2">

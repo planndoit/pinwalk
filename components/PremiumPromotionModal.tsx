@@ -52,6 +52,7 @@ export default function PremiumPromotionModal({
     contactEmail: "",
     contactName: "",
     address: "",
+    placePhone: "",
     promoText: "",
     promoLink: "",
   });
@@ -87,6 +88,7 @@ export default function PremiumPromotionModal({
         contactEmail: form.contactEmail || null,
         contactName: form.contactName || null,
         address: form.address,
+        placePhone: form.placePhone,
         lat: selectedLocation?.lat ?? null,
         lng: selectedLocation?.lng ?? null,
         promoText: form.promoText,
@@ -142,7 +144,7 @@ export default function PremiumPromotionModal({
             </label>
 
             <label className="block text-sm">
-              <FieldLabel>연락처</FieldLabel>
+              <FieldLabel>담당자 연락처</FieldLabel>
               <input
                 className={inputClassName}
                 value={form.contactPhone}
@@ -151,6 +153,7 @@ export default function PremiumPromotionModal({
                 }
                 required
                 placeholder="010-1234-5678"
+                inputMode="tel"
               />
             </label>
 
@@ -198,7 +201,7 @@ export default function PremiumPromotionModal({
             </label>
 
             <label className="block text-sm">
-              <FieldLabel>업체명</FieldLabel>
+              <FieldLabel>장소명</FieldLabel>
               <input
                 className={inputClassName}
                 value={form.storeName}
@@ -207,6 +210,20 @@ export default function PremiumPromotionModal({
                 }
                 required
                 placeholder="이땅카페"
+              />
+            </label>
+
+            <label className="block text-sm">
+              <FieldLabel>전화번호</FieldLabel>
+              <input
+                className={inputClassName}
+                value={form.placePhone}
+                onChange={(e) =>
+                  setForm({ ...form, placePhone: e.target.value })
+                }
+                required
+                placeholder="02-1234-5678"
+                inputMode="tel"
               />
             </label>
 

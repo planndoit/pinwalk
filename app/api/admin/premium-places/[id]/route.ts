@@ -70,6 +70,7 @@ export async function PATCH(
     ["contactEmail", "contact_email"],
     ["contactName", "contact_name"],
     ["address", "address"],
+    ["placePhone", "place_phone"],
     ["lat", "lat"],
     ["lng", "lng"],
     ["promoText", "promo_text"],

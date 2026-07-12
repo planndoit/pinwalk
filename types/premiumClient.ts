@@ -3,6 +3,7 @@ export interface SerializedPremiumPlace {
   categoryCode: string;
   categoryName?: string;
   storeName: string;
+  placePhone: string | null;
   lat: number;
   lng: number;
   promoText: string;

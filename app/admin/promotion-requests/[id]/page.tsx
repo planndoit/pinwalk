@@ -156,7 +156,7 @@ export default function AdminPromotionRequestDetailPage() {
           <DetailRow label="담당자 이름">
             {displayText(request.contactName)}
           </DetailRow>
-          <DetailRow label="연락처">
+          <DetailRow label="담당자 연락처">
             {displayText(request.contactPhone)}
           </DetailRow>
           <DetailRow label="이메일">
@@ -172,8 +172,11 @@ export default function AdminPromotionRequestDetailPage() {
           <DetailRow label="카테고리">
             {displayText(request.categoryName)}
           </DetailRow>
-          <DetailRow label="업체명">
+          <DetailRow label="장소명">
             {displayText(request.storeName)}
+          </DetailRow>
+          <DetailRow label="전화번호">
+            {displayText(request.placePhone)}
           </DetailRow>
           <DetailRow label="도로명 주소">
             {displayText(request.address)}

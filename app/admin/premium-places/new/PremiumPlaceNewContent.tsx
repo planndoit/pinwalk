@@ -41,6 +41,7 @@ export default function AdminPremiumPlaceNewPage() {
     contactEmail: "",
     contactName: "",
     address: "",
+    placePhone: "",
     lat: null as number | null,
     lng: null as number | null,
     promoText: "",
@@ -81,6 +82,7 @@ export default function AdminPremiumPlaceNewPage() {
             contactEmail: r.contactEmail ?? "",
             contactName: r.contactName ?? "",
             address: r.address ?? "",
+            placePhone: r.placePhone ?? "",
             lat: lat != null && Number.isFinite(lat) ? lat : null,
             lng: lng != null && Number.isFinite(lng) ? lng : null,
             promoText: r.promoText ?? "",
@@ -112,6 +114,7 @@ export default function AdminPremiumPlaceNewPage() {
         contactEmail: form.contactEmail,
         contactName: form.contactName,
         address: form.address || null,
+        placePhone: form.placePhone || null,
         lat: form.lat,
         lng: form.lng,
         promoText: form.promoText,
@@ -152,7 +155,7 @@ export default function AdminPremiumPlaceNewPage() {
               }
             />
             <AdminInput
-              label="연락처"
+              label="담당자 연락처"
               value={form.contactPhone}
               onChange={(e) =>
                 setForm({ ...form, contactPhone: e.target.value })
@@ -192,10 +195,18 @@ export default function AdminPremiumPlaceNewPage() {
               ))}
             </AdminSelect>
             <AdminInput
-              label="업체명"
+              label="장소명"
               value={form.storeName}
               onChange={(e) =>
                 setForm({ ...form, storeName: e.target.value })
+              }
+              required
+            />
+            <AdminInput
+              label="전화번호"
+              value={form.placePhone}
+              onChange={(e) =>
+                setForm({ ...form, placePhone: e.target.value })
               }
               required
             />

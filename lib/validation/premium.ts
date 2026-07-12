@@ -7,6 +7,7 @@ export interface PromotionRequestInput {
   contactEmail: string | null;
   contactName: string | null;
   address: string;
+  placePhone: string;
   lat: number | null;
   lng: number | null;
   promoText: string;
@@ -23,6 +24,7 @@ export function validatePromotionRequestInput(
     contactEmail,
     contactName,
     address,
+    placePhone,
     lat,
     lng,
     promoText,
@@ -31,11 +33,14 @@ export function validatePromotionRequestInput(
 
   if (!categoryCode?.trim()) return { valid: false, error: "카테고리를 선택해주세요." };
   if (!storeName?.trim() || storeName.trim().length > 50) {
-    return { valid: false, error: "업체명을 50자 이내로 입력해주세요." };
+    return { valid: false, error: "장소명을 50자 이내로 입력해주세요." };
   }
-  if (!contactPhone?.trim()) return { valid: false, error: "연락처를 입력해주세요." };
+  if (!contactPhone?.trim()) return { valid: false, error: "담당자 연락처를 입력해주세요." };
   if (!address?.trim() || address.trim().length > 200) {
     return { valid: false, error: "도로명 주소를 200자 이내로 입력해주세요." };
+  }
+  if (!placePhone?.trim() || placePhone.trim().length > 30) {
+    return { valid: false, error: "장소 전화번호를 30자 이내로 입력해주세요." };
   }
   if (!promoText?.trim() || promoText.trim().length > 500) {
     return { valid: false, error: "홍보 문구를 500자 이내로 입력해주세요." };
@@ -70,6 +75,7 @@ export function validatePromotionRequestInput(
       contactEmail: trimmedEmail || null,
       contactName: trimmedName || null,
       address: address.trim(),
+      placePhone: placePhone.trim(),
       lat: hasLat ? (lat as number) : null,
       lng: hasLng ? (lng as number) : null,
       promoText: promoText.trim(),
@@ -100,7 +106,7 @@ export function validatePremiumPlaceInput(
   if (!base.valid) return base;
 
   if (typeof base.data.lat !== "number" || typeof base.data.lng !== "number") {
-    return { valid: false, error: "지도에서 가게 위치를 선택해주세요." };
+    return { valid: false, error: "지도에서 장소 위치를 선택해주세요." };
   }
 
   return {
@@ -149,4 +155,9 @@ export function validateCouponInput(body: {
       expiresAt: body.expiresAt ?? null,
     },
   };
+}
+
+export function toTelHref(phone: string): string {
+  const normalized = phone.replace(/[^0-9+]/g, "");
+  return `tel:${normalized}`;
 }

@@ -100,10 +100,10 @@ export default function AdminPromotionRequestsPage() {
 
       <AdminCard className="p-4 mb-4 space-y-4">
         <AdminInput
-          label="업체명 / 담당자명 검색"
+          label="장소명 / 담당자명 검색"
           value={draft.q}
           onChange={(e) => setDraft({ ...draft, q: e.target.value })}
-          placeholder="업체명 또는 담당자명"
+          placeholder="장소명 또는 담당자명"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -171,7 +171,7 @@ export default function AdminPromotionRequestsPage() {
       </AdminCard>
 
       <AdminCard>
-        <AdminTable headers={["업체명", "카테고리", "담당자", "상태", "요청일", ""]}>
+        <AdminTable headers={["장소명", "카테고리", "담당자", "상태", "요청일", ""]}>
           {requests.map((r) => (
             <tr
               key={r.id}

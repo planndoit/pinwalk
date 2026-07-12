@@ -91,7 +91,7 @@ export default function AdminPremiumPlacesPage() {
 
       <AdminCard className="p-4 mb-4 space-y-4">
         <AdminInput
-          label="업체명 검색"
+          label="장소명 검색"
           value={draft.q}
           onChange={(e) => setDraft({ ...draft, q: e.target.value })}
           onKeyDown={(e) => {
@@ -175,7 +175,7 @@ export default function AdminPremiumPlacesPage() {
             <AdminButton>추가</AdminButton>
           </Link>
         </div>
-        <AdminTable headers={["업체명", "카테고리", "활성화", "등록일", ""]}>
+        <AdminTable headers={["장소명", "카테고리", "활성화", "등록일", ""]}>
           {places.map((p) => (
             <tr
               key={p.id}
