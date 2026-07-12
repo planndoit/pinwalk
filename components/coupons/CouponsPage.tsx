@@ -72,6 +72,7 @@ export default function CouponsPage() {
       promoText: selected.placePromoText ?? "",
       promoLink: selected.placePromoLink,
       isActive: selected.placeIsActive,
+      hasCoupons: true,
     });
     setSelected(null);
     setConfirmUse(false);

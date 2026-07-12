@@ -34,21 +34,23 @@ export default function PremiumPlaceBottomSheet({
             className="bg-gradient-to-br from-amber-50 to-white border-2 border-amber-300 rounded-2xl shadow-xl p-5"
             onClick={(e) => e.stopPropagation()}
           >
-            {onIssueCoupons && (
-              <button
-                type="button"
-                onClick={onIssueCoupons}
-                disabled={issuing}
-                className="mb-3 w-full rounded-xl bg-violet-600 text-white px-4 py-3 text-sm font-bold shadow-md shadow-violet-600/20 disabled:opacity-50"
-              >
-                {issuing ? "발행 중..." : "쿠폰 발행"}
-              </button>
-            )}
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <span className="inline-block px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold mb-2">
-                  PREMIUM
-                </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="inline-block px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                    PREMIUM
+                  </span>
+                  {onIssueCoupons && place.hasCoupons && (
+                    <button
+                      type="button"
+                      onClick={onIssueCoupons}
+                      disabled={issuing}
+                      className="px-2.5 py-0.5 rounded-full bg-violet-600 text-white text-[10px] font-bold disabled:opacity-50"
+                    >
+                      {issuing ? "발행 중..." : "쿠폰 발행하기"}
+                    </button>
+                  )}
+                </div>
                 <h3 className="text-lg font-bold text-gray-900">{place.storeName}</h3>
                 <p className="text-xs text-amber-700 mt-0.5">
                   {place.categoryName ?? place.categoryCode}
@@ -57,7 +59,7 @@ export default function PremiumPlaceBottomSheet({
               <button
                 type="button"
                 onClick={onClose}
-                className="text-gray-400 text-xl leading-none"
+                className="text-gray-400 text-xl leading-none shrink-0"
               >
                 ×
               </button>

@@ -9,6 +9,7 @@ export interface SerializedPremiumPlace {
   promoText: string;
   promoLink: string | null;
   isActive: boolean;
+  hasCoupons?: boolean;
 }
 
 export interface SerializedCouponSpawn {

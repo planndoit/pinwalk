@@ -23,6 +23,21 @@ export async function GET() {
     );
   }
 
+  const places = data ?? [];
+  const placeIds = places.map((p) => p.id);
+
+  const couponPlaceIds = new Set<string>();
+  if (placeIds.length > 0) {
+    const { data: coupons } = await admin
+      .from("premium_coupons")
+      .select("premium_place_id")
+      .in("premium_place_id", placeIds);
+
+    for (const row of coupons ?? []) {
+      couponPlaceIds.add(row.premium_place_id);
+    }
+  }
+
   const { data: codes } = await admin
     .from("common_codes")
     .select("code, name")
@@ -32,9 +47,10 @@ export async function GET() {
   const codeMap = new Map((codes ?? []).map((c) => [c.code, c.name]));
 
   return NextResponse.json({
-    places: (data ?? []).map((place) => ({
+    places: places.map((place) => ({
       ...serializePremiumPlace(place),
       categoryName: codeMap.get(place.category_code) ?? place.category_code,
+      hasCoupons: couponPlaceIds.has(place.id),
     })),
     radiusMeters: getPremiumPlaceRadiusMeters(),
   });
