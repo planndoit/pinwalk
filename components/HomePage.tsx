@@ -94,13 +94,8 @@ export default function HomePage({ active = true }: HomePageProps) {
     }
   }, []);
 
-  const fetchPremiumPlaces = useCallback(async (lat?: number, lng?: number) => {
-    const params = new URLSearchParams();
-    if (typeof lat === "number" && typeof lng === "number") {
-      params.set("lat", String(lat));
-      params.set("lng", String(lng));
-    }
-    const res = await fetch(`/api/premium-places?${params}`, { cache: "no-store" });
+  const fetchPremiumPlaces = useCallback(async () => {
+    const res = await fetch("/api/premium-places", { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       setPremiumPlaces(data.places ?? []);
@@ -191,12 +186,12 @@ export default function HomePage({ active = true }: HomePageProps) {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       void fetchPins();
-      void fetchPremiumPlaces(position?.lat, position?.lng);
+      void fetchPremiumPlaces();
       if (user) void fetchRandomPoints();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [fetchPins, fetchRandomPoints, fetchPremiumPlaces, user, position]);
+  }, [fetchPins, fetchRandomPoints, fetchPremiumPlaces, user]);
 
   useEffect(() => {
     if (active) return;
@@ -229,7 +224,6 @@ export default function HomePage({ active = true }: HomePageProps) {
         }
         lastPositionRef.current = next;
         setPosition(next);
-        void fetchPremiumPlaces(next.lat, next.lng);
         if (user) void syncCouponSpawns(next.lat, next.lng);
       },
       () => {},
@@ -237,7 +231,7 @@ export default function HomePage({ active = true }: HomePageProps) {
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [active, user, fetchPremiumPlaces, syncCouponSpawns]);
+  }, [active, user, syncCouponSpawns]);
 
   useEffect(() => {
     if (authLoading) return;
