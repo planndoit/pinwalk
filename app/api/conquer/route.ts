@@ -156,7 +156,7 @@ export async function POST(request: Request) {
       lng: targetPin.lng,
       radius_meters: PIN_RADIUS_METERS,
       status: "active",
-      cost: DEFAULT_PIN_COST,
+      cost: pinCost,
       expires_at: null,
     })
     .select()
