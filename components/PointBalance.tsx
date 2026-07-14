@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/components/AuthProvider";
 import { SERVICE_NAME } from "@/lib/constants";
 
 interface PointBalanceProps {
@@ -16,6 +17,7 @@ export default function PointBalance({
   onPremiumPromotion,
   premiumPromotionDisabled,
 }: PointBalanceProps) {
+  const { openAuthModal, loading: authLoading } = useAuth();
   const showPoints = typeof points === "number";
 
   return (
@@ -43,7 +45,7 @@ export default function PointBalance({
                 홍보 요청
               </button>
             )}
-            {showPoints && (
+            {showPoints ? (
               <div className={`${chipClassName} px-3.5`}>
                 <span className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-white text-[10px] font-extrabold flex items-center justify-center">
                   P
@@ -52,6 +54,16 @@ export default function PointBalance({
                   {points.toLocaleString()}
                 </p>
               </div>
+            ) : (
+              !authLoading && (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal("login")}
+                  className={`${chipClassName} px-3.5 text-sm font-extrabold text-gray-900 active:scale-98 transition-transform`}
+                >
+                  로그인
+                </button>
+              )
             )}
           </div>
         </div>

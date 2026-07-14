@@ -64,7 +64,7 @@ export default function PremiumPlaceBottomSheet({
                 ×
               </button>
             </div>
-            <p className="mt-3 max-h-[9rem] overflow-y-auto text-sm leading-6 text-gray-700 whitespace-pre-line overscroll-contain">
+            <p className="mt-3 max-h-[8.25rem] overflow-y-auto text-sm leading-6 text-gray-700 whitespace-pre-line overscroll-contain">
               {place.promoText}
             </p>
             {placePhone && (
