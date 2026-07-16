@@ -67,6 +67,7 @@ export default function HomePage({ active = true }: HomePageProps) {
     lng: number;
   } | null>(null);
   const [couponClaimRadius, setCouponClaimRadius] = useState(15);
+  const [pinPlacementRadius, setPinPlacementRadius] = useState(100);
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
   const [selectedRandomPoint, setSelectedRandomPoint] =
     useState<RandomPoint | null>(null);
@@ -183,10 +184,19 @@ export default function HomePage({ active = true }: HomePageProps) {
 
   useEffect(() => {
     void (async () => {
-      const res = await fetch("/api/premium-places/config");
-      if (res.ok) {
-        const data = await res.json();
+      const [premiumConfigRes, pinConfigRes] = await Promise.all([
+        fetch("/api/premium-places/config"),
+        fetch("/api/pins/config"),
+      ]);
+
+      if (premiumConfigRes.ok) {
+        const data = await premiumConfigRes.json();
         setCouponClaimRadius(data.couponClaimRadiusMeters ?? 15);
+      }
+
+      if (pinConfigRes.ok) {
+        const data = await pinConfigRes.json();
+        setPinPlacementRadius(data.placementRadiusMeters ?? 100);
       }
     })();
   }, []);
@@ -378,11 +388,11 @@ export default function HomePage({ active = true }: HomePageProps) {
           pinPickAnchor.lng,
           lat,
           lng,
-          PIN_RADIUS_METERS
+          pinPlacementRadius
         )
       );
     },
-    [pinPickAnchor]
+    [pinPickAnchor, pinPlacementRadius]
   );
 
   const handleLocationMapClick = useCallback(
@@ -732,7 +742,7 @@ export default function HomePage({ active = true }: HomePageProps) {
         pickedLocation={activePickedLocation}
         locationPickAnchor={pinLocationPickMode ? pinPickAnchor : null}
         locationPickRadiusMeters={
-          pinLocationPickMode ? PIN_RADIUS_METERS : undefined
+          pinLocationPickMode ? pinPlacementRadius : undefined
         }
         locationPickMarkerKind={pinLocationPickMode ? "pin" : "default"}
         onMapClick={locationPickMode ? handleLocationMapClick : undefined}

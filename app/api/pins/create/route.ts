@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { findActivePinsNear, deductPoints } from "@/lib/pins";
 import { validatePinText } from "@/lib/validation";
 import { getDistanceMeters } from "@/lib/geo";
+import { getPinPlacementRadiusMeters } from "@/lib/env";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -40,9 +41,12 @@ export async function POST(request: Request) {
     return jsonError("현재 위치 정보가 필요합니다.");
   }
 
+  const placementRadiusMeters = getPinPlacementRadiusMeters();
   const distanceFromUser = getDistanceMeters(current_lat, current_lng, lat, lng);
-  if (distanceFromUser > PIN_RADIUS_METERS) {
-    return jsonError("깃발은 현재 위치 반경 100m 안에만 꽂을 수 있습니다.");
+  if (distanceFromUser > placementRadiusMeters) {
+    return jsonError(
+      `깃발은 현재 위치 반경 ${placementRadiusMeters}m 안에만 꽂을 수 있습니다.`
+    );
   }
 
   if (typeof text !== "string") {

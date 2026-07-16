@@ -9,6 +9,10 @@ export function getPremiumPlaceRadiusMeters(): number {
   return readInt("PREMIUM_PLACE_RADIUS_METERS", 100);
 }
 
+export function getPinPlacementRadiusMeters(): number {
+  return readInt("PIN_PLACEMENT_RADIUS_METERS", 100);
+}
+
 export function getPremiumCouponSpawnDistanceMeters(): number {
   return readInt("PREMIUM_COUPON_SPAWN_DISTANCE_METERS", 10);
 }
