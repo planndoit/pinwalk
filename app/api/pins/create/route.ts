@@ -7,6 +7,7 @@ import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findActivePinsNear, deductPoints } from "@/lib/pins";
 import { validatePinText } from "@/lib/validation";
+import { getDistanceMeters } from "@/lib/geo";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -15,15 +16,33 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { lat, lng, text, cost: rawCost } = body as {
+  const {
+    lat,
+    lng,
+    text,
+    cost: rawCost,
+    current_lat,
+    current_lng,
+  } = body as {
     lat?: number;
     lng?: number;
     text?: string;
     cost?: number;
+    current_lat?: number;
+    current_lng?: number;
   };
 
   if (typeof lat !== "number" || typeof lng !== "number") {
     return jsonError("위치 정보가 올바르지 않습니다.");
+  }
+
+  if (typeof current_lat !== "number" || typeof current_lng !== "number") {
+    return jsonError("현재 위치 정보가 필요합니다.");
+  }
+
+  const distanceFromUser = getDistanceMeters(current_lat, current_lng, lat, lng);
+  if (distanceFromUser > PIN_RADIUS_METERS) {
+    return jsonError("깃발은 현재 위치 반경 100m 안에만 꽂을 수 있습니다.");
   }
 
   if (typeof text !== "string") {

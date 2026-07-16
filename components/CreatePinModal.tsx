@@ -68,7 +68,7 @@ export default function CreatePinModal({
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
 
         <h2 className="text-xl font-bold text-gray-900">
-          현재 위치에 깃발을 꽂을까요?
+          선택한 위치에 깃발을 꽂을까요?
         </h2>
         <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">
           투자한 포인트만큼 점령할 때도 포인트가 필요합니다.

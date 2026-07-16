@@ -6,6 +6,7 @@ import MapView from "@/components/MapView";
 import PointBalance from "@/components/PointBalance";
 import CurrentLocationButton from "@/components/CurrentLocationButton";
 import CreatePinModal from "@/components/CreatePinModal";
+import PinLocationPicker from "@/components/PinLocationPicker";
 import ConquerModal from "@/components/ConquerModal";
 import PinBottomSheet from "@/components/PinBottomSheet";
 import RandomPointBottomSheet from "@/components/RandomPointBottomSheet";
@@ -17,7 +18,7 @@ import PremiumCouponBottomSheet from "@/components/PremiumCouponBottomSheet";
 import CelebrationOverlay, {
   type CelebrationType,
 } from "@/components/CelebrationOverlay";
-import { getDistanceMeters } from "@/lib/geo";
+import { clampPointToRadius, getDistanceMeters } from "@/lib/geo";
 import { PIN_RADIUS_METERS } from "@/lib/constants";
 import { consumeFocusPremiumPlace } from "@/lib/premium/focusPlace";
 import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
@@ -52,6 +53,15 @@ export default function HomePage({ active = true }: HomePageProps) {
     useState<SerializedCouponSpawn | null>(null);
   const [showPremiumPromotionModal, setShowPremiumPromotionModal] = useState(false);
   const [promotionLocationPickMode, setPromotionLocationPickMode] = useState(false);
+  const [pinLocationPickMode, setPinLocationPickMode] = useState(false);
+  const [pinPickAnchor, setPinPickAnchor] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [pinPickedLocation, setPinPickedLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
   const [promotionPickedLocation, setPromotionPickedLocation] = useState<{
     lat: number;
     lng: number;
@@ -298,38 +308,95 @@ export default function HomePage({ active = true }: HomePageProps) {
   };
 
   const handleCreatePinClick = () => {
-    if (actionLoading) return;
-    requireAuth(async () => {
+    if (actionLoading || pinLocationPickMode || promotionLocationPickMode) return;
+    requireAuth(() => {
       if (!position) {
         showToast("현재 위치를 먼저 확인해주세요.");
         return;
       }
 
+      setPinPickAnchor({ lat: position.lat, lng: position.lng });
+      setPinPickedLocation({ lat: position.lat, lng: position.lng });
+      setPinLocationPickMode(true);
+      recenterNonceRef.current += 1;
+      setRecenterRequest({
+        lat: position.lat,
+        lng: position.lng,
+        nonce: recenterNonceRef.current,
+      });
+    });
+  };
+
+  const handleCancelPinLocationPick = () => {
+    setPinLocationPickMode(false);
+    setPinPickAnchor(null);
+    setPinPickedLocation(null);
+  };
+
+  const handleConfirmPinLocationPick = () => {
+    if (!pinPickedLocation) return;
+
+    void (async () => {
       setActionLoading(true);
       try {
         const res = await fetch(
-          `/api/pins?lat=${position.lat}&lng=${position.lng}&radius=${PIN_RADIUS_METERS}`
+          `/api/pins?lat=${pinPickedLocation.lat}&lng=${pinPickedLocation.lng}&radius=${PIN_RADIUS_METERS}`
         );
         if (res.ok) {
           const data = await res.json();
           const nearby = (data.pins ?? []).filter(
             (p: Pin) =>
-              getDistanceMeters(position.lat, position.lng, p.lat, p.lng) <=
-              PIN_RADIUS_METERS
+              getDistanceMeters(
+                pinPickedLocation.lat,
+                pinPickedLocation.lng,
+                p.lat,
+                p.lng
+              ) <= PIN_RADIUS_METERS
           );
           if (nearby.length > 0) {
-            showToast("이미 점령된 영역입니다. 점령에 도전해보세요.");
-            setSelectedPin(nearby[0]);
+            showToast(
+              "이미 점령된 영역입니다. 다른 위치를 선택하거나 점령에 도전해보세요."
+            );
             return;
           }
         }
 
+        setPinLocationPickMode(false);
         setShowCreateModal(true);
       } finally {
         setActionLoading(false);
       }
-    });
+    })();
   };
+
+  const handlePinMapClick = useCallback(
+    (lat: number, lng: number) => {
+      if (!pinPickAnchor) return;
+      setPinPickedLocation(
+        clampPointToRadius(
+          pinPickAnchor.lat,
+          pinPickAnchor.lng,
+          lat,
+          lng,
+          PIN_RADIUS_METERS
+        )
+      );
+    },
+    [pinPickAnchor]
+  );
+
+  const handleLocationMapClick = useCallback(
+    (lat: number, lng: number) => {
+      if (pinLocationPickMode) {
+        handlePinMapClick(lat, lng);
+        return;
+      }
+      if (promotionLocationPickMode) {
+        setPromotionPickedLocation({ lat, lng });
+      }
+    },
+    [pinLocationPickMode, promotionLocationPickMode, handlePinMapClick]
+  );
 
   const handleSpawnRandomPoints = () => {
     if (actionLoading) return;
@@ -365,7 +432,9 @@ export default function HomePage({ active = true }: HomePageProps) {
   };
 
   const handleCreatePin = async (text: string, cost: PinCost) => {
-    if (!position) return { success: false, error: "위치 정보가 없습니다." };
+    if (!position || !pinPickedLocation) {
+      return { success: false, error: "위치 정보가 없습니다." };
+    }
 
     setActionLoading(true);
     try {
@@ -373,8 +442,10 @@ export default function HomePage({ active = true }: HomePageProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lat: position.lat,
-          lng: position.lng,
+          lat: pinPickedLocation.lat,
+          lng: pinPickedLocation.lng,
+          current_lat: position.lat,
+          current_lng: position.lng,
           text,
           cost,
         }),
@@ -386,10 +457,12 @@ export default function HomePage({ active = true }: HomePageProps) {
       }
 
       const plantedLat =
-        typeof data.pin?.lat === "number" ? data.pin.lat : position.lat;
+        typeof data.pin?.lat === "number" ? data.pin.lat : pinPickedLocation.lat;
       const plantedLng =
-        typeof data.pin?.lng === "number" ? data.pin.lng : position.lng;
+        typeof data.pin?.lng === "number" ? data.pin.lng : pinPickedLocation.lng;
 
+      setPinPickAnchor(null);
+      setPinPickedLocation(null);
       await refreshProfile();
       await fetchPins();
       recenterNonceRef.current += 1;
@@ -529,9 +602,10 @@ export default function HomePage({ active = true }: HomePageProps) {
     setShowPremiumPromotionModal(true);
   };
 
-  const handlePromotionMapClick = useCallback((lat: number, lng: number) => {
-    setPromotionPickedLocation({ lat, lng });
-  }, []);
+  const locationPickMode = promotionLocationPickMode || pinLocationPickMode;
+  const activePickedLocation = pinLocationPickMode
+    ? pinPickedLocation
+    : promotionPickedLocation;
 
   const handleClaimCouponSpawn = async () => {
     if (!position || !selectedCouponSpawn || !user) return;
@@ -632,21 +706,21 @@ export default function HomePage({ active = true }: HomePageProps) {
         currentUserId={user?.id ?? null}
         recenterRequest={recenterRequest}
         onPinClick={(pin) => {
-          if (promotionLocationPickMode) return;
+          if (locationPickMode) return;
           handlePinClick(pin);
         }}
         onRandomPointClick={(point) => {
-          if (promotionLocationPickMode) return;
+          if (locationPickMode) return;
           requireAuth(() => setSelectedRandomPoint(point));
         }}
         onPremiumPlaceClick={(place) => {
-          if (promotionLocationPickMode) return;
+          if (locationPickMode) return;
           trackPremiumPlaceEvent(place.id, "marker_click");
           trackPremiumPlaceEvent(place.id, "detail_open", { source: "map_marker" });
           setSelectedPremiumPlace(place);
         }}
         onCouponSpawnClick={(spawn) => {
-          if (promotionLocationPickMode) return;
+          if (locationPickMode) return;
           trackPremiumPlaceEvent(
             spawn.premiumPlaceId,
             "coupon_spawn_click",
@@ -654,15 +728,20 @@ export default function HomePage({ active = true }: HomePageProps) {
           );
           requireAuth(() => setSelectedCouponSpawn(spawn));
         }}
-        locationPickMode={promotionLocationPickMode}
-        pickedLocation={promotionPickedLocation}
-        onMapClick={promotionLocationPickMode ? handlePromotionMapClick : undefined}
+        locationPickMode={locationPickMode}
+        pickedLocation={activePickedLocation}
+        locationPickAnchor={pinLocationPickMode ? pinPickAnchor : null}
+        locationPickRadiusMeters={
+          pinLocationPickMode ? PIN_RADIUS_METERS : undefined
+        }
+        locationPickMarkerKind={pinLocationPickMode ? "pin" : "default"}
+        onMapClick={locationPickMode ? handleLocationMapClick : undefined}
       />
 
       <PointBalance
         points={user && profile ? profile.points : null}
         onPremiumPromotion={handlePremiumPromotionClick}
-        premiumPromotionDisabled={actionLoading || promotionLocationPickMode}
+        premiumPromotionDisabled={actionLoading || locationPickMode}
       />
 
       <CurrentLocationButton
@@ -673,7 +752,7 @@ export default function HomePage({ active = true }: HomePageProps) {
       <MapActionButtons
         onCreatePin={handleCreatePinClick}
         onSpawnPoints={handleSpawnRandomPoints}
-        disabled={actionLoading || promotionLocationPickMode}
+        disabled={actionLoading || locationPickMode}
       />
 
       {promotionLocationPickMode && (
@@ -684,9 +763,22 @@ export default function HomePage({ active = true }: HomePageProps) {
         />
       )}
 
+      {pinLocationPickMode && (
+        <PinLocationPicker
+          onCancel={handleCancelPinLocationPick}
+          onConfirm={handleConfirmPinLocationPick}
+          canConfirm={pinPickedLocation !== null}
+          loading={actionLoading}
+        />
+      )}
+
       <CreatePinModal
         open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={() => {
+          setShowCreateModal(false);
+          setPinPickAnchor(null);
+          setPinPickedLocation(null);
+        }}
         onSubmit={handleCreatePin}
         loading={actionLoading}
       />

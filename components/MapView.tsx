@@ -47,6 +47,9 @@ interface MapViewProps {
   onCouponSpawnClick: (spawn: SerializedCouponSpawn) => void;
   locationPickMode?: boolean;
   pickedLocation?: { lat: number; lng: number } | null;
+  locationPickAnchor?: { lat: number; lng: number } | null;
+  locationPickRadiusMeters?: number;
+  locationPickMarkerKind?: "default" | "pin";
   onMapClick?: (lat: number, lng: number) => void;
 }
 
@@ -309,6 +312,30 @@ function focusClusterOnMap(
   map.setZoom(targetZoom);
 }
 
+function createPinPickMarkerContent(): string {
+  return `
+    <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; pointer-events: none;">
+      <div style="
+        background: #2563eb;
+        color: white;
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 14px rgba(37,99,235,0.45);
+        border: 3px solid white;
+        font-size: 18px;
+      ">🚩</div>
+      <div style="
+        width: 0; height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid #2563eb;
+        margin-top: -1px;
+      "></div>
+    </div>
+  `;
+}
+
 function createLocationPickMarkerContent(): string {
   return `
     <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; pointer-events: none;">
@@ -367,6 +394,9 @@ export default function MapView({
   onCouponSpawnClick,
   locationPickMode = false,
   pickedLocation = null,
+  locationPickAnchor = null,
+  locationPickRadiusMeters,
+  locationPickMarkerKind = "default",
   onMapClick,
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -380,6 +410,7 @@ export default function MapView({
   const premiumListenersRef = useRef<unknown[]>([]);
   const couponMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
   const pickMarkerRef = useRef<InstanceType<typeof naver.maps.Marker> | null>(null);
+  const pickAnchorCircleRef = useRef<InstanceType<typeof naver.maps.Circle> | null>(null);
   const mapClickListenerRef = useRef<unknown>(null);
   const onMapClickRef = useRef(onMapClick);
   const pinsRef = useRef(pins);
@@ -884,6 +915,46 @@ export default function MapView({
     const map = mapInstanceRef.current;
     if (!mapReady || !map || !naverObj?.maps) return;
 
+    if (pickAnchorCircleRef.current) {
+      pickAnchorCircleRef.current.setMap(null);
+      pickAnchorCircleRef.current = null;
+    }
+
+    if (
+      !locationPickMode ||
+      !locationPickAnchor ||
+      typeof locationPickRadiusMeters !== "number"
+    ) {
+      return;
+    }
+
+    const center = new naverObj.maps.LatLng(
+      locationPickAnchor.lat,
+      locationPickAnchor.lng
+    );
+    pickAnchorCircleRef.current = new naverObj.maps.Circle({
+      map,
+      center,
+      radius: locationPickRadiusMeters,
+      fillColor: "#3b82f6",
+      fillOpacity: 0.12,
+      strokeColor: "#2563eb",
+      strokeOpacity: 0.55,
+      strokeWeight: 2,
+      zIndex: 340,
+    });
+  }, [
+    mapReady,
+    locationPickMode,
+    locationPickAnchor,
+    locationPickRadiusMeters,
+  ]);
+
+  useEffect(() => {
+    const naverObj = (window as Window & { naver?: typeof naver }).naver;
+    const map = mapInstanceRef.current;
+    if (!mapReady || !map || !naverObj?.maps) return;
+
     if (pickMarkerRef.current) {
       pickMarkerRef.current.setMap(null);
       pickMarkerRef.current = null;
@@ -900,11 +971,14 @@ export default function MapView({
       map,
       zIndex: 350,
       icon: {
-        content: createLocationPickMarkerContent(),
+        content:
+          locationPickMarkerKind === "pin"
+            ? createPinPickMarkerContent()
+            : createLocationPickMarkerContent(),
         anchor: new naverObj.maps.Point(0, 0),
       },
     });
-  }, [mapReady, locationPickMode, pickedLocation]);
+  }, [mapReady, locationPickMode, pickedLocation, locationPickMarkerKind]);
 
   if (!clientId) {
     return (

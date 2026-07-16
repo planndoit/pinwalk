@@ -46,6 +46,20 @@ export function getBoundingBoxDelta(radiusMeters: number, lat: number) {
   };
 }
 
+export function clampPointToRadius(
+  anchorLat: number,
+  anchorLng: number,
+  lat: number,
+  lng: number,
+  radiusMeters: number
+): { lat: number; lng: number } {
+  const distance = getDistanceMeters(anchorLat, anchorLng, lat, lng);
+  if (distance <= radiusMeters) {
+    return { lat, lng };
+  }
+  return offsetPointMeters(anchorLat, anchorLng, lat, lng, radiusMeters);
+}
+
 export function offsetPointMeters(
   fromLat: number,
   fromLng: number,
