@@ -8,6 +8,7 @@ import {
 } from "@/lib/env";
 import { getDistanceMeters, offsetPointMeters } from "@/lib/geo";
 import { getCouponRegistrationCounts } from "@/lib/premium/coupons";
+import { recordPremiumPlaceEvent } from "@/lib/premium/events";
 import type { PremiumCoupon } from "@/types/premium";
 
 export async function POST(request: Request) {
@@ -201,6 +202,13 @@ export async function POST(request: Request) {
       spawns,
     });
   }
+
+  await recordPremiumPlaceEvent({
+    premiumPlaceId: premium_place_id,
+    eventType: "coupon_issue",
+    userId: user.id,
+    metadata: { spawnedCount: created.length },
+  });
 
   return NextResponse.json({
     status: "spawned",

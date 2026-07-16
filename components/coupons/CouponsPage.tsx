@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { formatActivityDate } from "@/lib/formatDate";
 import { saveFocusPremiumPlace } from "@/lib/premium/focusPlace";
+import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
 import type { SerializedUserCoupon } from "@/types/premiumClient";
 
 export default function CouponsPage() {
@@ -73,6 +74,9 @@ export default function CouponsPage() {
       promoLink: selected.placePromoLink,
       isActive: selected.placeIsActive,
       hasCoupons: true,
+    });
+    trackPremiumPlaceEvent(selected.premiumPlaceId, "view_from_coupons", {
+      source: "coupons_page",
     });
     setSelected(null);
     setConfirmUse(false);

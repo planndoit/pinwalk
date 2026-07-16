@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordPremiumPlaceEvent } from "@/lib/premium/events";
 
 export async function POST(
   _request: Request,
@@ -41,6 +42,13 @@ export async function POST(
   if (updateError || !updated?.length) {
     return jsonError("쿠폰 사용에 실패했습니다.", 500);
   }
+
+  await recordPremiumPlaceEvent({
+    premiumPlaceId: userCoupon.premium_place_id,
+    eventType: "coupon_use",
+    userId: user.id,
+    metadata: { couponId: userCoupon.coupon_id, userCouponId: id },
+  });
 
   return NextResponse.json({
     message: "쿠폰을 사용했습니다. 되돌릴 수 없습니다.",

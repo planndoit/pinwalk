@@ -20,6 +20,7 @@ import CelebrationOverlay, {
 import { getDistanceMeters } from "@/lib/geo";
 import { PIN_RADIUS_METERS } from "@/lib/constants";
 import { consumeFocusPremiumPlace } from "@/lib/premium/focusPlace";
+import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
 import type {
@@ -241,6 +242,7 @@ export default function HomePage({ active = true }: HomePageProps) {
     setSelectedRandomPoint(null);
     setSelectedCouponSpawn(null);
     setSelectedPremiumPlace(focused);
+    trackPremiumPlaceEvent(focused.id, "detail_open", { source: "coupons_focus" });
     recenterNonceRef.current += 1;
     setRecenterRequest({
       lat: focused.lat,
@@ -639,10 +641,17 @@ export default function HomePage({ active = true }: HomePageProps) {
         }}
         onPremiumPlaceClick={(place) => {
           if (promotionLocationPickMode) return;
+          trackPremiumPlaceEvent(place.id, "marker_click");
+          trackPremiumPlaceEvent(place.id, "detail_open", { source: "map_marker" });
           setSelectedPremiumPlace(place);
         }}
         onCouponSpawnClick={(spawn) => {
           if (promotionLocationPickMode) return;
+          trackPremiumPlaceEvent(
+            spawn.premiumPlaceId,
+            "coupon_spawn_click",
+            { spawnId: spawn.id }
+          );
           requireAuth(() => setSelectedCouponSpawn(spawn));
         }}
         locationPickMode={promotionLocationPickMode}

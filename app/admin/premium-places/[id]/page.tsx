@@ -12,6 +12,7 @@ import {
   AdminTextarea,
 } from "@/components/admin/AdminUi";
 import { formatActivityDate } from "@/lib/formatDate";
+import PremiumPlaceAnalyticsPanel from "@/components/admin/PremiumPlaceAnalyticsPanel";
 
 function SectionTitle({
   title,
@@ -207,6 +208,9 @@ export default function AdminPremiumPlaceDetailPage() {
   return (
     <div>
       <AdminPageHeader title="프리미엄 장소 상세" backHref="/admin/premium-places" />
+      <div className="mb-6">
+        <PremiumPlaceAnalyticsPanel placeId={id} />
+      </div>
       <div className="space-y-4 mb-6">
         <AdminCard className="p-5">
           <SectionTitle

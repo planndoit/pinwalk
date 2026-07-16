@@ -10,6 +10,7 @@ import {
   AdminTable,
 } from "@/components/admin/AdminUi";
 import { formatActivityDate } from "@/lib/formatDate";
+import type { PremiumPlaceEventCounts } from "@/lib/premium/analytics";
 
 interface PlaceRow {
   id: string;
@@ -17,6 +18,11 @@ interface PlaceRow {
   categoryCode: string;
   isActive: boolean;
   createdAt: string;
+}
+
+interface PlaceAnalyticsRow {
+  placeId: string;
+  counts: PremiumPlaceEventCounts;
 }
 
 interface SearchFilters {
@@ -41,6 +47,9 @@ export default function AdminPremiumPlacesPage() {
   const [draft, setDraft] = useState<SearchFilters>(EMPTY_FILTERS);
   const [applied, setApplied] = useState<SearchFilters>(EMPTY_FILTERS);
   const [places, setPlaces] = useState<PlaceRow[]>([]);
+  const [analyticsByPlace, setAnalyticsByPlace] = useState<
+    Map<string, PremiumPlaceEventCounts>
+  >(new Map());
   const [categories, setCategories] = useState<{ code: string; name: string }[]>(
     []
   );
@@ -54,10 +63,21 @@ export default function AdminPremiumPlacesPage() {
     if (filters.active.length > 0) {
       params.set("active", filters.active.join(","));
     }
-    const res = await fetch(`/api/admin/premium-places?${params}`);
-    if (res.ok) {
-      const data = await res.json();
+    const [placesRes, analyticsRes] = await Promise.all([
+      fetch(`/api/admin/premium-places?${params}`),
+      fetch("/api/admin/premium-places/analytics?days=30&trend=false"),
+    ]);
+    if (placesRes.ok) {
+      const data = await placesRes.json();
       setPlaces(data.places ?? []);
+    }
+    if (analyticsRes.ok) {
+      const data = await analyticsRes.json();
+      const map = new Map<string, PremiumPlaceEventCounts>();
+      for (const row of (data.byPlace ?? []) as PlaceAnalyticsRow[]) {
+        map.set(row.placeId, row.counts);
+      }
+      setAnalyticsByPlace(map);
     }
   }, []);
 
@@ -175,8 +195,22 @@ export default function AdminPremiumPlacesPage() {
             <AdminButton>추가</AdminButton>
           </Link>
         </div>
-        <AdminTable headers={["장소명", "카테고리", "활성화", "등록일", ""]}>
-          {places.map((p) => (
+        <AdminTable
+          headers={[
+            "장소명",
+            "카테고리",
+            "활성화",
+            "30일 마커",
+            "30일 상세",
+            "30일 전화",
+            "30일 쿠폰획득",
+            "등록일",
+            "",
+          ]}
+        >
+          {places.map((p) => {
+            const counts = analyticsByPlace.get(p.id);
+            return (
             <tr
               key={p.id}
               className="border-b border-gray-50 hover:bg-gray-50/50"
@@ -187,6 +221,18 @@ export default function AdminPremiumPlacesPage() {
                   p.categoryCode}
               </td>
               <td className="px-4 py-3">{p.isActive ? "활성" : "비활성"}</td>
+              <td className="px-4 py-3 tabular-nums text-gray-700">
+                {counts?.marker_click ?? 0}
+              </td>
+              <td className="px-4 py-3 tabular-nums text-gray-700">
+                {counts?.detail_open ?? 0}
+              </td>
+              <td className="px-4 py-3 tabular-nums text-gray-700">
+                {counts?.phone_click ?? 0}
+              </td>
+              <td className="px-4 py-3 tabular-nums text-gray-700">
+                {counts?.coupon_claim ?? 0}
+              </td>
               <td className="px-4 py-3 text-gray-500">
                 {formatActivityDate(p.createdAt)}
               </td>
@@ -199,7 +245,8 @@ export default function AdminPremiumPlacesPage() {
                 </Link>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </AdminTable>
         {places.length === 0 && (
           <p className="text-sm text-gray-500 text-center py-8">

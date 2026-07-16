@@ -5,6 +5,9 @@ import {
   isAttendanceTransaction,
 } from "@/lib/dailyBonus";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  fetchPremiumPlaceEventCounts,
+} from "@/lib/premium/analytics";
 
 const TREND_DAYS = 14;
 const PAGE_SIZE = 1000;
@@ -240,6 +243,21 @@ export async function GET() {
     return { date, signups, totalMembers: running };
   });
 
+  const period30Start = startOfLocalDay(addDays(todayStart, -29)).toISOString();
+  const [
+    todayPremiumEvents,
+    period30PremiumEvents,
+    allPremiumEvents,
+  ] = await Promise.all([
+    fetchPremiumPlaceEventCounts({ since: todayStartIso }),
+    fetchPremiumPlaceEventCounts({ since: period30Start }),
+    fetchPremiumPlaceEventCounts({}),
+  ]);
+
+  const sumEventCounts = (
+    counts: Awaited<ReturnType<typeof fetchPremiumPlaceEventCounts>>
+  ) => Object.values(counts).reduce((sum, value) => sum + value, 0);
+
   return NextResponse.json({
     stats: {
       totalMembers,
@@ -260,6 +278,19 @@ export async function GET() {
       totalAttendance,
       todayPointEarnCount,
       totalPointEarnCount,
+      todayPremiumMarkerClicks: todayPremiumEvents.marker_click,
+      todayPremiumDetailOpens: todayPremiumEvents.detail_open,
+      todayPremiumPhoneClicks: todayPremiumEvents.phone_click,
+      todayPremiumLinkClicks: todayPremiumEvents.link_click,
+      todayPremiumCouponClaims: todayPremiumEvents.coupon_claim,
+      todayPremiumCouponUses: todayPremiumEvents.coupon_use,
+      todayPremiumEventsTotal: sumEventCounts(todayPremiumEvents),
+      period30PremiumMarkerClicks: period30PremiumEvents.marker_click,
+      period30PremiumDetailOpens: period30PremiumEvents.detail_open,
+      period30PremiumCouponClaims: period30PremiumEvents.coupon_claim,
+      period30PremiumCouponUses: period30PremiumEvents.coupon_use,
+      period30PremiumEventsTotal: sumEventCounts(period30PremiumEvents),
+      totalPremiumEvents: sumEventCounts(allPremiumEvents),
     },
     memberTrend,
   });

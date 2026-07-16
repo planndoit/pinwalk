@@ -26,6 +26,19 @@ interface DashboardStats {
   totalAttendance: number;
   todayPointEarnCount: number;
   totalPointEarnCount: number;
+  todayPremiumMarkerClicks: number;
+  todayPremiumDetailOpens: number;
+  todayPremiumPhoneClicks: number;
+  todayPremiumLinkClicks: number;
+  todayPremiumCouponClaims: number;
+  todayPremiumCouponUses: number;
+  todayPremiumEventsTotal: number;
+  period30PremiumMarkerClicks: number;
+  period30PremiumDetailOpens: number;
+  period30PremiumCouponClaims: number;
+  period30PremiumCouponUses: number;
+  period30PremiumEventsTotal: number;
+  totalPremiumEvents: number;
 }
 
 function StatCard({
@@ -216,6 +229,93 @@ export default function AdminDashboardPage() {
         ) : (
           Array.from({ length: 3 }).map((_, i) => (
             <AdminCard key={i} className="p-3.5 h-20 animate-pulse bg-gray-100" />
+          ))
+        )}
+      </Section>
+
+      <Section title="프리미엄 광고 성과">
+        {stats ? (
+          <>
+            <StatCard href="/admin/premium-places">
+              <p className="text-xs text-gray-500">오늘 이벤트</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">
+                {stats.todayPremiumEventsTotal.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                마커{" "}
+                <span className="font-semibold text-amber-600">
+                  {stats.todayPremiumMarkerClicks.toLocaleString()}
+                </span>
+                <span className="mx-1 text-gray-300">·</span>
+                상세{" "}
+                <span className="font-semibold text-amber-600">
+                  {stats.todayPremiumDetailOpens.toLocaleString()}
+                </span>
+              </p>
+            </StatCard>
+
+            <StatCard href="/admin/premium-places">
+              <p className="text-xs text-gray-500">오늘 전환</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">
+                {(
+                  stats.todayPremiumPhoneClicks +
+                  stats.todayPremiumLinkClicks +
+                  stats.todayPremiumCouponClaims +
+                  stats.todayPremiumCouponUses
+                ).toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                전화{" "}
+                <span className="font-semibold text-gray-700">
+                  {stats.todayPremiumPhoneClicks.toLocaleString()}
+                </span>
+                <span className="mx-1 text-gray-300">·</span>
+                링크{" "}
+                <span className="font-semibold text-gray-700">
+                  {stats.todayPremiumLinkClicks.toLocaleString()}
+                </span>
+                <span className="mx-1 text-gray-300">·</span>
+                쿠폰획득{" "}
+                <span className="font-semibold text-violet-600">
+                  {stats.todayPremiumCouponClaims.toLocaleString()}
+                </span>
+              </p>
+            </StatCard>
+
+            <StatCard href="/admin/premium-places">
+              <p className="text-xs text-gray-500">최근 30일 이벤트</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">
+                {stats.period30PremiumEventsTotal.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                마커{" "}
+                <span className="font-semibold text-amber-600">
+                  {stats.period30PremiumMarkerClicks.toLocaleString()}
+                </span>
+                <span className="mx-1 text-gray-300">·</span>
+                쿠폰획득{" "}
+                <span className="font-semibold text-violet-600">
+                  {stats.period30PremiumCouponClaims.toLocaleString()}
+                </span>
+              </p>
+            </StatCard>
+
+            <StatCard href="/admin/premium-places">
+              <p className="text-xs text-gray-500">누적 이벤트</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">
+                {stats.totalPremiumEvents.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                30일 쿠폰사용{" "}
+                <span className="font-semibold text-emerald-600">
+                  {stats.period30PremiumCouponUses.toLocaleString()}
+                </span>
+              </p>
+            </StatCard>
+          </>
+        ) : (
+          Array.from({ length: 4 }).map((_, i) => (
+            <AdminCard key={`premium-${i}`} className="p-3.5 h-20 animate-pulse bg-gray-100" />
           ))
         )}
       </Section>

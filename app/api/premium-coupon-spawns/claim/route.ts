@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getPremiumCouponClaimRadiusMeters } from "@/lib/env";
 import { getDistanceMeters } from "@/lib/geo";
 import { countCouponRegistrations } from "@/lib/premium/coupons";
+import { recordPremiumPlaceEvent } from "@/lib/premium/events";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -146,6 +147,13 @@ export async function POST(request: Request) {
   if (insertError) {
     return jsonError("쿠폰함 저장에 실패했습니다.", 500);
   }
+
+  await recordPremiumPlaceEvent({
+    premiumPlaceId: spawn.premium_place_id,
+    eventType: "coupon_claim",
+    userId: user.id,
+    metadata: { couponId: spawn.coupon_id, spawnId: spawn_id },
+  });
 
   return NextResponse.json({
     message: "프리미엄 쿠폰을 획득했습니다!",

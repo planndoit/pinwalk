@@ -1,6 +1,7 @@
 "use client";
 
 import type { SerializedPremiumPlace } from "@/types/premiumClient";
+import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
 import { toTelHref } from "@/lib/validation/premium";
 
 interface PremiumPlaceBottomSheetProps {
@@ -70,6 +71,7 @@ export default function PremiumPlaceBottomSheet({
             {placePhone && (
               <a
                 href={toTelHref(placePhone)}
+                onClick={() => trackPremiumPlaceEvent(place.id, "phone_click")}
                 className="mt-3 flex items-center justify-between gap-3 w-full rounded-xl bg-amber-500 text-white px-4 py-3 font-bold shadow-md shadow-amber-500/25 active:scale-98 transition-transform"
               >
                 <span className="text-sm">전화하기</span>
@@ -83,6 +85,7 @@ export default function PremiumPlaceBottomSheet({
                 href={place.promoLink}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackPremiumPlaceEvent(place.id, "link_click")}
                 className="inline-block mt-3 text-sm font-semibold text-amber-700 underline"
               >
                 링크 열기
