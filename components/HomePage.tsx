@@ -19,7 +19,11 @@ import CelebrationOverlay, {
   type CelebrationType,
 } from "@/components/CelebrationOverlay";
 import { clampPointToRadius, getDistanceMeters } from "@/lib/geo";
-import { PIN_RADIUS_METERS } from "@/lib/constants";
+import {
+  DEFAULT_PIN_RADIUS_BY_COST,
+  type ConquerProbability,
+  type PinCost,
+} from "@/lib/constants";
 import { consumeFocusPremiumPlace } from "@/lib/premium/focusPlace";
 import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
 import type { Pin } from "@/types/pin";
@@ -28,7 +32,6 @@ import type {
   SerializedCouponSpawn,
   SerializedPremiumPlace,
 } from "@/types/premiumClient";
-import type { ConquerProbability, PinCost } from "@/lib/constants";
 
 const POSITION_UPDATE_THRESHOLD_METERS = 5;
 
@@ -68,6 +71,10 @@ export default function HomePage({ active = true }: HomePageProps) {
   } | null>(null);
   const [couponClaimRadius, setCouponClaimRadius] = useState(15);
   const [pinPlacementRadius, setPinPlacementRadius] = useState(100);
+  const [pinRadiusByCost, setPinRadiusByCost] = useState(DEFAULT_PIN_RADIUS_BY_COST);
+  const [maxPinRadiusMeters, setMaxPinRadiusMeters] = useState(
+    Math.max(...Object.values(DEFAULT_PIN_RADIUS_BY_COST))
+  );
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
   const [selectedRandomPoint, setSelectedRandomPoint] =
     useState<RandomPoint | null>(null);
@@ -197,6 +204,12 @@ export default function HomePage({ active = true }: HomePageProps) {
       if (pinConfigRes.ok) {
         const data = await pinConfigRes.json();
         setPinPlacementRadius(data.placementRadiusMeters ?? 100);
+        if (data.radiusByCost) {
+          setPinRadiusByCost(data.radiusByCost);
+        }
+        if (typeof data.maxRadiusMeters === "number") {
+          setMaxPinRadiusMeters(data.maxRadiusMeters);
+        }
       }
     })();
   }, []);
@@ -350,7 +363,7 @@ export default function HomePage({ active = true }: HomePageProps) {
       setActionLoading(true);
       try {
         const res = await fetch(
-          `/api/pins?lat=${pinPickedLocation.lat}&lng=${pinPickedLocation.lng}&radius=${PIN_RADIUS_METERS}`
+          `/api/pins?lat=${pinPickedLocation.lat}&lng=${pinPickedLocation.lng}&radius=${maxPinRadiusMeters}`
         );
         if (res.ok) {
           const data = await res.json();
@@ -361,7 +374,7 @@ export default function HomePage({ active = true }: HomePageProps) {
                 pinPickedLocation.lng,
                 p.lat,
                 p.lng
-              ) <= PIN_RADIUS_METERS
+              ) <= p.radius_meters
           );
           if (nearby.length > 0) {
             showToast(
@@ -791,6 +804,7 @@ export default function HomePage({ active = true }: HomePageProps) {
         }}
         onSubmit={handleCreatePin}
         loading={actionLoading}
+        radiusByCost={pinRadiusByCost}
       />
 
       <ConquerModal

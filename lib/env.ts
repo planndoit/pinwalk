@@ -1,3 +1,10 @@
+import {
+  DEFAULT_PIN_COST,
+  DEFAULT_PIN_RADIUS_BY_COST,
+  isPinCost,
+  type PinCost,
+} from "./constants";
+
 function readInt(name: string, fallback: number): number {
   const raw = process.env[name];
   if (!raw) return fallback;
@@ -11,6 +18,27 @@ export function getPremiumPlaceRadiusMeters(): number {
 
 export function getPinPlacementRadiusMeters(): number {
   return readInt("PIN_PLACEMENT_RADIUS_METERS", 100);
+}
+
+export function getPinRadiusByCost(): Record<PinCost, number> {
+  return {
+    100: readInt("PIN_RADIUS_METERS_100", DEFAULT_PIN_RADIUS_BY_COST[100]),
+    300: readInt("PIN_RADIUS_METERS_300", DEFAULT_PIN_RADIUS_BY_COST[300]),
+    500: readInt("PIN_RADIUS_METERS_500", DEFAULT_PIN_RADIUS_BY_COST[500]),
+    1000: readInt("PIN_RADIUS_METERS_1000", DEFAULT_PIN_RADIUS_BY_COST[1000]),
+  };
+}
+
+export function getPinRadiusMeters(cost: number): number {
+  const byCost = getPinRadiusByCost();
+  if (isPinCost(cost)) {
+    return byCost[cost];
+  }
+  return byCost[DEFAULT_PIN_COST];
+}
+
+export function getMaxPinRadiusMeters(): number {
+  return Math.max(...Object.values(getPinRadiusByCost()));
 }
 
 export function getPremiumCouponSpawnDistanceMeters(): number {

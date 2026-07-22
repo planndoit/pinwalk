@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import {
   CONQUER_PROBABILITIES,
   DEFAULT_PIN_COST,
-  PIN_RADIUS_METERS,
   type ConquerProbability,
 } from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addPoints, deductPoints } from "@/lib/pins";
 import { getDistanceMeters } from "@/lib/geo";
+import { getPinRadiusMeters } from "@/lib/env";
 import {
   calculateConquerCost,
   calculateDefenseReward,
@@ -87,12 +87,17 @@ export async function POST(request: Request) {
     targetPin.lng
   );
 
-  if (distance > PIN_RADIUS_METERS) {
+  const pinCost =
+    typeof targetPin.cost === "number" ? targetPin.cost : DEFAULT_PIN_COST;
+  const pinRadiusMeters =
+    typeof targetPin.radius_meters === "number"
+      ? targetPin.radius_meters
+      : getPinRadiusMeters(pinCost);
+
+  if (distance > pinRadiusMeters) {
     return jsonError("핀 반경 안에 있어야 점령할 수 있습니다.");
   }
 
-  const pinCost =
-    typeof targetPin.cost === "number" ? targetPin.cost : DEFAULT_PIN_COST;
   const cost = calculateConquerCost(probability, pinCost);
 
   const deductResult = await deductPoints(
@@ -154,7 +159,7 @@ export async function POST(request: Request) {
       text: new_text.trim(),
       lat: targetPin.lat,
       lng: targetPin.lng,
-      radius_meters: PIN_RADIUS_METERS,
+      radius_meters: getPinRadiusMeters(pinCost),
       status: "active",
       cost: pinCost,
       expires_at: null,

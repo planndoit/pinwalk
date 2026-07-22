@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   DEFAULT_PIN_COST,
+  DEFAULT_PIN_RADIUS_BY_COST,
   PIN_COST_OPTIONS,
   PIN_TEXT_MAX_LENGTH,
   type PinCost,
@@ -17,6 +18,7 @@ interface CreatePinModalProps {
     cost: PinCost
   ) => Promise<{ success: boolean; error?: string }>;
   loading?: boolean;
+  radiusByCost?: Record<PinCost, number>;
 }
 
 export default function CreatePinModal({
@@ -24,6 +26,7 @@ export default function CreatePinModal({
   onClose,
   onSubmit,
   loading,
+  radiusByCost = DEFAULT_PIN_RADIUS_BY_COST,
 }: CreatePinModalProps) {
   const [text, setText] = useState("");
   const [cost, setCost] = useState<PinCost>(DEFAULT_PIN_COST);
@@ -71,20 +74,22 @@ export default function CreatePinModal({
           선택한 위치에 깃발을 꽂을까요?
         </h2>
         <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">
-          투자한 포인트만큼 점령할 때도 포인트가 필요합니다.
+          투자 포인트가 높을수록 영향 반경이 넓어지고, 점령 시에도 더 많은
+          포인트가 필요합니다.
         </p>
 
         <p className="text-xs text-gray-500 font-medium mt-4 mb-2">투자 포인트</p>
         <div className="grid grid-cols-4 gap-2">
           {PIN_COST_OPTIONS.map((option) => {
             const selected = option === cost;
+            const radiusMeters = radiusByCost[option];
             return (
               <button
                 key={option}
                 type="button"
                 onClick={() => setCost(option)}
                 disabled={busy}
-                className={`py-3 rounded-2xl border-2 transition-colors disabled:opacity-50 flex flex-col items-center gap-1.5 ${
+                className={`py-3 rounded-2xl border-2 transition-colors disabled:opacity-50 flex flex-col items-center gap-1 ${
                   selected ? "border-blue-500 bg-blue-50" : "border-gray-200"
                 }`}
               >
@@ -95,6 +100,13 @@ export default function CreatePinModal({
                   }`}
                 >
                   {option}P
+                </span>
+                <span
+                  className={`block text-[11px] font-medium ${
+                    selected ? "text-blue-500" : "text-gray-400"
+                  }`}
+                >
+                  {radiusMeters}m
                 </span>
               </button>
             );

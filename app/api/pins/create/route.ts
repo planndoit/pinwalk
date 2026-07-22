@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import {
-  PIN_RADIUS_METERS,
-  isPinCost,
-} from "@/lib/constants";
+import { isPinCost } from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findActivePinsNear, deductPoints } from "@/lib/pins";
 import { validatePinText } from "@/lib/validation";
 import { getDistanceMeters } from "@/lib/geo";
-import { getPinPlacementRadiusMeters } from "@/lib/env";
+import { getPinPlacementRadiusMeters, getPinRadiusMeters } from "@/lib/env";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -78,7 +75,8 @@ export async function POST(request: Request) {
     return jsonError("포인트가 부족합니다.");
   }
 
-  const nearbyPins = await findActivePinsNear(lat, lng, PIN_RADIUS_METERS);
+  const radiusMeters = getPinRadiusMeters(cost);
+  const nearbyPins = await findActivePinsNear(lat, lng, radiusMeters);
   if (nearbyPins.length > 0) {
     return jsonError(
       "이미 점령된 영역입니다. 점령에 도전해보세요.",
@@ -93,7 +91,7 @@ export async function POST(request: Request) {
       text: text.trim(),
       lat,
       lng,
-      radius_meters: PIN_RADIUS_METERS,
+      radius_meters: radiusMeters,
       status: "active",
       cost,
       expires_at: null,

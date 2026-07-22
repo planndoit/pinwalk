@@ -1,15 +1,24 @@
-import { PIN_RADIUS_METERS } from "./constants";
+import { getMaxPinRadiusMeters } from "./env";
 import { getBoundingBoxDelta, getDistanceMeters } from "./geo";
 import { createAdminClient } from "./supabase/admin";
 import type { Pin } from "@/types/pin";
 
+/**
+ * 새 깃발 위치와 충돌하는 활성 핀을 찾는다.
+ * newPinRadiusMeters가 있으면 기존 반경·신규 반경 중 큰 쪽을 기준으로 한다
+ * (한쪽 중심이 다른 쪽 영토 안에 들어오면 충돌).
+ */
 export async function findActivePinsNear(
   lat: number,
   lng: number,
-  radiusMeters: number = PIN_RADIUS_METERS
+  newPinRadiusMeters?: number
 ): Promise<Pin[]> {
+  const searchRadiusMeters = Math.max(
+    getMaxPinRadiusMeters(),
+    newPinRadiusMeters ?? 0
+  );
   const admin = createAdminClient();
-  const { latDelta, lngDelta } = getBoundingBoxDelta(radiusMeters, lat);
+  const { latDelta, lngDelta } = getBoundingBoxDelta(searchRadiusMeters, lat);
 
   const { data, error } = await admin
     .from("pins")
@@ -24,9 +33,14 @@ export async function findActivePinsNear(
     return [];
   }
 
-  return data.filter(
-    (pin) => getDistanceMeters(lat, lng, pin.lat, pin.lng) <= radiusMeters
-  ) as Pin[];
+  return data.filter((pin) => {
+    const distance = getDistanceMeters(lat, lng, pin.lat, pin.lng);
+    const conflictRadius =
+      newPinRadiusMeters !== undefined
+        ? Math.max(pin.radius_meters, newPinRadiusMeters)
+        : pin.radius_meters;
+    return distance <= conflictRadius;
+  }) as Pin[];
 }
 
 export async function deductPoints(
