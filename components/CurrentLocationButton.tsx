@@ -13,7 +13,7 @@ export default function CurrentLocationButton({
     <button
       onClick={onClick}
       disabled={loading}
-      className="absolute right-4 bottom-[calc(9.75rem+env(safe-area-inset-bottom))] z-20 w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform disabled:opacity-50"
+      className="absolute right-4 bottom-[calc(8.5rem+env(safe-area-inset-bottom))] z-20 w-11 h-11 bg-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform disabled:opacity-50"
       aria-label="현재 위치로 이동"
     >
       {loading ? (

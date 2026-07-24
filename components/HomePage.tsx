@@ -16,6 +16,11 @@ import PremiumPromotionLocationPicker from "@/components/PremiumPromotionLocatio
 import PremiumPlaceBottomSheet from "@/components/PremiumPlaceBottomSheet";
 import PremiumCouponBottomSheet from "@/components/PremiumCouponBottomSheet";
 import LandmarkBottomSheet from "@/components/LandmarkBottomSheet";
+import {
+  DEFAULT_MAP_LAYER_VISIBILITY,
+  type MapLayerKey,
+  type MapLayerVisibility,
+} from "@/components/MapLayerToggle";
 import CelebrationOverlay, {
   type CelebrationType,
 } from "@/components/CelebrationOverlay";
@@ -53,6 +58,9 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [randomPoints, setRandomPoints] = useState<RandomPoint[]>([]);
   const [premiumPlaces, setPremiumPlaces] = useState<SerializedPremiumPlace[]>([]);
   const [landmarks, setLandmarks] = useState<SerializedLandmark[]>([]);
+  const [layerVisibility, setLayerVisibility] = useState<MapLayerVisibility>(
+    DEFAULT_MAP_LAYER_VISIBILITY
+  );
   const [couponSpawns, setCouponSpawns] = useState<SerializedCouponSpawn[]>([]);
   const [selectedPremiumPlace, setSelectedPremiumPlace] =
     useState<SerializedPremiumPlace | null>(null);
@@ -134,6 +142,57 @@ export default function HomePage({ active = true }: HomePageProps) {
       setLandmarks(data.landmarks ?? []);
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("map-layer-visibility");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<MapLayerVisibility>;
+      setLayerVisibility({
+        landmarks:
+          typeof parsed.landmarks === "boolean"
+            ? parsed.landmarks
+            : DEFAULT_MAP_LAYER_VISIBILITY.landmarks,
+        pins:
+          typeof parsed.pins === "boolean"
+            ? parsed.pins
+            : DEFAULT_MAP_LAYER_VISIBILITY.pins,
+        premium:
+          typeof parsed.premium === "boolean"
+            ? parsed.premium
+            : DEFAULT_MAP_LAYER_VISIBILITY.premium,
+      });
+    } catch {
+      // ignore invalid storage
+    }
+  }, []);
+
+  const handleLayerVisibilityChange = useCallback(
+    (key: MapLayerKey, next: boolean) => {
+      setLayerVisibility((prev) => {
+        const updated = { ...prev, [key]: next };
+        try {
+          window.localStorage.setItem(
+            "map-layer-visibility",
+            JSON.stringify(updated)
+          );
+        } catch {
+          // ignore quota / private mode
+        }
+        return updated;
+      });
+
+      if (!next) {
+        if (key === "landmarks") setSelectedLandmark(null);
+        if (key === "pins") setSelectedPin(null);
+        if (key === "premium") {
+          setSelectedPremiumPlace(null);
+          setSelectedCouponSpawn(null);
+        }
+      }
+    },
+    []
+  );
 
   const syncCouponSpawns = useCallback(
     async (lat: number, lng: number) => {
@@ -822,6 +881,7 @@ export default function HomePage({ active = true }: HomePageProps) {
         }
         locationPickMarkerKind={pinLocationPickMode ? "pin" : "default"}
         onMapClick={locationPickMode ? handleLocationMapClick : undefined}
+        layerVisibility={layerVisibility}
       />
 
       <PointBalance
@@ -839,6 +899,8 @@ export default function HomePage({ active = true }: HomePageProps) {
         onCreatePin={handleCreatePinClick}
         onSpawnPoints={handleSpawnRandomPoints}
         disabled={actionLoading || locationPickMode}
+        layerVisibility={layerVisibility}
+        onLayerVisibilityChange={handleLayerVisibilityChange}
       />
 
       {promotionLocationPickMode && (

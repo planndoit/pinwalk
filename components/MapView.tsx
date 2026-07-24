@@ -54,6 +54,11 @@ interface MapViewProps {
   locationPickRadiusMeters?: number;
   locationPickMarkerKind?: "default" | "pin";
   onMapClick?: (lat: number, lng: number) => void;
+  layerVisibility?: {
+    landmarks: boolean;
+    pins: boolean;
+    premium: boolean;
+  };
 }
 
 const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
@@ -478,6 +483,11 @@ export default function MapView({
   locationPickRadiusMeters,
   locationPickMarkerKind = "default",
   onMapClick,
+  layerVisibility = {
+    landmarks: true,
+    pins: true,
+    premium: true,
+  },
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<InstanceType<typeof naver.maps.Map> | null>(null);
@@ -503,6 +513,7 @@ export default function MapView({
   const onPinClickRef = useRef(onPinClick);
   const onLandmarkClickRef = useRef(onLandmarkClick);
   const onPremiumPlaceClickRef = useRef(onPremiumPlaceClick);
+  const layerVisibilityRef = useRef(layerVisibility);
   const renderRafRef = useRef<number | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -520,6 +531,7 @@ export default function MapView({
     onPinClickRef.current = onPinClick;
     onLandmarkClickRef.current = onLandmarkClick;
     onPremiumPlaceClickRef.current = onPremiumPlaceClick;
+    layerVisibilityRef.current = layerVisibility;
   }, [
     pins,
     landmarks,
@@ -528,6 +540,7 @@ export default function MapView({
     onPinClick,
     onLandmarkClick,
     onPremiumPlaceClick,
+    layerVisibility,
   ]);
 
   const clearPinOverlays = useCallback(() => {
@@ -575,6 +588,7 @@ export default function MapView({
     if (!mapReady || !map || !naverObj?.maps) return;
 
     clearPinOverlays();
+    if (!layerVisibilityRef.current.pins) return;
 
     const zoom = map.getZoom();
     const clusters = buildClusters(map, naverObj);
@@ -681,6 +695,7 @@ export default function MapView({
     if (!mapReady || !map || !naverObj?.maps) return;
 
     clearLandmarkOverlays();
+    if (!layerVisibilityRef.current.landmarks) return;
 
     const zoom = map.getZoom();
     const gridSizePx = getClusterGridSizePx(zoom);
@@ -779,6 +794,7 @@ export default function MapView({
     if (!mapReady || !map || !naverObj?.maps) return;
 
     clearPremiumOverlays();
+    if (!layerVisibilityRef.current.premium) return;
 
     const zoom = map.getZoom();
     const gridSizePx = getClusterGridSizePx(zoom);
@@ -1001,15 +1017,15 @@ export default function MapView({
 
   useEffect(() => {
     renderPinOverlays();
-  }, [pins, renderPinOverlays]);
+  }, [pins, layerVisibility.pins, renderPinOverlays]);
 
   useEffect(() => {
     renderLandmarkOverlays();
-  }, [landmarks, renderLandmarkOverlays]);
+  }, [landmarks, layerVisibility.landmarks, renderLandmarkOverlays]);
 
   useEffect(() => {
     renderPremiumOverlays();
-  }, [premiumPlaces, renderPremiumOverlays]);
+  }, [premiumPlaces, layerVisibility.premium, renderPremiumOverlays]);
 
   useEffect(() => {
     const naverObj = (window as Window & { naver?: typeof naver }).naver;
@@ -1072,6 +1088,8 @@ export default function MapView({
     couponMarkersRef.current.forEach((m) => m.setMap(null));
     couponMarkersRef.current = [];
 
+    if (!layerVisibility.premium) return;
+
     couponSpawns.forEach((spawn) => {
       const marker = new naverObj.maps.Marker({
         position: new naverObj.maps.LatLng(spawn.lat, spawn.lng),
@@ -1088,7 +1106,7 @@ export default function MapView({
       );
       couponMarkersRef.current.push(marker);
     });
-  }, [mapReady, couponSpawns, onCouponSpawnClick]);
+  }, [mapReady, couponSpawns, onCouponSpawnClick, layerVisibility.premium]);
 
   // 홍보 요청 위치 선택 모드
   useEffect(() => {
