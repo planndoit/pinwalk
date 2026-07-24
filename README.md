@@ -23,14 +23,20 @@ cp .env.local.example .env.local
 
 1. [Supabase](https://supabase.com)에서 프로젝트 생성
 2. Authentication > Providers에서 **Anonymous sign-ins** 활성화
-3. SQL Editor에서 `supabase/migrations/001_initial_schema.sql` 실행
+3. SQL Editor에서 `supabase/migrations/` 마이그레이션을 순서대로 실행 (랜드마크는 `023_landmarks.sql`)
 
 ### 3. Naver Maps 설정
 
 1. [Naver Cloud Platform](https://www.ncloud.com)에서 Maps API 애플리케이션 등록
 2. Client ID를 `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID`에 설정
 
-### 4. 개발 서버 실행
+### 4. TourAPI (랜드마크) 설정
+
+1. [공공데이터포털](https://www.data.go.kr/data/15101578/openapi.do)에서 국문 관광정보 서비스 활용신청
+2. 발급 키를 `TOUR_API_SERVICE_KEY`에 설정 (서버 전용, `NEXT_PUBLIC_` 금지)
+3. 관리자 → 랜드마크 관리 → TourAPI에서 가져오기 → 지도 노출 ON
+
+### 5. 개발 서버 실행
 
 ```bash
 npm install

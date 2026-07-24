@@ -63,6 +63,25 @@ const ROUTE_META: { test: (pathname: string) => boolean; meta: AdminPageMeta }[]
       meta: { title: "프리미엄 장소 상세" },
     },
     {
+      test: (p) => p === "/admin/landmarks",
+      meta: {
+        title: "랜드마크 관리",
+        description: "TourAPI 후보를 가져와 지도 노출을 큐레이션합니다.",
+      },
+    },
+    {
+      test: (p) => p === "/admin/landmarks/import",
+      meta: { title: "TourAPI에서 가져오기" },
+    },
+    {
+      test: (p) => p === "/admin/landmarks/new",
+      meta: { title: "랜드마크 수동 추가" },
+    },
+    {
+      test: (p) => /^\/admin\/landmarks\/[^/]+$/.test(p),
+      meta: { title: "랜드마크 상세" },
+    },
+    {
       test: (p) => p === "/admin/settings/common-codes",
       meta: { title: "공통코드 관리" },
     },

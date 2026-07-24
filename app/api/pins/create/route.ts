@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { isPinCost } from "@/lib/constants";
+import { isPinCost, LANDMARK_PIN_RADIUS_METERS } from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { findActivePinsNear, deductPoints } from "@/lib/pins";
+import { findPinPlacementConflicts, deductPoints } from "@/lib/pins";
 import { validatePinText } from "@/lib/validation";
 import { getDistanceMeters } from "@/lib/geo";
 import { getPinPlacementRadiusMeters, getPinRadiusMeters } from "@/lib/env";
+import { absorbPinsIntoLandmark, findContainingLandmark } from "@/lib/landmark/zone";
+import { refreshUserLandmarkScore } from "@/lib/landmark/scores";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -75,8 +77,21 @@ export async function POST(request: Request) {
     return jsonError("포인트가 부족합니다.");
   }
 
-  const radiusMeters = getPinRadiusMeters(cost);
-  const nearbyPins = await findActivePinsNear(lat, lng, radiusMeters);
+  const containing = await findContainingLandmark(lat, lng);
+  const landmarkId = containing?.id ?? null;
+  if (containing) {
+    await absorbPinsIntoLandmark(containing);
+  }
+  const radiusMeters = landmarkId
+    ? LANDMARK_PIN_RADIUS_METERS
+    : getPinRadiusMeters(cost);
+
+  const nearbyPins = await findPinPlacementConflicts(
+    lat,
+    lng,
+    radiusMeters,
+    landmarkId
+  );
   if (nearbyPins.length > 0) {
     return jsonError(
       "이미 점령된 영역입니다. 점령에 도전해보세요.",
@@ -94,6 +109,7 @@ export async function POST(request: Request) {
       radius_meters: radiusMeters,
       status: "active",
       cost,
+      landmark_id: landmarkId,
       expires_at: null,
     })
     .select()
@@ -126,6 +142,10 @@ export async function POST(request: Request) {
   if (!deductResult.success) {
     await admin.from("pins").delete().eq("id", pin.id);
     return jsonError(deductResult.error!);
+  }
+
+  if (landmarkId) {
+    await refreshUserLandmarkScore(landmarkId, user.id);
   }
 
   return NextResponse.json({

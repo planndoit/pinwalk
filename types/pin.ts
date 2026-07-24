@@ -9,6 +9,7 @@ export interface Pin {
   radius_meters: number;
   status: PinStatus;
   cost: number;
+  landmark_id: string | null;
   expires_at: string | null;
   conquered_by: string | null;
   conquered_at: string | null;

@@ -79,9 +79,9 @@ export function AdminTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/80">
-            {headers.map((h) => (
+            {headers.map((h, index) => (
               <th
-                key={h}
+                key={`header-${index}`}
                 className="text-left px-4 py-3 font-semibold text-gray-600"
               >
                 {h}

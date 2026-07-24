@@ -15,12 +15,14 @@ import PremiumPromotionModal from "@/components/PremiumPromotionModal";
 import PremiumPromotionLocationPicker from "@/components/PremiumPromotionLocationPicker";
 import PremiumPlaceBottomSheet from "@/components/PremiumPlaceBottomSheet";
 import PremiumCouponBottomSheet from "@/components/PremiumCouponBottomSheet";
+import LandmarkBottomSheet from "@/components/LandmarkBottomSheet";
 import CelebrationOverlay, {
   type CelebrationType,
 } from "@/components/CelebrationOverlay";
 import { clampPointToRadius, getDistanceMeters } from "@/lib/geo";
 import {
   DEFAULT_PIN_RADIUS_BY_COST,
+  LANDMARK_PIN_RADIUS_METERS,
   type ConquerProbability,
   type PinCost,
 } from "@/lib/constants";
@@ -28,6 +30,7 @@ import { consumeFocusPremiumPlace } from "@/lib/premium/focusPlace";
 import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
+import type { SerializedLandmark } from "@/types/landmark";
 import type {
   SerializedCouponSpawn,
   SerializedPremiumPlace,
@@ -49,9 +52,12 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [pins, setPins] = useState<Pin[]>([]);
   const [randomPoints, setRandomPoints] = useState<RandomPoint[]>([]);
   const [premiumPlaces, setPremiumPlaces] = useState<SerializedPremiumPlace[]>([]);
+  const [landmarks, setLandmarks] = useState<SerializedLandmark[]>([]);
   const [couponSpawns, setCouponSpawns] = useState<SerializedCouponSpawn[]>([]);
   const [selectedPremiumPlace, setSelectedPremiumPlace] =
     useState<SerializedPremiumPlace | null>(null);
+  const [selectedLandmark, setSelectedLandmark] =
+    useState<SerializedLandmark | null>(null);
   const [selectedCouponSpawn, setSelectedCouponSpawn] =
     useState<SerializedCouponSpawn | null>(null);
   const [showPremiumPromotionModal, setShowPremiumPromotionModal] = useState(false);
@@ -121,6 +127,14 @@ export default function HomePage({ active = true }: HomePageProps) {
     }
   }, []);
 
+  const fetchLandmarks = useCallback(async () => {
+    const res = await fetch("/api/landmarks", { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      setLandmarks(data.landmarks ?? []);
+    }
+  }, []);
+
   const syncCouponSpawns = useCallback(
     async (lat: number, lng: number) => {
       if (!user) {
@@ -186,8 +200,9 @@ export default function HomePage({ active = true }: HomePageProps) {
     queueMicrotask(() => {
       void fetchPins();
       void fetchPremiumPlaces();
+      void fetchLandmarks();
     });
-  }, [fetchPins, fetchPremiumPlaces]);
+  }, [fetchPins, fetchPremiumPlaces, fetchLandmarks]);
 
   useEffect(() => {
     void (async () => {
@@ -219,17 +234,19 @@ export default function HomePage({ active = true }: HomePageProps) {
       if (document.visibilityState !== "visible") return;
       void fetchPins();
       void fetchPremiumPlaces();
+      void fetchLandmarks();
       if (user) void fetchRandomPoints();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [fetchPins, fetchRandomPoints, fetchPremiumPlaces, user]);
+  }, [fetchPins, fetchRandomPoints, fetchPremiumPlaces, fetchLandmarks, user]);
 
   useEffect(() => {
     if (active) return;
     setSelectedPin(null);
     setSelectedRandomPoint(null);
     setSelectedPremiumPlace(null);
+    setSelectedLandmark(null);
     setSelectedCouponSpawn(null);
     setShowCreateModal(false);
     setShowConquerModal(false);
@@ -367,15 +384,45 @@ export default function HomePage({ active = true }: HomePageProps) {
         );
         if (res.ok) {
           const data = await res.json();
-          const nearby = (data.pins ?? []).filter(
-            (p: Pin) =>
-              getDistanceMeters(
-                pinPickedLocation.lat,
-                pinPickedLocation.lng,
-                p.lat,
-                p.lng
-              ) <= p.radius_meters
-          );
+          const pickLat = pinPickedLocation.lat;
+          const pickLng = pinPickedLocation.lng;
+
+          let containing: SerializedLandmark | null = null;
+          let containingDistance = Number.POSITIVE_INFINITY;
+          for (const landmark of landmarks) {
+            const d = getDistanceMeters(
+              pickLat,
+              pickLng,
+              landmark.lat,
+              landmark.lng
+            );
+            if (d > landmark.radiusMeters) continue;
+            if (d < containingDistance) {
+              containing = landmark;
+              containingDistance = d;
+            }
+          }
+
+          const nearby = (data.pins ?? []).filter((p: Pin) => {
+            const distance = getDistanceMeters(pickLat, pickLng, p.lat, p.lng);
+
+            if (containing) {
+              const sameLandmark =
+                p.landmark_id === containing.id ||
+                getDistanceMeters(p.lat, p.lng, containing.lat, containing.lng) <=
+                  containing.radiusMeters;
+              if (!sameLandmark) return false;
+              return (
+                distance <=
+                Math.max(p.radius_meters, LANDMARK_PIN_RADIUS_METERS)
+              );
+            }
+
+            if (p.landmark_id) {
+              return distance <= p.radius_meters;
+            }
+            return distance <= p.radius_meters;
+          });
           if (nearby.length > 0) {
             showToast(
               "이미 점령된 영역입니다. 다른 위치를 선택하거나 점령에 도전해보세요."
@@ -488,6 +535,7 @@ export default function HomePage({ active = true }: HomePageProps) {
       setPinPickedLocation(null);
       await refreshProfile();
       await fetchPins();
+      await fetchLandmarks();
       recenterNonceRef.current += 1;
       setRecenterRequest({
         lat: plantedLat,
@@ -535,6 +583,7 @@ export default function HomePage({ active = true }: HomePageProps) {
 
       await refreshProfile();
       await fetchPins();
+      await fetchLandmarks();
       setSelectedPin(null);
 
       if (data.success) {
@@ -581,6 +630,7 @@ export default function HomePage({ active = true }: HomePageProps) {
   };
 
   const handlePinClick = (pin: Pin) => {
+    setSelectedLandmark(null);
     setSelectedPin(pin);
   };
 
@@ -597,6 +647,7 @@ export default function HomePage({ active = true }: HomePageProps) {
       setSelectedPin(null);
       setSelectedRandomPoint(null);
       setSelectedPremiumPlace(null);
+      setSelectedLandmark(null);
       setSelectedCouponSpawn(null);
       setPromotionLocationPickMode(false);
       setShowPremiumPromotionModal(true);
@@ -723,6 +774,7 @@ export default function HomePage({ active = true }: HomePageProps) {
         active={active}
         pins={pins}
         randomPoints={randomPoints}
+        landmarks={landmarks}
         premiumPlaces={premiumPlaces}
         couponSpawns={couponSpawns}
         currentPosition={position}
@@ -736,10 +788,16 @@ export default function HomePage({ active = true }: HomePageProps) {
           if (locationPickMode) return;
           requireAuth(() => setSelectedRandomPoint(point));
         }}
+        onLandmarkClick={(landmark) => {
+          if (locationPickMode) return;
+          setSelectedPremiumPlace(null);
+          setSelectedLandmark(landmark);
+        }}
         onPremiumPlaceClick={(place) => {
           if (locationPickMode) return;
           trackPremiumPlaceEvent(place.id, "marker_click");
           trackPremiumPlaceEvent(place.id, "detail_open", { source: "map_marker" });
+          setSelectedLandmark(null);
           setSelectedPremiumPlace(place);
         }}
         onCouponSpawnClick={(spawn) => {
@@ -842,6 +900,11 @@ export default function HomePage({ active = true }: HomePageProps) {
         onClose={() => setSelectedPremiumPlace(null)}
         onIssueCoupons={handleIssueCoupons}
         issuing={actionLoading}
+      />
+
+      <LandmarkBottomSheet
+        landmark={selectedLandmark}
+        onClose={() => setSelectedLandmark(null)}
       />
 
       <PremiumCouponBottomSheet

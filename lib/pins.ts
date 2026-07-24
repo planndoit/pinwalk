@@ -13,11 +13,48 @@ export async function findActivePinsNear(
   lng: number,
   newPinRadiusMeters?: number
 ): Promise<Pin[]> {
+  return findPinPlacementConflicts(lat, lng, newPinRadiusMeters ?? 0, null);
+}
+
+/**
+ * 배치 충돌 검사.
+ * - landmarkId 있으면: 같은 랜드마크 깃발끼리만, 반경 max(신규,기존)
+ * - 없으면: 일반 규칙은 max(기존,신규). 단 랜드마크 깃발은 본인 반경(5m)만 적용
+ */
+export async function findPinPlacementConflicts(
+  lat: number,
+  lng: number,
+  newPinRadiusMeters: number,
+  landmarkId: string | null
+): Promise<Pin[]> {
+  const admin = createAdminClient();
+
+  if (landmarkId) {
+    const searchRadiusMeters = Math.max(newPinRadiusMeters, 50);
+    const { latDelta, lngDelta } = getBoundingBoxDelta(searchRadiusMeters, lat);
+    const { data, error } = await admin
+      .from("pins")
+      .select("*")
+      .eq("status", "active")
+      .eq("landmark_id", landmarkId)
+      .gte("lat", lat - latDelta)
+      .lte("lat", lat + latDelta)
+      .gte("lng", lng - lngDelta)
+      .lte("lng", lng + lngDelta);
+
+    if (error || !data) return [];
+
+    return data.filter((pin) => {
+      const distance = getDistanceMeters(lat, lng, pin.lat, pin.lng);
+      const conflictRadius = Math.max(pin.radius_meters, newPinRadiusMeters);
+      return distance <= conflictRadius;
+    }) as Pin[];
+  }
+
   const searchRadiusMeters = Math.max(
     getMaxPinRadiusMeters(),
-    newPinRadiusMeters ?? 0
+    newPinRadiusMeters
   );
-  const admin = createAdminClient();
   const { latDelta, lngDelta } = getBoundingBoxDelta(searchRadiusMeters, lat);
 
   const { data, error } = await admin
@@ -35,10 +72,10 @@ export async function findActivePinsNear(
 
   return data.filter((pin) => {
     const distance = getDistanceMeters(lat, lng, pin.lat, pin.lng);
-    const conflictRadius =
-      newPinRadiusMeters !== undefined
-        ? Math.max(pin.radius_meters, newPinRadiusMeters)
-        : pin.radius_meters;
+    if (pin.landmark_id) {
+      return distance <= pin.radius_meters;
+    }
+    const conflictRadius = Math.max(pin.radius_meters, newPinRadiusMeters);
     return distance <= conflictRadius;
   }) as Pin[];
 }

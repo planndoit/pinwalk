@@ -1,6 +1,8 @@
 import {
+  DEFAULT_LANDMARK_RADIUS_METERS,
   DEFAULT_PIN_COST,
   DEFAULT_PIN_RADIUS_BY_COST,
+  SERVICE_NAME,
   isPinCost,
   type PinCost,
 } from "./constants";
@@ -79,4 +81,18 @@ export function getEmailFrom(): string | null {
 
 export function getResendApiKey(): string | null {
   return process.env.RESEND_API_KEY ?? null;
+}
+
+export function getLandmarkRadiusMeters(): number {
+  return readInt("LANDMARK_RADIUS_METERS", DEFAULT_LANDMARK_RADIUS_METERS);
+}
+
+/** data.go.kr 발급 키. 포털에서 복사한 값을 그대로 사용(이미 인코딩된 경우 유지). */
+export function getTourApiServiceKey(): string | null {
+  const raw = process.env.TOUR_API_SERVICE_KEY?.trim();
+  return raw || null;
+}
+
+export function getTourApiMobileApp(): string {
+  return process.env.TOUR_API_MOBILE_APP?.trim() || SERVICE_NAME;
 }

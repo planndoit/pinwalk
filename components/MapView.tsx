@@ -27,6 +27,7 @@ import {
 } from "@/lib/flagVisual";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
+import type { SerializedLandmark } from "@/types/landmark";
 import type {
   SerializedCouponSpawn,
   SerializedPremiumPlace,
@@ -36,6 +37,7 @@ interface MapViewProps {
   active?: boolean;
   pins: Pin[];
   randomPoints: RandomPoint[];
+  landmarks: SerializedLandmark[];
   premiumPlaces: SerializedPremiumPlace[];
   couponSpawns: SerializedCouponSpawn[];
   currentPosition: { lat: number; lng: number } | null;
@@ -43,6 +45,7 @@ interface MapViewProps {
   recenterRequest: { lat: number; lng: number; nonce: number } | null;
   onPinClick: (pin: Pin) => void;
   onRandomPointClick: (point: RandomPoint) => void;
+  onLandmarkClick: (landmark: SerializedLandmark) => void;
   onPremiumPlaceClick: (place: SerializedPremiumPlace) => void;
   onCouponSpawnClick: (spawn: SerializedCouponSpawn) => void;
   locationPickMode?: boolean;
@@ -145,6 +148,81 @@ function createClusterMarkerContent(count: number): string {
         box-shadow: 0 4px 14px rgba(79,70,229,0.45);
         border: 3px solid white;
       ">${count}</div>
+    </div>
+  `;
+}
+
+function createLandmarkMarkerContent(
+  name: string,
+  isClosed: boolean,
+  titleHolderNickname?: string | null
+): string {
+  const escape = (value: string) =>
+    value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  const base = name.length > 8 ? name.slice(0, 8) + "…" : name;
+  const holder = titleHolderNickname?.trim();
+  const display = escape(
+    holder
+      ? `${base} (${holder.length > 6 ? holder.slice(0, 6) + "…" : holder})`
+      : base
+  );
+  const bg = isClosed
+    ? "linear-gradient(135deg, #6b7280, #4b5563)"
+    : "linear-gradient(135deg, #0f766e, #115e59)";
+  const tip = isClosed ? "#4b5563" : "#115e59";
+  return `
+    <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+      <div style="
+        background: ${bg};
+        color: white;
+        padding: 7px 12px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+        box-shadow: 0 4px 14px rgba(15,118,110,0.35);
+        border: 2px solid #ccfbf1;
+        letter-spacing: -0.02em;
+      ">${display}</div>
+      <div style="
+        width: 0; height: 0;
+        border-left: 7px solid transparent;
+        border-right: 7px solid transparent;
+        border-top: 9px solid ${tip};
+        margin-top: -1px;
+      "></div>
+    </div>
+  `;
+}
+
+function createLandmarkIconContent(isClosed: boolean): string {
+  const bg = isClosed
+    ? "linear-gradient(135deg, #6b7280, #4b5563)"
+    : "linear-gradient(135deg, #0f766e, #115e59)";
+  const tip = isClosed ? "#4b5563" : "#115e59";
+  return `
+    <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+      <div style="
+        background: ${bg};
+        color: white;
+        width: 26px; height: 26px;
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px; font-weight: 800;
+        box-shadow: 0 3px 10px rgba(15,118,110,0.35);
+        border: 2px solid #ccfbf1;
+      ">L</div>
+      <div style="
+        width: 0; height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 7px solid ${tip};
+        margin-top: -1px;
+      "></div>
     </div>
   `;
 }
@@ -383,6 +461,7 @@ export default function MapView({
   active = true,
   pins,
   randomPoints,
+  landmarks,
   premiumPlaces,
   couponSpawns,
   currentPosition,
@@ -390,6 +469,7 @@ export default function MapView({
   recenterRequest,
   onPinClick,
   onRandomPointClick,
+  onLandmarkClick,
   onPremiumPlaceClick,
   onCouponSpawnClick,
   locationPickMode = false,
@@ -406,6 +486,9 @@ export default function MapView({
   const pinCirclesRef = useRef<InstanceType<typeof naver.maps.Circle>[]>([]);
   const pinListenersRef = useRef<unknown[]>([]);
   const randomMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
+  const landmarkMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
+  const landmarkCirclesRef = useRef<InstanceType<typeof naver.maps.Circle>[]>([]);
+  const landmarkListenersRef = useRef<unknown[]>([]);
   const premiumMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
   const premiumListenersRef = useRef<unknown[]>([]);
   const couponMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
@@ -414,9 +497,11 @@ export default function MapView({
   const mapClickListenerRef = useRef<unknown>(null);
   const onMapClickRef = useRef(onMapClick);
   const pinsRef = useRef(pins);
+  const landmarksRef = useRef(landmarks);
   const premiumPlacesRef = useRef(premiumPlaces);
   const currentUserIdRef = useRef(currentUserId);
   const onPinClickRef = useRef(onPinClick);
+  const onLandmarkClickRef = useRef(onLandmarkClick);
   const onPremiumPlaceClickRef = useRef(onPremiumPlaceClick);
   const renderRafRef = useRef<number | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -429,11 +514,21 @@ export default function MapView({
 
   useEffect(() => {
     pinsRef.current = pins;
+    landmarksRef.current = landmarks;
     premiumPlacesRef.current = premiumPlaces;
     currentUserIdRef.current = currentUserId;
     onPinClickRef.current = onPinClick;
+    onLandmarkClickRef.current = onLandmarkClick;
     onPremiumPlaceClickRef.current = onPremiumPlaceClick;
-  }, [pins, premiumPlaces, currentUserId, onPinClick, onPremiumPlaceClick]);
+  }, [
+    pins,
+    landmarks,
+    premiumPlaces,
+    currentUserId,
+    onPinClick,
+    onLandmarkClick,
+    onPremiumPlaceClick,
+  ]);
 
   const clearPinOverlays = useCallback(() => {
     pinMarkersRef.current.forEach((marker) => marker.setMap(null));
@@ -569,6 +664,115 @@ export default function MapView({
     premiumListenersRef.current = [];
   }, []);
 
+  const clearLandmarkOverlays = useCallback(() => {
+    landmarkMarkersRef.current.forEach((marker) => marker.setMap(null));
+    landmarkCirclesRef.current.forEach((circle) => circle.setMap(null));
+    landmarkMarkersRef.current = [];
+    landmarkCirclesRef.current = [];
+    landmarkListenersRef.current.forEach((listener) => {
+      naver.maps.Event.removeListener(listener);
+    });
+    landmarkListenersRef.current = [];
+  }, []);
+
+  const renderLandmarkOverlays = useCallback(() => {
+    const naverObj = (window as Window & { naver?: typeof naver }).naver;
+    const map = mapInstanceRef.current;
+    if (!mapReady || !map || !naverObj?.maps) return;
+
+    clearLandmarkOverlays();
+
+    const zoom = map.getZoom();
+    const gridSizePx = getClusterGridSizePx(zoom);
+    const places = landmarksRef.current;
+    const projection = map.getProjection();
+    const createLatLng = (lat: number, lng: number) =>
+      new naverObj.maps.LatLng(lat, lng);
+    const showRadiusCircle = zoom >= PIN_RADIUS_CIRCLE_ZOOM;
+
+    const clusters =
+      gridSizePx === null
+        ? places.map((place) => ({
+            lat: place.lat,
+            lng: place.lng,
+            items: [place],
+            count: 1,
+          }))
+        : clusterItemsByGrid(places, projection, createLatLng, gridSizePx);
+
+    clusters.forEach((cluster) => {
+      const pos = new naverObj.maps.LatLng(cluster.lat, cluster.lng);
+
+      if (cluster.count > 1) {
+        const marker = new naverObj.maps.Marker({
+          position: pos,
+          map,
+          zIndex: 180,
+          icon: {
+            content: createClusterMarkerContent(cluster.count),
+            anchor: new naverObj.maps.Point(0, 0),
+          },
+        });
+
+        const listener = naverObj.maps.Event.addListener(marker, "click", () => {
+          focusClusterOnMap(map, naverObj, cluster.items, cluster.count);
+        });
+        landmarkListenersRef.current.push(listener);
+        landmarkMarkersRef.current.push(marker);
+        return;
+      }
+
+      const place = cluster.items[0];
+      const nearbyCount = countNearbyPoints(
+        place,
+        places,
+        projection,
+        createLatLng,
+        SPARSE_NEARBY_RADIUS_PX
+      );
+      const showText = shouldShowPinText(zoom, cluster.count, nearbyCount);
+      const placePos = new naverObj.maps.LatLng(place.lat, place.lng);
+      const stroke = place.isClosed ? "#6b7280" : "#0f766e";
+
+      if (showRadiusCircle) {
+        const circle = new naverObj.maps.Circle({
+          map,
+          center: placePos,
+          radius: place.radiusMeters,
+          fillColor: stroke,
+          fillOpacity: place.isClosed ? 0.04 : 0.08,
+          strokeColor: stroke,
+          strokeOpacity: 0.35,
+          strokeWeight: 1.5,
+          zIndex: 50,
+        });
+        landmarkCirclesRef.current.push(circle);
+      }
+
+      const marker = new naverObj.maps.Marker({
+        position: placePos,
+        map,
+        zIndex: 190,
+        icon: {
+          content: showText
+            ? createLandmarkMarkerContent(
+                place.name,
+                place.isClosed,
+                place.titleHolderNickname
+              )
+            : createLandmarkIconContent(place.isClosed),
+          anchor: new naverObj.maps.Point(0, 0),
+        },
+      });
+
+      const listener = naverObj.maps.Event.addListener(marker, "click", () =>
+        onLandmarkClickRef.current(place)
+      );
+      landmarkListenersRef.current.push(listener);
+      landmarkMarkersRef.current.push(marker);
+    });
+  }, [mapReady, clearLandmarkOverlays]);
+
   const renderPremiumOverlays = useCallback(() => {
     const naverObj = (window as Window & { naver?: typeof naver }).naver;
     const map = mapInstanceRef.current;
@@ -650,10 +854,11 @@ export default function MapView({
     if (renderRafRef.current !== null) return;
     renderRafRef.current = window.requestAnimationFrame(() => {
       renderRafRef.current = null;
+      renderLandmarkOverlays();
       renderPinOverlays();
       renderPremiumOverlays();
     });
-  }, [renderPinOverlays, renderPremiumOverlays]);
+  }, [renderLandmarkOverlays, renderPinOverlays, renderPremiumOverlays]);
 
   // 네이버 지도 인증 실패 공식 훅. maps.js 실행 전에 등록되어야 한다.
   useEffect(() => {
@@ -797,6 +1002,10 @@ export default function MapView({
   useEffect(() => {
     renderPinOverlays();
   }, [pins, renderPinOverlays]);
+
+  useEffect(() => {
+    renderLandmarkOverlays();
+  }, [landmarks, renderLandmarkOverlays]);
 
   useEffect(() => {
     renderPremiumOverlays();

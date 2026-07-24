@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { refreshUserLandmarkScore } from "@/lib/landmark/scores";
 
 export async function DELETE(
   _request: Request,
@@ -46,6 +47,10 @@ export async function DELETE(
 
   if (error || !updated) {
     return jsonError("깃발 삭제에 실패했습니다.", 500);
+  }
+
+  if (typeof pin.landmark_id === "string" && pin.landmark_id) {
+    await refreshUserLandmarkScore(pin.landmark_id, user.id);
   }
 
   return NextResponse.json({ message: "깃발을 삭제했습니다." });

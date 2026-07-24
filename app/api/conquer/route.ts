@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   CONQUER_PROBABILITIES,
   DEFAULT_PIN_COST,
+  LANDMARK_PIN_RADIUS_METERS,
   type ConquerProbability,
 } from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
@@ -15,6 +16,7 @@ import {
   rollConquerSuccess,
 } from "@/lib/points";
 import { validatePinText } from "@/lib/validation";
+import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -114,6 +116,8 @@ export async function POST(request: Request) {
 
   const success = rollConquerSuccess(probability);
   const now = new Date().toISOString();
+  const landmarkId =
+    typeof targetPin.landmark_id === "string" ? targetPin.landmark_id : null;
 
   if (!success) {
     await admin.from("pin_attempts").insert({
@@ -152,6 +156,10 @@ export async function POST(request: Request) {
     })
     .eq("id", target_pin_id);
 
+  const newRadius = landmarkId
+    ? LANDMARK_PIN_RADIUS_METERS
+    : getPinRadiusMeters(pinCost);
+
   const { data: newPin, error: createError } = await admin
     .from("pins")
     .insert({
@@ -159,9 +167,10 @@ export async function POST(request: Request) {
       text: new_text.trim(),
       lat: targetPin.lat,
       lng: targetPin.lng,
-      radius_meters: getPinRadiusMeters(pinCost),
+      radius_meters: newRadius,
       status: "active",
       cost: pinCost,
+      landmark_id: landmarkId,
       expires_at: null,
     })
     .select()
@@ -179,6 +188,13 @@ export async function POST(request: Request) {
     cost,
     success: true,
   });
+
+  if (landmarkId) {
+    await refreshUsersLandmarkScores(landmarkId, [
+      targetPin.user_id,
+      user.id,
+    ]);
+  }
 
   return NextResponse.json({
     success: true,
