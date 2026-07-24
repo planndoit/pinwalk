@@ -1,5 +1,6 @@
 import { getMaxPinRadiusMeters } from "./env";
 import { getBoundingBoxDelta, getDistanceMeters } from "./geo";
+import { getLandmarkIdsByPinIds } from "./landmark/pinLandmarks";
 import { createAdminClient } from "./supabase/admin";
 import type { Pin } from "@/types/pin";
 
@@ -13,30 +14,41 @@ export async function findActivePinsNear(
   lng: number,
   newPinRadiusMeters?: number
 ): Promise<Pin[]> {
-  return findPinPlacementConflicts(lat, lng, newPinRadiusMeters ?? 0, null);
+  return findPinPlacementConflicts(lat, lng, newPinRadiusMeters ?? 0, []);
 }
 
 /**
  * 배치 충돌 검사.
- * - landmarkId 있으면: 같은 랜드마크 깃발끼리만, 반경 max(신규,기존)
+ * - landmarkIds 있으면: 공유 랜드마크 깃발끼리만, 반경 max(신규,기존)
  * - 없으면: 일반 규칙은 max(기존,신규). 단 랜드마크 깃발은 본인 반경(5m)만 적용
  */
 export async function findPinPlacementConflicts(
   lat: number,
   lng: number,
   newPinRadiusMeters: number,
-  landmarkId: string | null
+  landmarkIds: string[]
 ): Promise<Pin[]> {
   const admin = createAdminClient();
+  const uniqueLandmarkIds = [...new Set(landmarkIds.filter(Boolean))];
 
-  if (landmarkId) {
+  if (uniqueLandmarkIds.length > 0) {
     const searchRadiusMeters = Math.max(newPinRadiusMeters, 50);
     const { latDelta, lngDelta } = getBoundingBoxDelta(searchRadiusMeters, lat);
+
+    const { data: links, error: linkError } = await admin
+      .from("pin_landmarks")
+      .select("pin_id")
+      .in("landmark_id", uniqueLandmarkIds);
+
+    if (linkError || !links || links.length === 0) return [];
+
+    const pinIds = [...new Set(links.map((row) => row.pin_id as string))];
+
     const { data, error } = await admin
       .from("pins")
       .select("*")
       .eq("status", "active")
-      .eq("landmark_id", landmarkId)
+      .in("id", pinIds)
       .gte("lat", lat - latDelta)
       .lte("lat", lat + latDelta)
       .gte("lng", lng - lngDelta)
@@ -70,9 +82,14 @@ export async function findPinPlacementConflicts(
     return [];
   }
 
+  const landmarkIdsByPin = await getLandmarkIdsByPinIds(
+    data.map((pin) => pin.id as string)
+  );
+
   return data.filter((pin) => {
     const distance = getDistanceMeters(lat, lng, pin.lat, pin.lng);
-    if (pin.landmark_id) {
+    const pinLandmarkIds = landmarkIdsByPin.get(pin.id as string) ?? [];
+    if (pinLandmarkIds.length > 0) {
       return distance <= pin.radius_meters;
     }
     const conflictRadius = Math.max(pin.radius_meters, newPinRadiusMeters);

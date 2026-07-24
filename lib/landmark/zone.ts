@@ -1,6 +1,7 @@
 import { LANDMARK_PIN_RADIUS_METERS } from "@/lib/constants";
 import { getBoundingBoxDelta, getDistanceMeters } from "@/lib/geo";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { addPinLandmarks } from "@/lib/landmark/pinLandmarks";
 import type { Landmark } from "@/types/landmark";
 
 export type LandmarkZone = Pick<
@@ -8,11 +9,11 @@ export type LandmarkZone = Pick<
   "id" | "lat" | "lng" | "radius_meters" | "map_visible"
 >;
 
-/** 좌표가 들어가는 map_visible 랜드마크. 여러 개면 중심이 더 가까운 쪽. */
-export async function findContainingLandmark(
+/** 좌표가 들어가는 map_visible 랜드마크 전체 (겹치면 모두). */
+export async function findContainingLandmarks(
   lat: number,
   lng: number
-): Promise<LandmarkZone | null> {
+): Promise<LandmarkZone[]> {
   const admin = createAdminClient();
   const searchRadius = 2000;
   const { latDelta, lngDelta } = getBoundingBoxDelta(searchRadius, lat);
@@ -27,26 +28,23 @@ export async function findContainingLandmark(
     .lte("lng", lng + lngDelta);
 
   if (error || !data || data.length === 0) {
-    return null;
+    return [];
   }
 
-  let best: LandmarkZone | null = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
+  const containing: LandmarkZone[] = [];
 
   for (const row of data as LandmarkZone[]) {
     const distance = getDistanceMeters(lat, lng, row.lat, row.lng);
-    if (distance > row.radius_meters) continue;
-    if (distance < bestDistance) {
-      best = row;
-      bestDistance = distance;
+    if (distance <= row.radius_meters) {
+      containing.push(row);
     }
   }
 
-  return best;
+  return containing;
 }
 
 /**
- * 랜드마크 존 안 active 깃발을 5m로 편입하고 landmark_id를 붙인다.
+ * 랜드마크 존 안 active 깃발을 5m로 편입하고 pin_landmarks에 연결한다.
  * 반환: 영향받은 user_id 목록
  */
 export async function absorbPinsIntoLandmark(
@@ -60,7 +58,7 @@ export async function absorbPinsIntoLandmark(
 
   const { data, error } = await admin
     .from("pins")
-    .select("id, user_id, lat, lng, landmark_id, radius_meters")
+    .select("id, user_id, lat, lng, radius_meters")
     .eq("status", "active")
     .gte("lat", landmark.lat - latDelta)
     .lte("lat", landmark.lat + latDelta)
@@ -83,21 +81,17 @@ export async function absorbPinsIntoLandmark(
     );
     if (distance > landmark.radius_meters) continue;
 
-    const needsUpdate =
-      pin.landmark_id !== landmark.id ||
-      pin.radius_meters !== LANDMARK_PIN_RADIUS_METERS;
-
-    if (needsUpdate) {
+    if (pin.radius_meters !== LANDMARK_PIN_RADIUS_METERS) {
       await admin
         .from("pins")
         .update({
-          landmark_id: landmark.id,
           radius_meters: LANDMARK_PIN_RADIUS_METERS,
           updated_at: now,
         })
         .eq("id", pin.id);
     }
 
+    await addPinLandmarks(pin.id, [landmark.id]);
     affectedUserIds.add(pin.user_id);
   }
 

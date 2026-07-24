@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { refreshUserLandmarkScore } from "@/lib/landmark/scores";
+import { getPinLandmarkIds } from "@/lib/landmark/pinLandmarks";
+import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
 
 export async function DELETE(
   _request: Request,
@@ -33,6 +34,8 @@ export async function DELETE(
     return jsonError("활성 깃발만 삭제할 수 있습니다.");
   }
 
+  const landmarkIds = await getPinLandmarkIds(id);
+
   const { data: updated, error } = await admin
     .from("pins")
     .update({
@@ -49,8 +52,8 @@ export async function DELETE(
     return jsonError("깃발 삭제에 실패했습니다.", 500);
   }
 
-  if (typeof pin.landmark_id === "string" && pin.landmark_id) {
-    await refreshUserLandmarkScore(pin.landmark_id, user.id);
+  if (landmarkIds.length > 0) {
+    await refreshUsersLandmarkScores(landmarkIds, [user.id]);
   }
 
   return NextResponse.json({ message: "깃발을 삭제했습니다." });

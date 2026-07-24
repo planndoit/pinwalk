@@ -387,38 +387,43 @@ export default function HomePage({ active = true }: HomePageProps) {
           const pickLat = pinPickedLocation.lat;
           const pickLng = pinPickedLocation.lng;
 
-          let containing: SerializedLandmark | null = null;
-          let containingDistance = Number.POSITIVE_INFINITY;
-          for (const landmark of landmarks) {
+          const containingLandmarks = landmarks.filter((landmark) => {
             const d = getDistanceMeters(
               pickLat,
               pickLng,
               landmark.lat,
               landmark.lng
             );
-            if (d > landmark.radiusMeters) continue;
-            if (d < containingDistance) {
-              containing = landmark;
-              containingDistance = d;
-            }
-          }
+            return d <= landmark.radiusMeters;
+          });
+          const containingIds = new Set(
+            containingLandmarks.map((landmark) => landmark.id)
+          );
 
           const nearby = (data.pins ?? []).filter((p: Pin) => {
             const distance = getDistanceMeters(pickLat, pickLng, p.lat, p.lng);
+            const pinLandmarkIds = p.landmark_ids ?? [];
 
-            if (containing) {
-              const sameLandmark =
-                p.landmark_id === containing.id ||
-                getDistanceMeters(p.lat, p.lng, containing.lat, containing.lng) <=
-                  containing.radiusMeters;
-              if (!sameLandmark) return false;
+            if (containingIds.size > 0) {
+              const sharesLandmark =
+                pinLandmarkIds.some((id) => containingIds.has(id)) ||
+                containingLandmarks.some(
+                  (landmark) =>
+                    getDistanceMeters(
+                      p.lat,
+                      p.lng,
+                      landmark.lat,
+                      landmark.lng
+                    ) <= landmark.radiusMeters
+                );
+              if (!sharesLandmark) return false;
               return (
                 distance <=
                 Math.max(p.radius_meters, LANDMARK_PIN_RADIUS_METERS)
               );
             }
 
-            if (p.landmark_id) {
+            if (pinLandmarkIds.length > 0) {
               return distance <= p.radius_meters;
             }
             return distance <= p.radius_meters;

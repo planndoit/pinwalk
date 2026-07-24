@@ -16,7 +16,15 @@ import {
   rollConquerSuccess,
 } from "@/lib/points";
 import { validatePinText } from "@/lib/validation";
+import {
+  findContainingLandmarks,
+} from "@/lib/landmark/zone";
 import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
+import {
+  copyPinLandmarks,
+  getPinLandmarkIds,
+  setPinLandmarks,
+} from "@/lib/landmark/pinLandmarks";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -116,8 +124,15 @@ export async function POST(request: Request) {
 
   const success = rollConquerSuccess(probability);
   const now = new Date().toISOString();
-  const landmarkId =
-    typeof targetPin.landmark_id === "string" ? targetPin.landmark_id : null;
+  let landmarkIds = await getPinLandmarkIds(target_pin_id);
+  if (landmarkIds.length === 0) {
+    const containing = await findContainingLandmarks(
+      targetPin.lat,
+      targetPin.lng
+    );
+    landmarkIds = containing.map((landmark) => landmark.id);
+  }
+  const inLandmarkZone = landmarkIds.length > 0;
 
   if (!success) {
     await admin.from("pin_attempts").insert({
@@ -156,7 +171,7 @@ export async function POST(request: Request) {
     })
     .eq("id", target_pin_id);
 
-  const newRadius = landmarkId
+  const newRadius = inLandmarkZone
     ? LANDMARK_PIN_RADIUS_METERS
     : getPinRadiusMeters(pinCost);
 
@@ -170,7 +185,6 @@ export async function POST(request: Request) {
       radius_meters: newRadius,
       status: "active",
       cost: pinCost,
-      landmark_id: landmarkId,
       expires_at: null,
     })
     .select()
@@ -189,8 +203,14 @@ export async function POST(request: Request) {
     success: true,
   });
 
-  if (landmarkId) {
-    await refreshUsersLandmarkScores(landmarkId, [
+  let appliedLandmarkIds = landmarkIds;
+  if (landmarkIds.length > 0) {
+    appliedLandmarkIds = await copyPinLandmarks(target_pin_id, newPin.id);
+    if (appliedLandmarkIds.length === 0) {
+      await setPinLandmarks(newPin.id, landmarkIds);
+      appliedLandmarkIds = landmarkIds;
+    }
+    await refreshUsersLandmarkScores(appliedLandmarkIds, [
       targetPin.user_id,
       user.id,
     ]);
@@ -199,7 +219,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     success: true,
     message: "점령 성공! 이 영역에 내 깃발을 꽂았어요.",
-    pin: newPin,
+    pin: { ...newPin, landmark_ids: appliedLandmarkIds },
     points: deductResult.newPoints,
   });
 }

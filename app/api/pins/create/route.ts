@@ -6,8 +6,12 @@ import { findPinPlacementConflicts, deductPoints } from "@/lib/pins";
 import { validatePinText } from "@/lib/validation";
 import { getDistanceMeters } from "@/lib/geo";
 import { getPinPlacementRadiusMeters, getPinRadiusMeters } from "@/lib/env";
-import { absorbPinsIntoLandmark, findContainingLandmark } from "@/lib/landmark/zone";
-import { refreshUserLandmarkScore } from "@/lib/landmark/scores";
+import {
+  absorbPinsIntoLandmark,
+  findContainingLandmarks,
+} from "@/lib/landmark/zone";
+import { setPinLandmarks } from "@/lib/landmark/pinLandmarks";
+import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -77,20 +81,23 @@ export async function POST(request: Request) {
     return jsonError("포인트가 부족합니다.");
   }
 
-  const containing = await findContainingLandmark(lat, lng);
-  const landmarkId = containing?.id ?? null;
-  if (containing) {
-    await absorbPinsIntoLandmark(containing);
+  const containingLandmarks = await findContainingLandmarks(lat, lng);
+  const landmarkIds = containingLandmarks.map((landmark) => landmark.id);
+
+  for (const landmark of containingLandmarks) {
+    await absorbPinsIntoLandmark(landmark);
   }
-  const radiusMeters = landmarkId
-    ? LANDMARK_PIN_RADIUS_METERS
-    : getPinRadiusMeters(cost);
+
+  const radiusMeters =
+    landmarkIds.length > 0
+      ? LANDMARK_PIN_RADIUS_METERS
+      : getPinRadiusMeters(cost);
 
   const nearbyPins = await findPinPlacementConflicts(
     lat,
     lng,
     radiusMeters,
-    landmarkId
+    landmarkIds
   );
   if (nearbyPins.length > 0) {
     return jsonError(
@@ -109,7 +116,6 @@ export async function POST(request: Request) {
       radius_meters: radiusMeters,
       status: "active",
       cost,
-      landmark_id: landmarkId,
       expires_at: null,
     })
     .select()
@@ -144,12 +150,13 @@ export async function POST(request: Request) {
     return jsonError(deductResult.error!);
   }
 
-  if (landmarkId) {
-    await refreshUserLandmarkScore(landmarkId, user.id);
+  if (landmarkIds.length > 0) {
+    await setPinLandmarks(pin.id, landmarkIds);
+    await refreshUsersLandmarkScores(landmarkIds, [user.id]);
   }
 
   return NextResponse.json({
-    pin,
+    pin: { ...pin, landmark_ids: landmarkIds },
     points: deductResult.newPoints,
   });
 }

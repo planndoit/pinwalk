@@ -17,17 +17,18 @@ export async function refreshUserLandmarkScore(
   const admin = createAdminClient();
   const now = new Date().toISOString();
 
-  const { data: pins } = await admin
-    .from("pins")
-    .select("cost")
-    .eq("status", "active")
+  const { data: links } = await admin
+    .from("pin_landmarks")
+    .select("pins!inner(cost, status, user_id)")
     .eq("landmark_id", landmarkId)
-    .eq("user_id", userId);
+    .eq("pins.status", "active")
+    .eq("pins.user_id", userId);
 
-  const score = (pins ?? []).reduce(
-    (sum, row) => sum + (typeof row.cost === "number" ? row.cost : 0),
-    0
-  );
+  const score = (links ?? []).reduce((sum, row) => {
+    const pin = row.pins as { cost?: number } | { cost?: number }[];
+    const cost = Array.isArray(pin) ? pin[0]?.cost : pin?.cost;
+    return sum + (typeof cost === "number" ? cost : 0);
+  }, 0);
 
   if (score <= 0) {
     await admin
@@ -56,8 +57,7 @@ export async function refreshUserLandmarkScore(
     return;
   }
 
-  const reachedAt =
-    score !== existing.score ? now : undefined;
+  const reachedAt = score !== existing.score ? now : undefined;
 
   await admin
     .from("landmark_user_scores")
@@ -71,32 +71,41 @@ export async function refreshUserLandmarkScore(
 }
 
 export async function refreshUsersLandmarkScores(
-  landmarkId: string,
+  landmarkIds: string[],
   userIds: string[]
 ): Promise<void> {
-  const unique = [...new Set(userIds.filter(Boolean))];
-  for (const userId of unique) {
-    await refreshUserLandmarkScore(landmarkId, userId);
+  const uniqueLandmarks = [...new Set(landmarkIds.filter(Boolean))];
+  const uniqueUsers = [...new Set(userIds.filter(Boolean))];
+  for (const landmarkId of uniqueLandmarks) {
+    for (const userId of uniqueUsers) {
+      await refreshUserLandmarkScore(landmarkId, userId);
+    }
   }
 }
 
-/** 랜드마크 전체 점수를 pins 기준으로 재동기화. */
+/** 랜드마크 전체 점수를 pin_landmarks 기준으로 재동기화. */
 export async function recomputeLandmarkScores(
   landmarkId: string
 ): Promise<void> {
   const admin = createAdminClient();
   const now = new Date().toISOString();
 
-  const { data: pins } = await admin
-    .from("pins")
-    .select("user_id, cost")
-    .eq("status", "active")
-    .eq("landmark_id", landmarkId);
+  const { data: links } = await admin
+    .from("pin_landmarks")
+    .select("pins!inner(user_id, cost, status)")
+    .eq("landmark_id", landmarkId)
+    .eq("pins.status", "active");
 
   const scoreByUser = new Map<string, number>();
-  for (const pin of pins ?? []) {
-    const cost = typeof pin.cost === "number" ? pin.cost : 0;
-    scoreByUser.set(pin.user_id, (scoreByUser.get(pin.user_id) ?? 0) + cost);
+  for (const row of links ?? []) {
+    const pin = row.pins as
+      | { user_id?: string; cost?: number }
+      | { user_id?: string; cost?: number }[];
+    const userId = Array.isArray(pin) ? pin[0]?.user_id : pin?.user_id;
+    const cost = Array.isArray(pin) ? pin[0]?.cost : pin?.cost;
+    if (!userId) continue;
+    const value = typeof cost === "number" ? cost : 0;
+    scoreByUser.set(userId, (scoreByUser.get(userId) ?? 0) + value);
   }
 
   const { data: existingRows } = await admin
