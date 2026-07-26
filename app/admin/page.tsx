@@ -39,6 +39,18 @@ interface DashboardStats {
   period30PremiumCouponUses: number;
   period30PremiumEventsTotal: number;
   totalPremiumEvents: number;
+  totalLandmarks: number;
+  visibleLandmarks: number;
+  hiddenLandmarks: number;
+  closedLandmarks: number;
+  activeZonePinLinks: number;
+  todayZonePinLinks: number;
+  period30ZonePinLinks: number;
+  contestedLandmarks: number;
+  landmarkParticipants: number;
+  landmarkParticipations: number;
+  totalLandmarkCombatPower: number;
+  todayLandmarkScoreUpdates: number;
 }
 
 function StatCard({
@@ -144,6 +156,24 @@ export default function AdminDashboardPage() {
               </p>
             </StatCard>
 
+            <StatCard href="/admin/landmarks">
+              <p className="text-xs text-gray-500">랜드마크</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">
+                {stats.totalLandmarks.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                지도노출{" "}
+                <span className="font-semibold text-blue-600">
+                  {stats.visibleLandmarks.toLocaleString()}
+                </span>
+                <span className="mx-1 text-gray-300">·</span>
+                미운영{" "}
+                <span className="font-semibold text-gray-700">
+                  {stats.closedLandmarks.toLocaleString()}
+                </span>
+              </p>
+            </StatCard>
+
             <StatCard href="/admin/promotion-requests">
               <p className="text-xs text-gray-500">미처리 홍보 요청</p>
               <p className="text-xl font-bold text-gray-900 mt-1">
@@ -168,7 +198,7 @@ export default function AdminDashboardPage() {
             </StatCard>
           </>
         ) : (
-          Array.from({ length: 4 }).map((_, i) => (
+          Array.from({ length: 5 }).map((_, i) => (
             <AdminCard key={i} className="p-3.5 h-20 animate-pulse bg-gray-100" />
           ))
         )}
@@ -229,6 +259,86 @@ export default function AdminDashboardPage() {
         ) : (
           Array.from({ length: 3 }).map((_, i) => (
             <AdminCard key={i} className="p-3.5 h-20 animate-pulse bg-gray-100" />
+          ))
+        )}
+      </Section>
+
+      <Section title="랜드마크 현황·성과">
+        {stats ? (
+          <>
+            <StatCard href="/admin/landmarks">
+              <p className="text-xs text-gray-500">지도 노출</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">
+                {stats.visibleLandmarks.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                미노출{" "}
+                <span className="font-semibold text-gray-700">
+                  {stats.hiddenLandmarks.toLocaleString()}
+                </span>
+                <span className="mx-1 text-gray-300">·</span>
+                미운영{" "}
+                <span className="font-semibold text-gray-700">
+                  {stats.closedLandmarks.toLocaleString()}
+                </span>
+              </p>
+            </StatCard>
+
+            <StatCard href="/admin/landmarks">
+              <p className="text-xs text-gray-500">존 내 활성 깃발</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">
+                {stats.activeZonePinLinks.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                오늘 편입{" "}
+                <span className="font-semibold text-blue-600">
+                  +{stats.todayZonePinLinks.toLocaleString()}
+                </span>
+                <span className="mx-1 text-gray-300">·</span>
+                30일{" "}
+                <span className="font-semibold text-gray-700">
+                  {stats.period30ZonePinLinks.toLocaleString()}
+                </span>
+              </p>
+            </StatCard>
+
+            <StatCard href="/admin/landmarks">
+              <p className="text-xs text-gray-500">쟁탈 중 랜드마크</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">
+                {stats.contestedLandmarks.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                참여자{" "}
+                <span className="font-semibold text-emerald-600">
+                  {stats.landmarkParticipants.toLocaleString()}
+                </span>
+                <span className="mx-1 text-gray-300">·</span>
+                참여건{" "}
+                <span className="font-semibold text-gray-700">
+                  {stats.landmarkParticipations.toLocaleString()}
+                </span>
+              </p>
+            </StatCard>
+
+            <StatCard href="/admin/landmarks">
+              <p className="text-xs text-gray-500">합산 전투력</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">
+                {stats.totalLandmarkCombatPower.toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                오늘 점수변동{" "}
+                <span className="font-semibold text-blue-600">
+                  {stats.todayLandmarkScoreUpdates.toLocaleString()}
+                </span>
+              </p>
+            </StatCard>
+          </>
+        ) : (
+          Array.from({ length: 4 }).map((_, i) => (
+            <AdminCard
+              key={`landmark-${i}`}
+              className="p-3.5 h-20 animate-pulse bg-gray-100"
+            />
           ))
         )}
       </Section>

@@ -137,6 +137,48 @@ async function countPositivePointTxs(
   return countPositiveAmountTxsFallback(admin, sinceIso);
 }
 
+async function fetchLandmarkScoreAggregates(admin: AdminClient): Promise<{
+  contestedLandmarks: number;
+  landmarkParticipants: number;
+  landmarkParticipations: number;
+  totalLandmarkCombatPower: number;
+}> {
+  const contestedLandmarkIds = new Set<string>();
+  const participatingUserIds = new Set<string>();
+  let totalLandmarkCombatPower = 0;
+  let landmarkParticipations = 0;
+  let from = 0;
+
+  for (;;) {
+    const { data, error } = await admin
+      .from("landmark_user_scores")
+      .select("landmark_id, user_id, score")
+      .gt("score", 0)
+      .order("landmark_id", { ascending: true })
+      .order("user_id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error || !data) break;
+
+    for (const row of data) {
+      contestedLandmarkIds.add(row.landmark_id as string);
+      participatingUserIds.add(row.user_id as string);
+      totalLandmarkCombatPower += Number(row.score) || 0;
+      landmarkParticipations += 1;
+    }
+
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return {
+    contestedLandmarks: contestedLandmarkIds.size,
+    landmarkParticipants: participatingUserIds.size,
+    landmarkParticipations,
+    totalLandmarkCombatPower,
+  };
+}
+
 export async function GET() {
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
@@ -166,6 +208,15 @@ export async function GET() {
     totalAttendance,
     todayPointEarnCount,
     totalPointEarnCount,
+    totalLandmarks,
+    visibleLandmarks,
+    hiddenLandmarks,
+    closedLandmarks,
+    activeZonePinLinks,
+    todayZonePinLinks,
+    period30ZonePinLinks,
+    landmarkScoreAggregates,
+    todayLandmarkScoreUpdates,
   ] = await Promise.all([
     admin.from("profiles").select("id", { count: "exact", head: true }),
     admin
@@ -218,6 +269,40 @@ export async function GET() {
     countDailyBonusTxs(admin),
     countPositivePointTxs(admin, todayStartIso),
     countPositivePointTxs(admin),
+    admin.from("landmarks").select("id", { count: "exact", head: true }),
+    admin
+      .from("landmarks")
+      .select("id", { count: "exact", head: true })
+      .eq("map_visible", true),
+    admin
+      .from("landmarks")
+      .select("id", { count: "exact", head: true })
+      .eq("map_visible", false),
+    admin
+      .from("landmarks")
+      .select("id", { count: "exact", head: true })
+      .eq("is_closed", true),
+    admin
+      .from("pin_landmarks")
+      .select("pin_id, pins!inner(status)", { count: "exact", head: true })
+      .eq("pins.status", "active"),
+    admin
+      .from("pin_landmarks")
+      .select("pin_id", { count: "exact", head: true })
+      .gte("created_at", todayStartIso),
+    admin
+      .from("pin_landmarks")
+      .select("pin_id", { count: "exact", head: true })
+      .gte(
+        "created_at",
+        startOfLocalDay(addDays(todayStart, -29)).toISOString()
+      ),
+    fetchLandmarkScoreAggregates(admin),
+    admin
+      .from("landmark_user_scores")
+      .select("landmark_id", { count: "exact", head: true })
+      .gt("score", 0)
+      .gte("updated_at", todayStartIso),
   ]);
 
   const todayAttemptRows = todayAttempts.data ?? [];
@@ -291,6 +376,18 @@ export async function GET() {
       period30PremiumCouponUses: period30PremiumEvents.coupon_use,
       period30PremiumEventsTotal: sumEventCounts(period30PremiumEvents),
       totalPremiumEvents: sumEventCounts(allPremiumEvents),
+      totalLandmarks: totalLandmarks.count ?? 0,
+      visibleLandmarks: visibleLandmarks.count ?? 0,
+      hiddenLandmarks: hiddenLandmarks.count ?? 0,
+      closedLandmarks: closedLandmarks.count ?? 0,
+      activeZonePinLinks: activeZonePinLinks.count ?? 0,
+      todayZonePinLinks: todayZonePinLinks.count ?? 0,
+      period30ZonePinLinks: period30ZonePinLinks.count ?? 0,
+      contestedLandmarks: landmarkScoreAggregates.contestedLandmarks,
+      landmarkParticipants: landmarkScoreAggregates.landmarkParticipants,
+      landmarkParticipations: landmarkScoreAggregates.landmarkParticipations,
+      totalLandmarkCombatPower: landmarkScoreAggregates.totalLandmarkCombatPower,
+      todayLandmarkScoreUpdates: todayLandmarkScoreUpdates.count ?? 0,
     },
     memberTrend,
   });

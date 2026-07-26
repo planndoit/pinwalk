@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AdminButton,
@@ -66,6 +67,7 @@ function buildListParams(filters: SearchFilters, page: number) {
 }
 
 export default function AdminLandmarksPage() {
+  const router = useRouter();
   const [draft, setDraft] = useState<SearchFilters>(EMPTY_FILTERS);
   const [landmarks, setLandmarks] = useState<SerializedLandmark[]>([]);
   const [total, setTotal] = useState(0);
@@ -328,57 +330,59 @@ export default function AdminLandmarksPage() {
           </div>
         </div>
 
-        <div>
-          <p className="text-sm font-medium text-gray-700 mb-2">지도 노출</p>
-          <div className="flex flex-wrap gap-3">
-            {[
-              { value: "true", label: "노출" },
-              { value: "false", label: "미노출" },
-            ].map((opt) => (
-              <label
-                key={opt.value}
-                className="inline-flex items-center gap-1.5 text-sm text-gray-700"
-              >
-                <input
-                  type="checkbox"
-                  checked={draft.visible.includes(opt.value)}
-                  onChange={() =>
-                    setDraft({
-                      ...draft,
-                      visible: toggleValue(draft.visible, opt.value),
-                    })
-                  }
-                />
-                {opt.label}
-              </label>
-            ))}
+        <div className="flex flex-wrap gap-x-8 gap-y-4">
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">지도 노출</p>
+            <div className="flex flex-wrap gap-3">
+              {[
+                { value: "true", label: "노출" },
+                { value: "false", label: "미노출" },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className="inline-flex items-center gap-1.5 text-sm text-gray-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={draft.visible.includes(opt.value)}
+                    onChange={() =>
+                      setDraft({
+                        ...draft,
+                        visible: toggleValue(draft.visible, opt.value),
+                      })
+                    }
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div>
-          <p className="text-sm font-medium text-gray-700 mb-2">운영 여부</p>
-          <div className="flex flex-wrap gap-3">
-            {[
-              { value: "false", label: "운영" },
-              { value: "true", label: "미운영" },
-            ].map((opt) => (
-              <label
-                key={opt.value}
-                className="inline-flex items-center gap-1.5 text-sm text-gray-700"
-              >
-                <input
-                  type="checkbox"
-                  checked={draft.closed.includes(opt.value)}
-                  onChange={() =>
-                    setDraft({
-                      ...draft,
-                      closed: toggleValue(draft.closed, opt.value),
-                    })
-                  }
-                />
-                {opt.label}
-              </label>
-            ))}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">운영 여부</p>
+            <div className="flex flex-wrap gap-3">
+              {[
+                { value: "false", label: "운영" },
+                { value: "true", label: "미운영" },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className="inline-flex items-center gap-1.5 text-sm text-gray-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={draft.closed.includes(opt.value)}
+                    onChange={() =>
+                      setDraft({
+                        ...draft,
+                        closed: toggleValue(draft.closed, opt.value),
+                      })
+                    }
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -427,7 +431,13 @@ export default function AdminLandmarksPage() {
         <div ref={scrollRef} className="max-h-[32rem] overflow-auto">
           <AdminTable
             headers={[
-              "선택",
+              <input
+                key="select-all"
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleAll}
+                aria-label="현재 목록 전체 선택"
+              />,
               "이름",
               "유형",
               "노출",
@@ -435,28 +445,27 @@ export default function AdminLandmarksPage() {
               "반경",
               "출처",
               "갱신",
-              "관리",
             ]}
           >
-            <tr className="border-b border-gray-50 bg-gray-50/40">
-              <td className="px-4 py-2">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  aria-label="현재 목록 전체 선택"
-                />
-              </td>
-              <td colSpan={8} className="px-4 py-2 text-xs text-gray-500">
-                현재 목록 전체 선택
-              </td>
-            </tr>
             {landmarks.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-gray-50 hover:bg-gray-50/50"
+                role="link"
+                tabIndex={0}
+                className="border-b border-gray-50 hover:bg-gray-50/50 cursor-pointer"
+                onClick={() => router.push(`/admin/landmarks/${row.id}`)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    router.push(`/admin/landmarks/${row.id}`);
+                  }
+                }}
               >
-                <td className="px-4 py-3">
+                <td
+                  className="px-4 py-3"
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
                   <input
                     type="checkbox"
                     checked={selected.has(row.id)}
@@ -488,14 +497,6 @@ export default function AdminLandmarksPage() {
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-500">
                   {formatActivityDate(row.updatedAt)}
-                </td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/admin/landmarks/${row.id}`}
-                    className="text-sm font-semibold text-blue-600"
-                  >
-                    상세
-                  </Link>
                 </td>
               </tr>
             ))}

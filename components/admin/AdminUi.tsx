@@ -9,11 +9,13 @@ export function AdminPageHeader({
   description,
   action,
   backHref,
+  sticky = false,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
   backHref?: string;
+  sticky?: boolean;
 }) {
   const { setPageMeta } = useAdminPageMeta();
 
@@ -24,7 +26,13 @@ export function AdminPageHeader({
   if (!backHref && !action) return null;
 
   return (
-    <div className="flex items-center justify-between gap-4 mb-6">
+    <div
+      className={
+        sticky
+          ? "sticky top-0 z-10 flex items-center justify-between gap-4 -mx-4 sm:-mx-8 px-4 sm:px-8 py-3 mb-6 bg-gray-50/95 backdrop-blur border-b border-gray-200"
+          : "flex items-center justify-between gap-4 mb-6"
+      }
+    >
       {backHref ? (
         <Link
           href={backHref}
@@ -71,7 +79,7 @@ export function AdminTable({
   headers,
   children,
 }: {
-  headers: string[];
+  headers: React.ReactNode[];
   children: React.ReactNode;
 }) {
   return (

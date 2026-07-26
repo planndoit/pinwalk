@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminLocationMap from "@/components/admin/AdminLocationMap";
 import {
   AdminButton,
@@ -11,6 +11,8 @@ import {
   AdminTextarea,
 } from "@/components/admin/AdminUi";
 import { LANDMARK_SOURCE_ATTRIBUTION, TOUR_CONTENT_TYPE_LABELS } from "@/lib/constants";
+
+const MAP_HEIGHT = Math.round(320 * 1.5);
 
 export default function AdminLandmarkDetailPage() {
   const params = useParams();
@@ -74,6 +76,11 @@ export default function AdminLandmarkDetailPage() {
   const handlePick = useCallback((lat: number, lng: number) => {
     setForm((prev) => ({ ...prev, lat, lng }));
   }, []);
+
+  const previewRadiusMeters = useMemo(() => {
+    const parsed = Number.parseInt(form.radiusMeters, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [form.radiusMeters]);
 
   const handleSave = async () => {
     if (!form.name.trim()) {
@@ -144,7 +151,11 @@ export default function AdminLandmarkDetailPage() {
   if (!loaded) {
     return (
       <div>
-        <AdminPageHeader title="랜드마크 상세" backHref="/admin/landmarks" />
+        <AdminPageHeader
+          title="랜드마크 상세"
+          backHref="/admin/landmarks"
+          sticky
+        />
         <p className="text-sm text-gray-500">불러오는 중...</p>
       </div>
     );
@@ -155,29 +166,31 @@ export default function AdminLandmarkDetailPage() {
       <AdminPageHeader
         title="랜드마크 상세"
         backHref="/admin/landmarks"
+        sticky
         action={
-          form.tourContentId ? (
+          <div className="flex items-center gap-3">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={form.mapVisible}
+                onChange={(e) =>
+                  setForm({ ...form, mapVisible: e.target.checked })
+                }
+              />
+              지도에 노출
+            </label>
             <AdminButton
               type="button"
-              variant="secondary"
-              onClick={() => void handleRefresh()}
-              disabled={refreshing}
+              onClick={() => void handleSave()}
+              disabled={saving}
             >
-              {refreshing ? "새로고침 중..." : "TourAPI 상세 새로고침"}
+              {saving ? "저장 중..." : "저장"}
             </AdminButton>
-          ) : undefined
+          </div>
         }
       />
 
       <AdminCard className="p-4 space-y-4 max-w-2xl">
-        <p className="text-xs text-gray-500">
-          출처: {form.source === "tourapi" ? LANDMARK_SOURCE_ATTRIBUTION : "수동"}
-          {form.tourContentId ? ` · contentId ${form.tourContentId}` : ""}
-          {form.tourContentTypeId
-            ? ` · ${TOUR_CONTENT_TYPE_LABELS[form.tourContentTypeId] ?? form.tourContentTypeId}`
-            : ""}
-        </p>
-
         <AdminInput
           label="이름"
           value={form.name}
@@ -210,16 +223,22 @@ export default function AdminLandmarkDetailPage() {
           onChange={(e) => setForm({ ...form, radiusMeters: e.target.value })}
         />
 
-        <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={form.mapVisible}
-            onChange={(e) =>
-              setForm({ ...form, mapVisible: e.target.checked })
-            }
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-2">위치</p>
+          <AdminLocationMap
+            lat={form.lat}
+            lng={form.lng}
+            pickable
+            onPick={handlePick}
+            height={MAP_HEIGHT}
+            radiusMeters={previewRadiusMeters}
           />
-          지도에 노출
-        </label>
+          <p className="text-xs text-gray-500 mt-2">
+            {form.lat != null && form.lng != null
+              ? `${form.lat.toFixed(6)}, ${form.lng.toFixed(6)}`
+              : "위치를 선택하세요."}
+          </p>
+        </div>
 
         <div>
           <p className="text-sm font-medium text-gray-700 mb-2">운영 여부</p>
@@ -255,26 +274,26 @@ export default function AdminLandmarkDetailPage() {
           rows={2}
         />
 
-        <div>
-          <p className="text-sm font-medium text-gray-700 mb-2">위치</p>
-          <AdminLocationMap
-            lat={form.lat}
-            lng={form.lng}
-            pickable
-            onPick={handlePick}
-          />
-          <p className="text-xs text-gray-500 mt-2">
-            {form.lat != null && form.lng != null
-              ? `${form.lat.toFixed(6)}, ${form.lng.toFixed(6)}`
-              : "위치를 선택하세요."}
-          </p>
-        </div>
+        {form.tourContentId ? (
+          <AdminButton
+            type="button"
+            variant="secondary"
+            onClick={() => void handleRefresh()}
+            disabled={refreshing || saving}
+          >
+            {refreshing ? "새로고침 중..." : "TourAPI 상세 새로고침"}
+          </AdminButton>
+        ) : null}
+
+        <p className="text-xs text-gray-500">
+          출처: {form.source === "tourapi" ? LANDMARK_SOURCE_ATTRIBUTION : "수동"}
+          {form.tourContentId ? ` · contentId ${form.tourContentId}` : ""}
+          {form.tourContentTypeId
+            ? ` · ${TOUR_CONTENT_TYPE_LABELS[form.tourContentTypeId] ?? form.tourContentTypeId}`
+            : ""}
+        </p>
 
         {message ? <p className="text-sm text-gray-700">{message}</p> : null}
-
-        <AdminButton type="button" onClick={() => void handleSave()} disabled={saving}>
-          {saving ? "저장 중..." : "저장"}
-        </AdminButton>
       </AdminCard>
     </div>
   );

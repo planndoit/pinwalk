@@ -51,6 +51,7 @@ export default function AdminLocationMap({
   onPick,
   className = "",
   height = 320,
+  radiusMeters,
 }: {
   lat?: number | null;
   lng?: number | null;
@@ -58,11 +59,14 @@ export default function AdminLocationMap({
   onPick?: (lat: number, lng: number) => void;
   className?: string;
   height?: number;
+  radiusMeters?: number | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<InstanceType<typeof naver.maps.Map> | null>(null);
   const markerRef = useRef<InstanceType<typeof naver.maps.Marker> | null>(null);
+  const circleRef = useRef<InstanceType<typeof naver.maps.Circle> | null>(null);
   const clickListenerRef = useRef<{ remove: () => void } | null>(null);
+  const lastCenterRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,6 +84,14 @@ export default function AdminLocationMap({
         const center = hasLocation
           ? new naverMaps.maps.LatLng(lat, lng)
           : new naverMaps.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
+        const hasRadius =
+          typeof radiusMeters === "number" &&
+          Number.isFinite(radiusMeters) &&
+          radiusMeters > 0;
+        const centerChanged =
+          hasLocation &&
+          (lastCenterRef.current?.lat !== lat ||
+            lastCenterRef.current?.lng !== lng);
 
         if (!mapRef.current) {
           mapRef.current = new naverMaps.maps.Map(containerRef.current, {
@@ -87,9 +99,13 @@ export default function AdminLocationMap({
             zoom: hasLocation ? 16 : 13,
             zoomControl: true,
           });
-        } else {
+        } else if (centerChanged || !hasLocation) {
           mapRef.current.setCenter(center);
           if (hasLocation) mapRef.current.setZoom(16);
+        }
+
+        if (hasLocation) {
+          lastCenterRef.current = { lat, lng };
         }
 
         if (hasLocation) {
@@ -104,6 +120,28 @@ export default function AdminLocationMap({
           }
         } else if (markerRef.current) {
           markerRef.current.setMap(null);
+        }
+
+        if (hasLocation && hasRadius) {
+          if (!circleRef.current) {
+            circleRef.current = new naverMaps.maps.Circle({
+              map: mapRef.current,
+              center,
+              radius: radiusMeters,
+              fillColor: "#0f766e",
+              fillOpacity: 0.08,
+              strokeColor: "#0f766e",
+              strokeOpacity: 0.45,
+              strokeWeight: 1.5,
+              zIndex: 50,
+            });
+          } else {
+            circleRef.current.setCenter(center);
+            circleRef.current.setRadius(radiusMeters);
+            circleRef.current.setMap(mapRef.current);
+          }
+        } else if (circleRef.current) {
+          circleRef.current.setMap(null);
         }
 
         if (clickListenerRef.current) {
@@ -128,6 +166,15 @@ export default function AdminLocationMap({
                 markerRef.current.setPosition(position);
                 markerRef.current.setMap(mapRef.current);
               }
+              if (
+                circleRef.current &&
+                typeof radiusMeters === "number" &&
+                Number.isFinite(radiusMeters) &&
+                radiusMeters > 0
+              ) {
+                circleRef.current.setCenter(position);
+                circleRef.current.setMap(mapRef.current);
+              }
               onPick(nextLat, nextLng);
             }
           );
@@ -147,7 +194,7 @@ export default function AdminLocationMap({
         clickListenerRef.current = null;
       }
     };
-  }, [lat, lng, pickable, onPick]);
+  }, [lat, lng, pickable, onPick, radiusMeters]);
 
   return (
     <div
