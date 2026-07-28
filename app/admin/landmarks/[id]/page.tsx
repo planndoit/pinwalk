@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminLocationMap from "@/components/admin/AdminLocationMap";
 import {
@@ -17,7 +17,12 @@ const MAP_HEIGHT = Math.round(320 * 1.5);
 export default function AdminLandmarkDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const listQueryString = searchParams.toString();
+  const backHref = listQueryString
+    ? `/admin/landmarks?${listQueryString}`
+    : "/admin/landmarks";
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -123,7 +128,7 @@ export default function AdminLandmarkDetailPage() {
         return;
       }
       window.alert("저장되었습니다.");
-      router.push("/admin/landmarks");
+      router.push(backHref);
     } finally {
       setSaving(false);
     }
@@ -153,7 +158,7 @@ export default function AdminLandmarkDetailPage() {
       <div>
         <AdminPageHeader
           title="랜드마크 상세"
-          backHref="/admin/landmarks"
+          backHref={backHref}
           sticky
         />
         <p className="text-sm text-gray-500">불러오는 중...</p>
@@ -165,7 +170,7 @@ export default function AdminLandmarkDetailPage() {
     <div>
       <AdminPageHeader
         title="랜드마크 상세"
-        backHref="/admin/landmarks"
+        backHref={backHref}
         sticky
         action={
           <div className="flex items-center gap-3">

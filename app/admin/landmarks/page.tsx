@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AdminButton,
@@ -66,8 +66,41 @@ function buildListParams(filters: SearchFilters, page: number) {
   return params;
 }
 
+function parseCsvValues(value: string | null): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseFiltersFromParams(params: URLSearchParams): SearchFilters {
+  return {
+    q: params.get("q") ?? "",
+    address: params.get("address") ?? "",
+    visible: parseCsvValues(params.get("visible")),
+    closed: parseCsvValues(params.get("closed")),
+    areaCodes: parseCsvValues(params.get("areaCode")),
+    contentTypeIds: parseCsvValues(params.get("contentTypeId")),
+  };
+}
+
+function buildFilterQueryParams(filters: SearchFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.q.trim()) params.set("q", filters.q.trim());
+  if (filters.address.trim()) params.set("address", filters.address.trim());
+  if (filters.visible.length > 0) params.set("visible", filters.visible.join(","));
+  if (filters.closed.length > 0) params.set("closed", filters.closed.join(","));
+  if (filters.areaCodes.length > 0) params.set("areaCode", filters.areaCodes.join(","));
+  if (filters.contentTypeIds.length > 0) {
+    params.set("contentTypeId", filters.contentTypeIds.join(","));
+  }
+  return params;
+}
+
 export default function AdminLandmarksPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [draft, setDraft] = useState<SearchFilters>(EMPTY_FILTERS);
   const [landmarks, setLandmarks] = useState<SerializedLandmark[]>([]);
   const [total, setTotal] = useState(0);
@@ -132,24 +165,23 @@ export default function AdminLandmarksPage() {
   );
 
   useEffect(() => {
+    const parsed = parseFiltersFromParams(new URLSearchParams(searchParams.toString()));
+    setDraft(parsed);
     queueMicrotask(() => {
       setLoading(true);
-      appliedRef.current = EMPTY_FILTERS;
-      void fetchPage(EMPTY_FILTERS, 1, false).finally(() => setLoading(false));
+      appliedRef.current = parsed;
+      void fetchPage(parsed, 1, false).finally(() => setLoading(false));
     });
-  }, [fetchPage]);
+  }, [fetchPage, searchParams]);
 
   const handleSearch = () => {
-    appliedRef.current = draft;
-    setLoading(true);
-    void fetchPage(draft, 1, false).finally(() => setLoading(false));
+    const params = buildFilterQueryParams(draft);
+    const query = params.toString();
+    router.replace(query ? `/admin/landmarks?${query}` : "/admin/landmarks");
   };
 
   const handleReset = () => {
-    setDraft(EMPTY_FILTERS);
-    appliedRef.current = EMPTY_FILTERS;
-    setLoading(true);
-    void fetchPage(EMPTY_FILTERS, 1, false).finally(() => setLoading(false));
+    router.replace("/admin/landmarks");
   };
 
   const loadMore = useCallback(async () => {
@@ -185,6 +217,15 @@ export default function AdminLandmarksPage() {
 
   const allSelected =
     landmarks.length > 0 && landmarks.every((row) => selected.has(row.id));
+  const listQueryString = searchParams.toString();
+
+  const toDetailHref = useCallback(
+    (id: string) =>
+      listQueryString
+        ? `/admin/landmarks/${id}?${listQueryString}`
+        : `/admin/landmarks/${id}`,
+    [listQueryString]
+  );
 
   const toggleAll = () => {
     if (allSelected) {
@@ -453,11 +494,11 @@ export default function AdminLandmarksPage() {
                 role="link"
                 tabIndex={0}
                 className="border-b border-gray-50 hover:bg-gray-50/50 cursor-pointer"
-                onClick={() => router.push(`/admin/landmarks/${row.id}`)}
+                onClick={() => router.push(toDetailHref(row.id))}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    router.push(`/admin/landmarks/${row.id}`);
+                    router.push(toDetailHref(row.id));
                   }
                 }}
               >
