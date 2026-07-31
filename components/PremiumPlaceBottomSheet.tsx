@@ -2,7 +2,7 @@
 
 import type { SerializedPremiumPlace } from "@/types/premiumClient";
 import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
-import { toTelHref } from "@/lib/validation/premium";
+import { toExternalHref, toTelHref } from "@/lib/validation/premium";
 
 interface PremiumPlaceBottomSheetProps {
   place: SerializedPremiumPlace | null;
@@ -82,7 +82,7 @@ export default function PremiumPlaceBottomSheet({
             )}
             {place.promoLink && (
               <a
-                href={place.promoLink}
+                href={toExternalHref(place.promoLink)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackPremiumPlaceEvent(place.id, "link_click")}

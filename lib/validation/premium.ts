@@ -1,5 +1,3 @@
-const URL_PATTERN = /^https?:\/\/.+/i;
-
 export interface PromotionRequestInput {
   categoryCode: string;
   storeName: string;
@@ -63,10 +61,6 @@ export function validatePromotionRequestInput(
     return { valid: false, error: "지도 위치가 올바르지 않습니다." };
   }
 
-  if (promoLink && promoLink.trim() && !URL_PATTERN.test(promoLink.trim())) {
-    return { valid: false, error: "홍보 링크는 http(s) URL이어야 합니다." };
-  }
-
   return {
     valid: true,
     data: {
@@ -80,7 +74,7 @@ export function validatePromotionRequestInput(
       lat: hasLat ? (lat as number) : null,
       lng: hasLng ? (lng as number) : null,
       promoText: promoText.trim(),
-      promoLink: promoLink?.trim() || null,
+      promoLink: normalizeExternalUrl(promoLink),
     },
   };
 }
@@ -178,4 +172,20 @@ export function validateCouponInput(body: {
 export function toTelHref(phone: string): string {
   const normalized = phone.replace(/[^0-9+]/g, "");
   return `tel:${normalized}`;
+}
+
+/** 스킴이 없는 주소(google.com, www.…)에 https:// 를 붙여 외부 링크로 연다. */
+export function toExternalHref(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed) || trimmed.startsWith("//")) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
+export function normalizeExternalUrl(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim() || "";
+  if (!trimmed) return null;
+  return toExternalHref(trimmed);
 }

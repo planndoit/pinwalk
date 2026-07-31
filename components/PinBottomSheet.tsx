@@ -15,6 +15,25 @@ interface PinBottomSheetProps {
   disabled?: boolean;
 }
 
+type AttemptSummary = {
+  successCount: number;
+  failCount: number;
+  total: number;
+};
+
+type AttemptHistory = {
+  attempts: PinAttempt[];
+  summary: AttemptSummary;
+};
+
+const EMPTY_SUMMARY: AttemptSummary = {
+  successCount: 0,
+  failCount: 0,
+  total: 0,
+};
+
+const attemptHistoryCache = new Map<string, AttemptHistory>();
+
 function formatAttemptText(attempt: PinAttempt): string {
   if (attempt.success && attempt.previous_owner_nickname) {
     return `${attempt.attacker_nickname ?? DEFAULT_NICKNAME} → ${attempt.previous_owner_nickname} 점령`;
@@ -34,23 +53,45 @@ export default function PinBottomSheet({
   disabled,
 }: PinBottomSheetProps) {
   const [attempts, setAttempts] = useState<PinAttempt[]>([]);
-  const [summary, setSummary] = useState({
-    successCount: 0,
-    failCount: 0,
-    total: 0,
-  });
+  const [summary, setSummary] = useState<AttemptSummary>(EMPTY_SUMMARY);
+  const [attemptsLoading, setAttemptsLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!pin) return;
 
+    const pinId = pin.id;
+    const cached = attemptHistoryCache.get(pinId);
+    if (cached) {
+      setAttempts(cached.attempts);
+      setSummary(cached.summary);
+      setAttemptsLoading(false);
+    } else {
+      setAttempts([]);
+      setSummary(EMPTY_SUMMARY);
+      setAttemptsLoading(true);
+    }
+
     let cancelled = false;
-    fetch(`/api/pins/${pin.id}/attempts`)
+    fetch(`/api/pins/${pinId}/attempts`)
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;
-        setAttempts(data.attempts ?? []);
-        setSummary(data.summary ?? { successCount: 0, failCount: 0, total: 0 });
+        const next: AttemptHistory = {
+          attempts: data.attempts ?? [],
+          summary: data.summary ?? EMPTY_SUMMARY,
+        };
+        attemptHistoryCache.set(pinId, next);
+        setAttempts(next.attempts);
+        setSummary(next.summary);
+      })
+      .catch(() => {
+        if (cancelled || cached) return;
+        setAttempts([]);
+        setSummary(EMPTY_SUMMARY);
+      })
+      .finally(() => {
+        if (!cancelled) setAttemptsLoading(false);
       });
 
     return () => {
@@ -78,6 +119,7 @@ export default function PinBottomSheet({
         window.alert(data.error ?? "삭제에 실패했습니다.");
         return;
       }
+      attemptHistoryCache.delete(pin.id);
       onDeleted?.(pin.id);
     } finally {
       setDeleting(false);
@@ -152,7 +194,14 @@ export default function PinBottomSheet({
           </button>
         )}
 
-        {summary.total > 0 && (
+        {attemptsLoading && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-2xl shrink-0">
+            <p className="text-xs font-semibold text-gray-600">점령 기록</p>
+            <p className="mt-2.5 text-xs text-gray-400">불러오는 중...</p>
+          </div>
+        )}
+
+        {!attemptsLoading && summary.total > 0 && (
           <div className="mt-4 p-4 bg-gray-50 rounded-2xl flex flex-col min-h-0 shrink">
             <div className="flex items-center justify-between shrink-0">
               <p className="text-xs font-semibold text-gray-600">점령 기록</p>
