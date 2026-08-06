@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { AVATAR_MAX_BYTES } from "@/lib/auth/constants";
+import { encodeBytea } from "@/lib/bytea";
 import { serializeProfile } from "@/lib/profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -101,7 +102,7 @@ export async function PATCH(request: Request) {
       return jsonError("프로필 사진은 50KB 이하여야 합니다.");
     }
 
-    updates.avatar_data = buffer;
+    updates.avatar_data = encodeBytea(buffer);
     updates.avatar_mime = avatar_mime;
   }
 

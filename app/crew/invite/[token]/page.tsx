@@ -80,7 +80,7 @@ export default function CrewInvitePage() {
             {crew.hasImage ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={`/api/crews/${crew.id}/image`}
+                src={`/api/crews/${crew.id}/image?v=${encodeURIComponent(crew.updatedAt)}`}
                 alt=""
                 className="w-full h-full object-cover"
               />

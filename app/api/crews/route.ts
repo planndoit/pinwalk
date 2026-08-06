@@ -10,6 +10,7 @@ import {
   getActiveMembership,
 } from "@/lib/crew/membership";
 import { serializeCrew } from "@/lib/crew/serialize";
+import { encodeBytea } from "@/lib/bytea";
 import { deductPoints } from "@/lib/pins";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
     return jsonError(descriptionValidation.error!);
   }
 
-  let imageData: Buffer | null = null;
+  let imageData: string | null = null;
   let imageMimeFinal: string | null = null;
   if (imageBase64) {
     if (
@@ -142,10 +143,11 @@ export async function POST(request: Request) {
     ) {
       return jsonError("지원하지 않는 이미지 형식입니다.");
     }
-    imageData = Buffer.from(imageBase64, "base64");
-    if (imageData.byteLength > AVATAR_MAX_BYTES) {
+    const buffer = Buffer.from(imageBase64, "base64");
+    if (buffer.byteLength > AVATAR_MAX_BYTES) {
       return jsonError("크루 이미지는 50KB 이하여야 합니다.");
     }
+    imageData = encodeBytea(buffer);
     imageMimeFinal = imageMime;
   }
 

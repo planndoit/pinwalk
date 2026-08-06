@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AVATAR_MAX_BYTES } from "@/lib/auth/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
+import { encodeBytea } from "@/lib/bytea";
 import { getActiveMembership, getCrewMemberCount } from "@/lib/crew/membership";
 import { serializeCrew } from "@/lib/crew/serialize";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -81,7 +82,7 @@ export async function PATCH(
     if (imageData.byteLength > AVATAR_MAX_BYTES) {
       return jsonError("크루 이미지는 50KB 이하여야 합니다.");
     }
-    patch.image_data = imageData;
+    patch.image_data = encodeBytea(imageData);
     patch.image_mime = imageMime;
   }
 

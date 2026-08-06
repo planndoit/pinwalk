@@ -1,18 +1,6 @@
 import { NextResponse } from "next/server";
+import { decodeBytea } from "@/lib/bytea";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-function toBuffer(data: unknown): Buffer | null {
-  if (!data) return null;
-  if (Buffer.isBuffer(data)) return data;
-  if (data instanceof Uint8Array) return Buffer.from(data);
-  if (typeof data === "string") {
-    if (data.startsWith("\\x")) {
-      return Buffer.from(data.slice(2), "hex");
-    }
-    return Buffer.from(data, "base64");
-  }
-  return null;
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -33,8 +21,8 @@ export async function GET(request: Request) {
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const buffer = toBuffer(profile.avatar_data);
-  if (!buffer) {
+  const buffer = decodeBytea(profile.avatar_data);
+  if (!buffer || buffer.byteLength === 0) {
     return new NextResponse("Not found", { status: 404 });
   }
 

@@ -384,7 +384,7 @@ function CrewHome({
               {crew.hasImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={`/api/crews/${crew.id}/image`}
+                  src={`/api/crews/${crew.id}/image?v=${encodeURIComponent(crew.updatedAt)}`}
                   alt=""
                   className="w-full h-full object-cover"
                 />
@@ -675,7 +675,7 @@ function CrewHome({
                 pendingImage
                   ? `data:${pendingImage.mime};base64,${pendingImage.base64}`
                   : crew.hasImage && !removeImage
-                    ? `/api/crews/${crew.id}/image`
+                    ? `/api/crews/${crew.id}/image?v=${encodeURIComponent(crew.updatedAt)}`
                     : null
               }
               onPick={(img) => {
@@ -917,7 +917,7 @@ export default function CrewPage() {
                 {crew.hasImage ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={`/api/crews/${crew.id}/image`}
+                    src={`/api/crews/${crew.id}/image?v=${encodeURIComponent(crew.updatedAt)}`}
                     alt=""
                     className="w-full h-full object-cover"
                   />
