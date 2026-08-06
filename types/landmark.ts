@@ -50,7 +50,9 @@ export interface SerializedLandmark {
 
 export interface LandmarkRankingEntry {
   rank: number;
-  userId: string;
+  subjectType: "user" | "crew";
+  subjectId: string;
+  userId?: string | null;
   nickname: string;
   score: number;
   scoreReachedAt: string;

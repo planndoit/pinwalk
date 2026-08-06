@@ -12,6 +12,7 @@ import {
 } from "@/lib/landmark/zone";
 import { setPinLandmarks } from "@/lib/landmark/pinLandmarks";
 import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
+import { refreshCrewLandmarkScoresForUsers } from "@/lib/crew/scores";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -153,6 +154,7 @@ export async function POST(request: Request) {
   if (landmarkIds.length > 0) {
     await setPinLandmarks(pin.id, landmarkIds);
     await refreshUsersLandmarkScores(landmarkIds, [user.id]);
+    await refreshCrewLandmarkScoresForUsers(landmarkIds, [user.id]);
   }
 
   return NextResponse.json({

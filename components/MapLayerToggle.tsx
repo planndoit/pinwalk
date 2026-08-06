@@ -2,17 +2,19 @@
 
 import type { ReactNode } from "react";
 
-export type MapLayerKey = "landmarks" | "pins" | "premium";
+export type MapLayerKey = "landmarks" | "pins" | "crews" | "premium";
 
 export interface MapLayerVisibility {
   landmarks: boolean;
   pins: boolean;
+  crews: boolean;
   premium: boolean;
 }
 
 export const DEFAULT_MAP_LAYER_VISIBILITY: MapLayerVisibility = {
   landmarks: true,
   pins: true,
+  crews: false,
   premium: true,
 };
 
@@ -58,6 +60,17 @@ const LAYERS: {
         />
         <path d="M5 3.5 L18.5 7.5 L5 11.5 Z" fill="currentColor" />
       </svg>
+    ),
+  },
+  {
+    key: "crews",
+    label: "크루",
+    onClass: "bg-violet-600 text-white",
+    offClass: "bg-white text-violet-600/40",
+    icon: (
+      <span className="text-[10px] font-extrabold leading-none" aria-hidden>
+        C
+      </span>
     ),
   },
   {

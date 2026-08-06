@@ -82,6 +82,17 @@ const ROUTE_META: { test: (pathname: string) => boolean; meta: AdminPageMeta }[]
       meta: { title: "랜드마크 상세" },
     },
     {
+      test: (p) => p === "/admin/crews",
+      meta: {
+        title: "크루 관리",
+        description: "크루 목록을 검색하고 상세·강제 해산을 처리합니다.",
+      },
+    },
+    {
+      test: (p) => /^\/admin\/crews\/[^/]+$/.test(p),
+      meta: { title: "크루 상세" },
+    },
+    {
       test: (p) => p === "/admin/settings/common-codes",
       meta: { title: "공통코드 관리" },
     },

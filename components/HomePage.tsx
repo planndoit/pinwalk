@@ -61,6 +61,10 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [layerVisibility, setLayerVisibility] = useState<MapLayerVisibility>(
     DEFAULT_MAP_LAYER_VISIBILITY
   );
+  const [myCrewOnly, setMyCrewOnly] = useState(false);
+  const [allCrewUserIds, setAllCrewUserIds] = useState<string[]>([]);
+  const [myCrewUserIds, setMyCrewUserIds] = useState<string[]>([]);
+  const [myCrewAvailable, setMyCrewAvailable] = useState(false);
   const [couponSpawns, setCouponSpawns] = useState<SerializedCouponSpawn[]>([]);
   const [selectedPremiumPlace, setSelectedPremiumPlace] =
     useState<SerializedPremiumPlace | null>(null);
@@ -146,26 +150,83 @@ export default function HomePage({ active = true }: HomePageProps) {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem("map-layer-visibility");
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Partial<MapLayerVisibility>;
-      setLayerVisibility({
-        landmarks:
-          typeof parsed.landmarks === "boolean"
-            ? parsed.landmarks
-            : DEFAULT_MAP_LAYER_VISIBILITY.landmarks,
-        pins:
-          typeof parsed.pins === "boolean"
-            ? parsed.pins
-            : DEFAULT_MAP_LAYER_VISIBILITY.pins,
-        premium:
-          typeof parsed.premium === "boolean"
-            ? parsed.premium
-            : DEFAULT_MAP_LAYER_VISIBILITY.premium,
-      });
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<MapLayerVisibility>;
+        setLayerVisibility({
+          landmarks:
+            typeof parsed.landmarks === "boolean"
+              ? parsed.landmarks
+              : DEFAULT_MAP_LAYER_VISIBILITY.landmarks,
+          pins:
+            typeof parsed.pins === "boolean"
+              ? parsed.pins
+              : DEFAULT_MAP_LAYER_VISIBILITY.pins,
+          crews:
+            typeof parsed.crews === "boolean"
+              ? parsed.crews
+              : DEFAULT_MAP_LAYER_VISIBILITY.crews,
+          premium:
+            typeof parsed.premium === "boolean"
+              ? parsed.premium
+              : DEFAULT_MAP_LAYER_VISIBILITY.premium,
+        });
+      }
     } catch {
       // ignore invalid storage
     }
+
+    try {
+      const myCrewRaw = window.localStorage.getItem("map-my-crew-only");
+      if (myCrewRaw === "1") setMyCrewOnly(true);
+    } catch {
+      // ignore
+    }
   }, []);
+
+  const handleMyCrewOnlyChange = useCallback((next: boolean) => {
+    setMyCrewOnly(next);
+    try {
+      window.localStorage.setItem("map-my-crew-only", next ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const fetchCrewMapMembers = useCallback(async () => {
+    const res = await fetch("/api/crews/map-members", { cache: "no-store" });
+    if (!res.ok) {
+      setAllCrewUserIds([]);
+      setMyCrewUserIds([]);
+      setMyCrewAvailable(false);
+      return;
+    }
+    const data = await res.json();
+    const allIds = Array.isArray(data.allCrewUserIds)
+      ? (data.allCrewUserIds as string[])
+      : [];
+    setAllCrewUserIds(allIds);
+
+    if (!user) {
+      setMyCrewUserIds([]);
+      setMyCrewAvailable(false);
+      return;
+    }
+
+    const crews = Array.isArray(data.crews)
+      ? (data.crews as { crewId: string; userIds: string[] }[])
+      : [];
+    const mine = crews.find((crew) => crew.userIds.includes(user.id));
+    setMyCrewUserIds(mine?.userIds ?? []);
+    setMyCrewAvailable(Boolean(mine));
+    if (!mine) {
+      setMyCrewOnly(false);
+      try {
+        window.localStorage.setItem("map-my-crew-only", "0");
+      } catch {
+        // ignore
+      }
+    }
+  }, [user]);
 
   const handleLayerVisibilityChange = useCallback(
     (key: MapLayerKey, next: boolean) => {
@@ -260,8 +321,9 @@ export default function HomePage({ active = true }: HomePageProps) {
       void fetchPins();
       void fetchPremiumPlaces();
       void fetchLandmarks();
+      void fetchCrewMapMembers();
     });
-  }, [fetchPins, fetchPremiumPlaces, fetchLandmarks]);
+  }, [fetchPins, fetchPremiumPlaces, fetchLandmarks, fetchCrewMapMembers]);
 
   useEffect(() => {
     void (async () => {
@@ -294,11 +356,19 @@ export default function HomePage({ active = true }: HomePageProps) {
       void fetchPins();
       void fetchPremiumPlaces();
       void fetchLandmarks();
+      void fetchCrewMapMembers();
       if (user) void fetchRandomPoints();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [fetchPins, fetchRandomPoints, fetchPremiumPlaces, fetchLandmarks, user]);
+  }, [
+    fetchPins,
+    fetchRandomPoints,
+    fetchPremiumPlaces,
+    fetchLandmarks,
+    fetchCrewMapMembers,
+    user,
+  ]);
 
   useEffect(() => {
     if (active) return;
@@ -882,6 +952,13 @@ export default function HomePage({ active = true }: HomePageProps) {
         locationPickMarkerKind={pinLocationPickMode ? "pin" : "default"}
         onMapClick={locationPickMode ? handleLocationMapClick : undefined}
         layerVisibility={layerVisibility}
+        crewHighlightUserIds={
+          myCrewOnly
+            ? myCrewUserIds
+            : layerVisibility.crews
+              ? allCrewUserIds
+              : []
+        }
       />
 
       <PointBalance
@@ -901,6 +978,9 @@ export default function HomePage({ active = true }: HomePageProps) {
         disabled={actionLoading || locationPickMode}
         layerVisibility={layerVisibility}
         onLayerVisibilityChange={handleLayerVisibilityChange}
+        myCrewOnly={myCrewOnly}
+        onMyCrewOnlyChange={handleMyCrewOnlyChange}
+        myCrewAvailable={myCrewAvailable}
       />
 
       {promotionLocationPickMode && (

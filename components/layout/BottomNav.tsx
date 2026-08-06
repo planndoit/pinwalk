@@ -7,7 +7,8 @@ import { useAuth } from "@/components/AuthProvider";
 const tabs = [
   { href: "/", label: "지도", icon: MapIcon },
   { href: "/ranking", label: "랭킹", icon: RankingIcon },
-  { href: "/my", label: "마이", icon: MyIcon },
+  { href: "/crew", label: "크루", icon: CrewIcon, auth: true },
+  { href: "/my", label: "마이", icon: MyIcon, auth: true },
 ] as const;
 
 function MapIcon({ active }: { active: boolean }) {
@@ -22,6 +23,14 @@ function RankingIcon({ active }: { active: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className="w-6 h-6" fill={active ? "#2563eb" : "#9ca3af"}>
       <path d="M5 21h14v-2H5v2zm2-4h10v-2H7v2zm2-4h6V7H9v6zM7 3v2h10V3H7z" />
+    </svg>
+  );
+}
+
+function CrewIcon({ active }: { active: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="w-6 h-6" fill={active ? "#2563eb" : "#9ca3af"}>
+      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
     </svg>
   );
 }
@@ -44,10 +53,14 @@ export default function BottomNav() {
       <div className="max-w-lg mx-auto px-4 pb-safe pointer-events-auto">
         <div className="bg-white/95 backdrop-blur border border-gray-200 rounded-2xl shadow-xl mb-3 flex">
           {tabs.map((tab) => {
-            const active = pathname === tab.href;
+            const active =
+              tab.href === "/"
+                ? pathname === "/"
+                : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
             const Icon = tab.icon;
+            const needsAuth = "auth" in tab && tab.auth;
 
-            if (tab.href === "/my") {
+            if (needsAuth) {
               return (
                 <button
                   key={tab.href}

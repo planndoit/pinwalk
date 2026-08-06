@@ -3,6 +3,7 @@ import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPinLandmarkIds } from "@/lib/landmark/pinLandmarks";
 import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
+import { refreshCrewLandmarkScoresForUsers } from "@/lib/crew/scores";
 
 export async function DELETE(
   _request: Request,
@@ -54,6 +55,7 @@ export async function DELETE(
 
   if (landmarkIds.length > 0) {
     await refreshUsersLandmarkScores(landmarkIds, [user.id]);
+    await refreshCrewLandmarkScoresForUsers(landmarkIds, [user.id]);
   }
 
   return NextResponse.json({ message: "깃발을 삭제했습니다." });

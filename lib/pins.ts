@@ -140,6 +140,10 @@ export async function deductPoints(
   });
 
   if (txError) {
+    await admin
+      .from("profiles")
+      .update({ points: profile.points, updated_at: new Date().toISOString() })
+      .eq("id", userId);
     return { success: false, error: "거래 기록 저장에 실패했습니다." };
   }
 
@@ -185,6 +189,10 @@ export async function addPoints(
   });
 
   if (txError) {
+    await admin
+      .from("profiles")
+      .update({ points: profile.points, updated_at: new Date().toISOString() })
+      .eq("id", userId);
     return { success: false, error: "거래 기록 저장에 실패했습니다." };
   }
 

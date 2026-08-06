@@ -1,11 +1,16 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_NICKNAME } from "@/lib/constants";
+import { recomputeAllCrewScoresForLandmark } from "@/lib/crew/scores";
+
+export type LandmarkScoreSubjectType = "user" | "crew";
 
 export interface LandmarkScoreRow {
   landmarkId: string;
-  userId: string;
+  subjectType: LandmarkScoreSubjectType;
+  subjectId: string;
   score: number;
   scoreReachedAt: string;
+  /** 개인 닉네임 또는 크루명 */
   nickname: string;
 }
 
@@ -148,6 +153,8 @@ export async function recomputeLandmarkScores(
       .eq("landmark_id", landmarkId)
       .eq("user_id", userId);
   }
+
+  await recomputeAllCrewScoresForLandmark(landmarkId);
 }
 
 export async function getLandmarkRanking(
@@ -155,32 +162,69 @@ export async function getLandmarkRanking(
   limit = 10
 ): Promise<LandmarkScoreRow[]> {
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("landmark_user_scores")
-    .select("landmark_id, user_id, score, score_reached_at, profiles!inner(nickname)")
-    .eq("landmark_id", landmarkId)
-    .gt("score", 0)
-    .order("score", { ascending: false })
-    .order("score_reached_at", { ascending: true })
-    .limit(limit);
+  const [{ data: userRows }, { data: crewRows }] = await Promise.all([
+    admin
+      .from("landmark_user_scores")
+      .select(
+        "landmark_id, user_id, score, score_reached_at, profiles!inner(nickname)"
+      )
+      .eq("landmark_id", landmarkId)
+      .gt("score", 0),
+    admin
+      .from("landmark_crew_scores")
+      .select(
+        "landmark_id, crew_id, score, score_reached_at, crews!inner(name, status)"
+      )
+      .eq("landmark_id", landmarkId)
+      .gt("score", 0),
+  ]);
 
-  if (error || !data) {
-    return [];
-  }
+  const merged: LandmarkScoreRow[] = [];
 
-  return data.map((row) => {
-    const profile = row.profiles as { nickname?: string } | { nickname?: string }[] | null;
+  for (const row of userRows ?? []) {
+    const profile = row.profiles as
+      | { nickname?: string }
+      | { nickname?: string }[]
+      | null;
     const nickname = Array.isArray(profile)
       ? profile[0]?.nickname
       : profile?.nickname;
-    return {
+    merged.push({
       landmarkId: row.landmark_id as string,
-      userId: row.user_id as string,
+      subjectType: "user",
+      subjectId: row.user_id as string,
       score: row.score as number,
       scoreReachedAt: row.score_reached_at as string,
       nickname: nickname?.trim() || DEFAULT_NICKNAME,
-    };
+    });
+  }
+
+  for (const row of crewRows ?? []) {
+    const crew = row.crews as
+      | { name?: string; status?: string }
+      | { name?: string; status?: string }[]
+      | null;
+    const crewRow = Array.isArray(crew) ? crew[0] : crew;
+    if (!crewRow || crewRow.status !== "active") continue;
+    merged.push({
+      landmarkId: row.landmark_id as string,
+      subjectType: "crew",
+      subjectId: row.crew_id as string,
+      score: row.score as number,
+      scoreReachedAt: row.score_reached_at as string,
+      nickname: crewRow.name?.trim() || "크루",
+    });
+  }
+
+  merged.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.scoreReachedAt !== b.scoreReachedAt) {
+      return a.scoreReachedAt < b.scoreReachedAt ? -1 : 1;
+    }
+    return a.nickname.localeCompare(b.nickname, "ko");
   });
+
+  return merged.slice(0, limit);
 }
 
 function isBetterScore(
@@ -205,17 +249,24 @@ export async function getTitleHoldersByLandmarkIds(
 
   for (let i = 0; i < landmarkIds.length; i += BATCH) {
     const batch = landmarkIds.slice(i, i + BATCH);
-    const { data, error } = await admin
-      .from("landmark_user_scores")
-      .select(
-        "landmark_id, user_id, score, score_reached_at, profiles!inner(nickname)"
-      )
-      .in("landmark_id", batch)
-      .gt("score", 0);
+    const [{ data: userData }, { data: crewData }] = await Promise.all([
+      admin
+        .from("landmark_user_scores")
+        .select(
+          "landmark_id, user_id, score, score_reached_at, profiles!inner(nickname)"
+        )
+        .in("landmark_id", batch)
+        .gt("score", 0),
+      admin
+        .from("landmark_crew_scores")
+        .select(
+          "landmark_id, crew_id, score, score_reached_at, crews!inner(name, status)"
+        )
+        .in("landmark_id", batch)
+        .gt("score", 0),
+    ]);
 
-    if (error || !data) continue;
-
-    for (const row of data) {
+    for (const row of userData ?? []) {
       const landmarkId = row.landmark_id as string;
       const score = row.score as number;
       const scoreReachedAt = row.score_reached_at as string;
@@ -240,10 +291,44 @@ export async function getTitleHoldersByLandmarkIds(
         : profile?.nickname;
       map.set(landmarkId, {
         landmarkId,
-        userId: row.user_id as string,
+        subjectType: "user",
+        subjectId: row.user_id as string,
         score,
         scoreReachedAt,
         nickname: nickname?.trim() || DEFAULT_NICKNAME,
+      });
+    }
+
+    for (const row of crewData ?? []) {
+      const crew = row.crews as
+        | { name?: string; status?: string }
+        | { name?: string; status?: string }[]
+        | null;
+      const crewRow = Array.isArray(crew) ? crew[0] : crew;
+      if (!crewRow || crewRow.status !== "active") continue;
+
+      const landmarkId = row.landmark_id as string;
+      const score = row.score as number;
+      const scoreReachedAt = row.score_reached_at as string;
+      const current = map.get(landmarkId);
+      if (
+        !isBetterScore(
+          { score, scoreReachedAt },
+          current
+            ? { score: current.score, scoreReachedAt: current.scoreReachedAt }
+            : undefined
+        )
+      ) {
+        continue;
+      }
+
+      map.set(landmarkId, {
+        landmarkId,
+        subjectType: "crew",
+        subjectId: row.crew_id as string,
+        score,
+        scoreReachedAt,
+        nickname: crewRow.name?.trim() || "크루",
       });
     }
   }

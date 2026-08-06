@@ -57,8 +57,11 @@ interface MapViewProps {
   layerVisibility?: {
     landmarks: boolean;
     pins: boolean;
+    crews: boolean;
     premium: boolean;
   };
+  /** 하이라이트할 크루 소속 유저 id */
+  crewHighlightUserIds?: string[];
 }
 
 const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
@@ -66,7 +69,8 @@ const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
 function createPinMarkerContent(
   text: string,
   isMine: boolean,
-  cost: number
+  cost: number,
+  crewHighlight = false
 ): string {
   const tier = getFlagTier(cost);
   const display = text.length > 8 ? text.slice(0, 8) + "…" : text;
@@ -77,6 +81,9 @@ function createPinMarkerContent(
     tier === 1000
       ? "0 4px 16px rgba(180,83,9,0.45)"
       : "0 4px 12px rgba(0,0,0,0.25)";
+  const highlightShadow = crewHighlight
+    ? `${shadow}, 0 0 0 3px rgba(124,58,237,0.95)`
+    : shadow;
   return `
     <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: pointer;">
       <div style="
@@ -87,7 +94,7 @@ function createPinMarkerContent(
         font-size: ${scale.fontSize}px;
         font-weight: 700;
         white-space: nowrap;
-        box-shadow: ${shadow};
+        box-shadow: ${highlightShadow};
         border: ${scale.borderWidth}px solid ${border};
         letter-spacing: -0.02em;
         display: flex;
@@ -106,7 +113,11 @@ function createPinMarkerContent(
   `;
 }
 
-function createEmojiPinMarkerContent(isMine: boolean, cost: number): string {
+function createEmojiPinMarkerContent(
+  isMine: boolean,
+  cost: number,
+  crewHighlight = false
+): string {
   const tier = getFlagTier(cost);
   const bg = getFlagAccentColor(tier, isMine);
   const border = getFlagBorderColor(tier);
@@ -115,6 +126,9 @@ function createEmojiPinMarkerContent(isMine: boolean, cost: number): string {
     tier === 1000
       ? "0 3px 14px rgba(180,83,9,0.45)"
       : "0 3px 10px rgba(0,0,0,0.25)";
+  const highlightShadow = crewHighlight
+    ? `${shadow}, 0 0 0 3px rgba(124,58,237,0.95)`
+    : shadow;
   return `
     <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: pointer;">
       <div style="
@@ -124,7 +138,7 @@ function createEmojiPinMarkerContent(isMine: boolean, cost: number): string {
         border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         font-size: 14px;
-        box-shadow: ${shadow};
+        box-shadow: ${highlightShadow};
         border: ${scale.borderWidth}px solid ${border};
       ">${createFlagIconSvg(tier, Math.round(scale.flagSize * 1.15))}</div>
       <div style="
@@ -486,8 +500,10 @@ export default function MapView({
   layerVisibility = {
     landmarks: true,
     pins: true,
+    crews: false,
     premium: true,
   },
+  crewHighlightUserIds = [],
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<InstanceType<typeof naver.maps.Map> | null>(null);
@@ -514,6 +530,7 @@ export default function MapView({
   const onLandmarkClickRef = useRef(onLandmarkClick);
   const onPremiumPlaceClickRef = useRef(onPremiumPlaceClick);
   const layerVisibilityRef = useRef(layerVisibility);
+  const crewHighlightUserIdsRef = useRef(crewHighlightUserIds);
   const renderRafRef = useRef<number | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -532,6 +549,7 @@ export default function MapView({
     onLandmarkClickRef.current = onLandmarkClick;
     onPremiumPlaceClickRef.current = onPremiumPlaceClick;
     layerVisibilityRef.current = layerVisibility;
+    crewHighlightUserIdsRef.current = crewHighlightUserIds;
   }, [
     pins,
     landmarks,
@@ -541,6 +559,7 @@ export default function MapView({
     onLandmarkClick,
     onPremiumPlaceClick,
     layerVisibility,
+    crewHighlightUserIds,
   ]);
 
   const clearPinOverlays = useCallback(() => {
@@ -624,6 +643,9 @@ export default function MapView({
       const isMine =
         currentUserIdRef.current !== null &&
         pin.user_id === currentUserIdRef.current;
+      const crewHighlight = crewHighlightUserIdsRef.current.includes(
+        pin.user_id
+      );
       const color = getFlagAccentColor(getFlagTier(pin.cost), isMine);
       const pinPos = new naverObj.maps.LatLng(pin.lat, pin.lng);
       const nearbyCount = countNearbyPins(
@@ -652,11 +674,13 @@ export default function MapView({
       const marker = new naverObj.maps.Marker({
         position: pinPos,
         map,
-        zIndex: (isMine ? 120 : 100) + Math.floor(getFlagTier(pin.cost) / 100),
+        zIndex:
+          (isMine ? 120 : crewHighlight ? 110 : 100) +
+          Math.floor(getFlagTier(pin.cost) / 100),
         icon: {
           content: showText
-            ? createPinMarkerContent(pin.text, isMine, pin.cost)
-            : createEmojiPinMarkerContent(isMine, pin.cost),
+            ? createPinMarkerContent(pin.text, isMine, pin.cost, crewHighlight)
+            : createEmojiPinMarkerContent(isMine, pin.cost, crewHighlight),
           anchor: new naverObj.maps.Point(0, 0),
         },
       });
@@ -1017,7 +1041,7 @@ export default function MapView({
 
   useEffect(() => {
     renderPinOverlays();
-  }, [pins, layerVisibility.pins, renderPinOverlays]);
+  }, [pins, layerVisibility.pins, crewHighlightUserIds, renderPinOverlays]);
 
   useEffect(() => {
     renderLandmarkOverlays();

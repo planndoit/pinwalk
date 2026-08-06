@@ -27,7 +27,9 @@ export async function GET(
   return NextResponse.json({
     ranking: ranking.map((row, index) => ({
       rank: index + 1,
-      userId: row.userId,
+      subjectType: row.subjectType,
+      subjectId: row.subjectId,
+      userId: row.subjectType === "user" ? row.subjectId : null,
       nickname: row.nickname,
       score: row.score,
       scoreReachedAt: row.scoreReachedAt,

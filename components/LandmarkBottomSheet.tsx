@@ -142,7 +142,7 @@ export default function LandmarkBottomSheet({
                   <ol className="space-y-1.5">
                     {ranking.map((row) => (
                       <li
-                        key={`${row.userId}-${row.rank}`}
+                        key={`${row.subjectType}-${row.subjectId}-${row.rank}`}
                         className="flex items-center justify-between gap-3 text-sm"
                       >
                         <span className="min-w-0 flex items-center gap-2">

@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import HomePage from "@/components/HomePage";
 import BottomNav from "./BottomNav";
 
-const MAIN_TAB_PATHS = ["/", "/ranking", "/my"] as const;
+const MAIN_TAB_PATHS = ["/", "/ranking", "/crew", "/my"] as const;
 
 function isMainTabPath(pathname: string): boolean {
   return (MAIN_TAB_PATHS as readonly string[]).includes(pathname);

@@ -75,3 +75,32 @@ export const TOUR_AREA_OPTIONS = [
 ] as const;
 
 export const LANDMARK_SOURCE_ATTRIBUTION = "한국관광공사";
+
+/** 크루 생성 비용 (P). */
+export const CREW_CREATE_COST = 1000;
+
+export const CREW_NAME_MAX_LENGTH = 10;
+export const CREW_DESCRIPTION_MAX_LENGTH = 200;
+export const CREW_MEMBERS_MIN = 2;
+export const CREW_MEMBERS_MAX = 20;
+
+/** 활동지역: 전국. */
+export const CREW_AREA_NATIONWIDE = "all" as const;
+
+export const CREW_AREA_OPTIONS = [
+  { code: CREW_AREA_NATIONWIDE, name: "전국" },
+  ...TOUR_AREA_OPTIONS,
+] as const;
+
+export type CrewAreaCode = (typeof CREW_AREA_OPTIONS)[number]["code"];
+
+export function isCrewAreaCode(value: string): value is CrewAreaCode {
+  return CREW_AREA_OPTIONS.some((option) => option.code === value);
+}
+
+export function getCrewAreaLabel(areaCode: string): string {
+  return (
+    CREW_AREA_OPTIONS.find((option) => option.code === areaCode)?.name ??
+    areaCode
+  );
+}

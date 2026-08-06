@@ -20,6 +20,7 @@ import {
   findContainingLandmarks,
 } from "@/lib/landmark/zone";
 import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
+import { refreshCrewLandmarkScoresForUsers } from "@/lib/crew/scores";
 import {
   copyPinLandmarks,
   getPinLandmarkIds,
@@ -211,6 +212,10 @@ export async function POST(request: Request) {
       appliedLandmarkIds = landmarkIds;
     }
     await refreshUsersLandmarkScores(appliedLandmarkIds, [
+      targetPin.user_id,
+      user.id,
+    ]);
+    await refreshCrewLandmarkScoresForUsers(appliedLandmarkIds, [
       targetPin.user_id,
       user.id,
     ]);
