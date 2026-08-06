@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCrewMemberCount } from "@/lib/crew/membership";
-import { serializeCrew } from "@/lib/crew/serialize";
-import { createAdminClient } from "@/lib/supabase/admin";
-import type { Crew } from "@/types/crew";
+import { getCrewByInviteToken } from "@/lib/crew/invite";
 
 export async function GET(
   _request: Request,
@@ -16,33 +13,13 @@ export async function GET(
     );
   }
 
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("crews")
-    .select(
-      "id, name, description, area_code, max_members, leader_id, invite_token, image_mime, status, dissolved_at, created_at, updated_at"
-    )
-    .eq("invite_token", token)
-    .eq("status", "active")
-    .maybeSingle();
-
-  if (error || !data) {
+  const crew = await getCrewByInviteToken(token);
+  if (!crew) {
     return NextResponse.json(
       { error: "크루를 찾을 수 없습니다." },
       { status: 404 }
     );
   }
 
-  const { data: leader } = await admin
-    .from("profiles")
-    .select("nickname")
-    .eq("id", data.leader_id)
-    .maybeSingle();
-
-  return NextResponse.json({
-    crew: serializeCrew(data as Crew, {
-      memberCount: await getCrewMemberCount(data.id),
-      leaderNickname: leader?.nickname ?? null,
-    }),
-  });
+  return NextResponse.json({ crew });
 }
