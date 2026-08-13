@@ -264,6 +264,26 @@ export default function MyPage() {
           </div>
         </section>
 
+        <section className="px-4 pb-4">
+          <h2 className="text-sm font-bold text-gray-800 mb-3">약관 및 위치정보</h2>
+          <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-100">
+            <Link
+              href="/legal/location-terms"
+              className="flex items-center justify-between px-4 py-3.5"
+            >
+              <span className="text-sm text-gray-800">위치기반서비스 이용약관</span>
+              <span className="text-xs text-gray-400">보기</span>
+            </Link>
+            <Link
+              href="/legal/location-consent"
+              className="flex items-center justify-between px-4 py-3.5"
+            >
+              <span className="text-sm text-gray-800">개인위치정보 수집·이용 안내</span>
+              <span className="text-xs text-gray-400">보기</span>
+            </Link>
+          </div>
+        </section>
+
         <section className="px-4 pb-6">
           <h2 className="text-sm font-bold text-gray-800 mb-3">활동 내역</h2>
           <ActivityTimeline events={events} />

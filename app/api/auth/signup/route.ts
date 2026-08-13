@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api/auth";
 import { usernameToAuthEmail, normalizeUsername } from "@/lib/auth/constants";
+import { validateSignupConsents } from "@/lib/legal/signupConsents";
 import { serializeProfile } from "@/lib/profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -12,11 +13,24 @@ import {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { username, password, passwordConfirm, nickname } = body as {
+  const {
+    username,
+    password,
+    passwordConfirm,
+    nickname,
+    agreeLocationTerms,
+    agreeLocationCollection,
+    confirmOver14,
+    legalVersion,
+  } = body as {
     username?: string;
     password?: string;
     passwordConfirm?: string;
     nickname?: string;
+    agreeLocationTerms?: boolean;
+    agreeLocationCollection?: boolean;
+    confirmOver14?: boolean;
+    legalVersion?: string;
   };
 
   const usernameValidation = validateUsername(username ?? "");
@@ -36,6 +50,16 @@ export async function POST(request: Request) {
   const nicknameValidation = validateNickname(nickname ?? "");
   if (!nicknameValidation.valid) {
     return jsonError(nicknameValidation.error!);
+  }
+
+  const consentsValidation = validateSignupConsents({
+    agreeLocationTerms,
+    agreeLocationCollection,
+    confirmOver14,
+    legalVersion,
+  });
+  if (!consentsValidation.valid) {
+    return jsonError(consentsValidation.error);
   }
 
   const normalizedUsername = normalizeUsername(username!);
@@ -102,6 +126,19 @@ export async function POST(request: Request) {
     }
 
     await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+  }
+
+  const { error: consentError } = await admin.from("location_consents").insert({
+    user_id: created.user.id,
+    legal_version: consentsValidation.data.legalVersion,
+    agree_location_terms: consentsValidation.data.agreeLocationTerms,
+    agree_location_collection: consentsValidation.data.agreeLocationCollection,
+    confirm_over_14: consentsValidation.data.confirmOver14,
+  });
+
+  if (consentError) {
+    await admin.auth.admin.deleteUser(created.user.id);
+    return jsonError("동의 기록 저장에 실패했습니다. 다시 시도해주세요.", 500);
   }
 
   const { data: profile, error: profileError } = await admin
