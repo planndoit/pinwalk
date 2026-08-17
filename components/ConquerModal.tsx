@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CONQUER_PROBABILITIES,
   DEFAULT_PIN_COST,
   PIN_TEXT_MAX_LENGTH,
 } from "@/lib/constants";
 import { calculateConquerCost } from "@/lib/points";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 import type { ConquerProbability } from "@/lib/constants";
 
 interface ConquerModalProps {
@@ -30,21 +31,24 @@ export default function ConquerModal({
   const [text, setText] = useState("");
   const [probability, setProbability] = useState<ConquerProbability>(25);
   const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const { locked: submitting, run, unlock } = useSubmitLock();
   const [result, setResult] = useState<{
     conquered: boolean;
     message: string;
   } | null>(null);
 
+  useEffect(() => {
+    if (!open) unlock();
+  }, [open, unlock]);
+
   if (!open) return null;
 
   const busy = loading || submitting;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (busy || !text.trim()) return;
     setError("");
-    setSubmitting(true);
-    try {
+    void run(async () => {
       const res = await onSubmit(text, probability);
       if (res.success && res.conquered !== undefined) {
         setResult({
@@ -53,12 +57,11 @@ export default function ConquerModal({
             ? "점령 성공! 이 영역에 내 깃발을 꽂았어요."
             : "점령 실패! 기존 깃발이 버텼어요.",
         });
-      } else {
-        setError(res.error ?? "점령 시도에 실패했습니다.");
+        return "keep";
       }
-    } finally {
-      setSubmitting(false);
-    }
+      setError(res.error ?? "점령 시도에 실패했습니다.");
+      return "release";
+    });
   };
 
   const handleClose = () => {
@@ -66,6 +69,7 @@ export default function ConquerModal({
     setText("");
     setResult(null);
     setError("");
+    unlock();
     onClose();
   };
 

@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { jsonError } from "@/lib/api/auth";
 import { isInquiryStatus } from "@/lib/constants";
 import { serializeInquiry } from "@/lib/inquiry/serialize";
+import { notifyInquiryReply } from "@/lib/notifications/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateInquiryReply } from "@/lib/validation/inquiry";
 import type { Inquiry } from "@/types/inquiry";
@@ -99,6 +100,16 @@ export async function PATCH(
   }
 
   const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("inquiries")
+    .select("user_id, title, admin_reply")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!existing) {
+    return jsonError("문의를 찾을 수 없습니다.", 404);
+  }
+
   const { data, error } = await admin
     .from("inquiries")
     .update(updates)
@@ -108,6 +119,15 @@ export async function PATCH(
 
   if (error || !data) {
     return jsonError("문의 수정에 실패했습니다.", 500);
+  }
+
+  const hadReplyBefore = Boolean(existing.admin_reply);
+  if (hasReply && !hadReplyBefore) {
+    await notifyInquiryReply({
+      userId: existing.user_id as string,
+      inquiryId: id,
+      title: existing.title as string,
+    });
   }
 
   const profile = profileFromRow(data as Record<string, unknown>);

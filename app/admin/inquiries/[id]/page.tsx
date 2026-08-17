@@ -13,6 +13,7 @@ import {
 } from "@/components/admin/AdminUi";
 import { formatActivityDate } from "@/lib/formatDate";
 import { INQUIRY_REPLY_MAX_LENGTH, type InquiryStatus } from "@/lib/constants";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 import type { SerializedInquiry } from "@/types/inquiry";
 
 export default function AdminInquiryDetailPage() {
@@ -22,7 +23,7 @@ export default function AdminInquiryDetailPage() {
   const [status, setStatus] = useState<InquiryStatus>("pending");
   const [adminReply, setAdminReply] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const { locked: saving, run } = useSubmitLock();
 
   const fetchDetail = useCallback(async () => {
     const res = await fetch(`/api/admin/inquiries/${id}`);
@@ -41,10 +42,9 @@ export default function AdminInquiryDetailPage() {
     });
   }, [fetchDetail]);
 
-  const handleSave = async () => {
-    setSaving(true);
-    setMessage(null);
-    try {
+  const handleSave = () => {
+    void run(async () => {
+      setMessage(null);
       const res = await fetch(`/api/admin/inquiries/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -53,16 +53,15 @@ export default function AdminInquiryDetailPage() {
       const data = await res.json();
       if (!res.ok) {
         setMessage(data.error ?? "저장에 실패했습니다.");
-        return;
+        return "release";
       }
       const next = data.inquiry as SerializedInquiry;
       setInquiry(next);
       setStatus(next.status);
       setAdminReply(next.adminReply ?? "");
       setMessage("저장했습니다.");
-    } finally {
-      setSaving(false);
-    }
+      return "release";
+    });
   };
 
   if (!inquiry) {

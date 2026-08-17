@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { getActiveMembership } from "@/lib/crew/membership";
 import { recomputeAllLandmarkScoresForCrew } from "@/lib/crew/scores";
+import {
+  getCrewName,
+  notifyCrewKicked,
+} from "@/lib/notifications/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(
@@ -59,6 +63,13 @@ export async function POST(
   }
 
   await recomputeAllLandmarkScoresForCrew(crewId);
+
+  const crewName = (await getCrewName(crewId)) ?? "크루";
+  await notifyCrewKicked({
+    userId: targetUserId,
+    crewId,
+    crewName,
+  });
 
   return NextResponse.json({ message: "멤버를 추방했습니다." });
 }

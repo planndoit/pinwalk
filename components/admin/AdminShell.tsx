@@ -212,23 +212,25 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
                 <p className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">
                   {item.label}
                 </p>
-                {item.children.map((child) => {
-                  const active = pathname.startsWith(child.href);
-                  return (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      onClick={closeSidebarOnMobile}
-                      className={`block px-3 py-2 rounded-lg text-sm ${
-                        active
-                          ? "bg-blue-50 text-blue-700 font-medium"
-                          : "text-gray-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      {child.label}
-                    </Link>
-                  );
-                })}
+                <div className="pl-3">
+                  {item.children.map((child) => {
+                    const active = pathname.startsWith(child.href);
+                    return (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        onClick={closeSidebarOnMobile}
+                        className={`block px-3 py-2 rounded-lg text-sm ${
+                          active
+                            ? "bg-blue-50 text-blue-700 font-medium"
+                            : "text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {child.label}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}

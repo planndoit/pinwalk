@@ -8,6 +8,7 @@ import {
   INQUIRY_CONTENT_MAX_LENGTH,
   INQUIRY_TITLE_MAX_LENGTH,
 } from "@/lib/constants";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 
 export default function InquiryNewPage() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function InquiryNewPage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const { locked: submitting, run } = useSubmitLock();
 
   useEffect(() => {
     if (authLoading || user) return;
@@ -23,11 +24,8 @@ export default function InquiryNewPage() {
     openAuthModal("login");
   }, [authLoading, user, router, openAuthModal]);
 
-  const handleSubmit = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    setError(null);
-    try {
+  const handleSubmit = () => {
+    void run(async () => {
       const res = await fetch("/api/inquiries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,12 +34,11 @@ export default function InquiryNewPage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "문의 등록에 실패했습니다.");
-        return;
+        return "release";
       }
       router.replace(`/my/inquiries/${data.inquiry.id}`);
-    } finally {
-      setSubmitting(false);
-    }
+      return "keep";
+    });
   };
 
   if (!user) return null;
@@ -57,7 +54,8 @@ export default function InquiryNewPage() {
             value={title}
             maxLength={INQUIRY_TITLE_MAX_LENGTH}
             onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white"
+            disabled={submitting}
+            className="mt-1 w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white disabled:opacity-60"
             placeholder="제목을 입력하세요"
           />
         </label>
@@ -69,7 +67,8 @@ export default function InquiryNewPage() {
             maxLength={INQUIRY_CONTENT_MAX_LENGTH}
             rows={8}
             onChange={(e) => setContent(e.target.value)}
-            className="mt-1 w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white resize-none"
+            disabled={submitting}
+            className="mt-1 w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white resize-none disabled:opacity-60"
             placeholder="문의 내용을 입력하세요"
           />
           <span className="mt-1 block text-right text-[11px] text-gray-400 tabular-nums">
@@ -82,7 +81,7 @@ export default function InquiryNewPage() {
         <button
           type="button"
           disabled={submitting || !title.trim() || !content.trim()}
-          onClick={() => void handleSubmit()}
+          onClick={handleSubmit}
           className="mt-4 w-full py-3.5 rounded-2xl bg-blue-600 text-white text-sm font-bold disabled:opacity-40"
         >
           {submitting ? "등록 중..." : "문의 등록"}

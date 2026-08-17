@@ -26,6 +26,10 @@ import {
   getPinLandmarkIds,
   setPinLandmarks,
 } from "@/lib/landmark/pinLandmarks";
+import {
+  notifyPinConquered,
+  notifyPinDefenseSuccess,
+} from "@/lib/notifications/events";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -153,6 +157,11 @@ export async function POST(request: Request) {
         "공격을 막아냈어요",
         target_pin_id
       );
+      await notifyPinDefenseSuccess({
+        ownerUserId: targetPin.user_id as string,
+        pinId: target_pin_id,
+        reward: defenseReward,
+      });
     }
 
     return NextResponse.json({
@@ -171,6 +180,15 @@ export async function POST(request: Request) {
       updated_at: now,
     })
     .eq("id", target_pin_id);
+
+  await notifyPinConquered({
+    ownerUserId: targetPin.user_id as string,
+    attackerUserId: user.id,
+    pinId: target_pin_id,
+    pinText: targetPin.text as string,
+    lat: targetPin.lat as number,
+    lng: targetPin.lng as number,
+  });
 
   const newRadius = inLandmarkZone
     ? LANDMARK_PIN_RADIUS_METERS

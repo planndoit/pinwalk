@@ -12,6 +12,8 @@ import {
   CREW_NAME_MAX_LENGTH,
 } from "@/lib/constants";
 import { compressAvatarFile } from "@/lib/avatar";
+import { useSubmitLock } from "@/lib/useSubmitLock";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import type { SerializedCrew, SerializedCrewMember } from "@/types/crew";
 
 type MineState = {
@@ -222,7 +224,8 @@ function CrewHome({
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [savingSettings, setSavingSettings] = useState(false);
+  const { locked: savingSettings, run: runSaveSettings, unlock: unlockSaveSettings } =
+    useSubmitLock();
   const [settingsForm, setSettingsForm] = useState({
     name: crew.name,
     description: crew.description ?? "",
@@ -275,6 +278,10 @@ function CrewHome({
     setMessage(null);
     setShowSettings(true);
   };
+
+  useEffect(() => {
+    if (!showSettings) unlockSaveSettings();
+  }, [showSettings, unlockSaveSettings]);
 
   const sortedMembers = [...members].sort((a, b) => {
     if (memberSort === "conquests") {
@@ -341,10 +348,9 @@ function CrewHome({
     }
   };
 
-  const handleSaveSettings = async () => {
-    setSavingSettings(true);
-    setMessage(null);
-    try {
+  const handleSaveSettings = () => {
+    void runSaveSettings(async () => {
+      setMessage(null);
       const res = await fetch(`/api/crews/${crew.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -361,16 +367,15 @@ function CrewHome({
       const data = await res.json();
       if (!res.ok) {
         setMessage(data.error ?? "설정 저장에 실패했습니다.");
-        return;
+        return "release";
       }
       setShowSettings(false);
       setPendingImage(null);
       setRemoveImage(false);
       setMessage("크루 설정을 저장했습니다.");
       await onChanged();
-    } finally {
-      setSavingSettings(false);
-    }
+      return "keep";
+    });
   };
 
   const invitePath =
@@ -381,7 +386,10 @@ function CrewHome({
   return (
     <div className="h-full overflow-y-auto bg-gray-50 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
       <div className="max-w-lg mx-auto px-4 pt-safe">
-        <div className="mt-4 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+        <div className="mt-4 flex justify-end">
+          <NotificationBell />
+        </div>
+        <div className="mt-2 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden shrink-0">
               {crew.hasImage ? (
@@ -724,7 +732,8 @@ export default function CrewPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const { locked: creating, run: runCreate, unlock: unlockCreate } =
+    useSubmitLock();
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -767,10 +776,13 @@ export default function CrewPage() {
     });
   }, [loadMine, loadCrews]);
 
-  const handleCreate = async () => {
-    setCreating(true);
-    setMessage(null);
-    try {
+  useEffect(() => {
+    if (!showCreate) unlockCreate();
+  }, [showCreate, unlockCreate]);
+
+  const handleCreate = () => {
+    void runCreate(async () => {
+      setMessage(null);
       const res = await fetch("/api/crews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -786,16 +798,15 @@ export default function CrewPage() {
       const data = await res.json();
       if (!res.ok) {
         setMessage(data.error ?? "크루 생성에 실패했습니다.");
-        return;
+        return "release";
       }
       setShowCreate(false);
       setPendingImage(null);
       await refreshProfile();
       await loadMine();
       await loadCrews();
-    } finally {
-      setCreating(false);
-    }
+      return "keep";
+    });
   };
 
   const handleJoin = async (crewId: string) => {
@@ -851,7 +862,9 @@ export default function CrewPage() {
       <div className="max-w-lg mx-auto px-4 pt-safe">
         <div className="mt-4 flex items-center justify-between gap-2">
           <h1 className="text-lg font-extrabold text-gray-900">크루</h1>
-          <button
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <button
             type="button"
             onClick={() =>
               requireAuth(() => {
@@ -863,6 +876,7 @@ export default function CrewPage() {
           >
             만들기 ({CREW_CREATE_COST}P)
           </button>
+          </div>
         </div>
 
         {mine?.pendingRequest ? (

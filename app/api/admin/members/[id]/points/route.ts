@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api/auth";
 import { requireAdmin } from "@/lib/admin/requireAdmin";
 import { addPoints } from "@/lib/pins";
+import { notifyAdminPoints } from "@/lib/notifications/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(
@@ -43,6 +44,12 @@ export async function POST(
   if (!result.success) {
     return jsonError(result.error!, 500);
   }
+
+  await notifyAdminPoints({
+    userId: id,
+    amount,
+    reason: reason.trim(),
+  });
 
   return NextResponse.json({
     message: "포인트가 지급되었습니다.",

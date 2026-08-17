@@ -5,6 +5,7 @@ import {
   getCrewMemberCount,
   hasPendingJoinRequest,
 } from "@/lib/crew/membership";
+import { notifyCrewJoinRequest } from "@/lib/notifications/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(
@@ -59,6 +60,11 @@ export async function POST(
     }
     return jsonError("가입 신청에 실패했습니다.", 500);
   }
+
+  await notifyCrewJoinRequest({
+    crewId,
+    applicantUserId: user.id,
+  });
 
   return NextResponse.json({
     request: {

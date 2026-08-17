@@ -5,6 +5,11 @@ import {
   getCrewMemberCount,
 } from "@/lib/crew/membership";
 import { recomputeAllLandmarkScoresForCrew } from "@/lib/crew/scores";
+import {
+  getCrewName,
+  notifyCrewJoinApproved,
+  notifyCrewJoinRejected,
+} from "@/lib/notifications/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(
@@ -113,6 +118,13 @@ export async function POST(
       })
       .eq("id", requestId);
 
+    const crewName = (await getCrewName(crewId)) ?? "크루";
+    await notifyCrewJoinRejected({
+      userId: joinRequest.user_id as string,
+      crewId,
+      crewName,
+    });
+
     return NextResponse.json({ message: "가입 신청을 거절했습니다." });
   }
 
@@ -158,6 +170,13 @@ export async function POST(
     .eq("id", requestId);
 
   await recomputeAllLandmarkScoresForCrew(crewId);
+
+  const crewName = (await getCrewName(crewId)) ?? "크루";
+  await notifyCrewJoinApproved({
+    userId: joinRequest.user_id as string,
+    crewId,
+    crewName,
+  });
 
   return NextResponse.json({ message: "가입을 승인했습니다." });
 }

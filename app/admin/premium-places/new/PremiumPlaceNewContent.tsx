@@ -11,6 +11,7 @@ import {
   AdminSelect,
   AdminTextarea,
 } from "@/components/admin/AdminUi";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 
 function SectionTitle({
   title,
@@ -49,6 +50,7 @@ export default function AdminPremiumPlaceNewPage() {
     isActive: false,
   });
   const [message, setMessage] = useState<string | null>(null);
+  const { locked: saving, run } = useSubmitLock();
 
   useEffect(() => {
     void (async () => {
@@ -98,37 +100,40 @@ export default function AdminPremiumPlaceNewPage() {
     setForm((prev) => ({ ...prev, lat, lng }));
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (form.lat == null || form.lng == null) {
       setMessage("지도에서 위치를 선택해주세요.");
       return;
     }
-    const res = await fetch("/api/admin/premium-places", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        categoryCode: form.categoryCode,
-        storeName: form.storeName,
-        contactPhone: form.contactPhone,
-        contactEmail: form.contactEmail,
-        contactName: form.contactName,
-        address: form.address || null,
-        placePhone: form.placePhone || null,
-        lat: form.lat,
-        lng: form.lng,
-        promoText: form.promoText,
-        promoLink: form.promoLink || null,
-        isActive: form.isActive,
-        promotionRequestId: requestId,
-      }),
+    void run(async () => {
+      const res = await fetch("/api/admin/premium-places", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          categoryCode: form.categoryCode,
+          storeName: form.storeName,
+          contactPhone: form.contactPhone,
+          contactEmail: form.contactEmail,
+          contactName: form.contactName,
+          address: form.address || null,
+          placePhone: form.placePhone || null,
+          lat: form.lat,
+          lng: form.lng,
+          promoText: form.promoText,
+          promoLink: form.promoLink || null,
+          isActive: form.isActive,
+          promotionRequestId: requestId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error);
+        return "release";
+      }
+      router.push(`/admin/premium-places/${data.place.id}`);
+      return "keep";
     });
-    const data = await res.json();
-    if (!res.ok) {
-      setMessage(data.error);
-      return;
-    }
-    router.push(`/admin/premium-places/${data.place.id}`);
   };
 
   return (
@@ -262,7 +267,9 @@ export default function AdminPremiumPlaceNewPage() {
         </AdminCard>
 
         <div className="flex gap-2">
-          <AdminButton type="submit">저장</AdminButton>
+          <AdminButton type="submit" disabled={saving}>
+            {saving ? "저장 중..." : "저장"}
+          </AdminButton>
           <AdminButton
             type="button"
             variant="secondary"

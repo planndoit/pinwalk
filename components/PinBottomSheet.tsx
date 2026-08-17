@@ -5,6 +5,7 @@ import FlagIcon from "@/components/icons/FlagIcon";
 import type { Pin, PinAttempt } from "@/types/pin";
 import { DEFAULT_NICKNAME } from "@/lib/constants";
 import { getFlagLabel, getFlagTier } from "@/lib/flagVisual";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 
 interface PinBottomSheetProps {
   pin: Pin | null;
@@ -55,7 +56,11 @@ export default function PinBottomSheet({
   const [attempts, setAttempts] = useState<PinAttempt[]>([]);
   const [summary, setSummary] = useState<AttemptSummary>(EMPTY_SUMMARY);
   const [attemptsLoading, setAttemptsLoading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const { locked: deleting, run, unlock } = useSubmitLock();
+
+  useEffect(() => {
+    if (!pin) unlock();
+  }, [pin, unlock]);
 
   useEffect(() => {
     if (!pin) return;
@@ -104,26 +109,24 @@ export default function PinBottomSheet({
   const tier = getFlagTier(pin.cost);
   const busy = disabled || deleting;
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (busy) return;
     const ok = window.confirm(
       "이 깃발을 삭제할까요? 삭제 후에는 지도에서 사라집니다."
     );
     if (!ok) return;
 
-    setDeleting(true);
-    try {
+    void run(async () => {
       const res = await fetch(`/api/pins/${pin.id}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) {
         window.alert(data.error ?? "삭제에 실패했습니다.");
-        return;
+        return "release";
       }
       attemptHistoryCache.delete(pin.id);
       onDeleted?.(pin.id);
-    } finally {
-      setDeleting(false);
-    }
+      return "keep";
+    });
   };
 
   return (

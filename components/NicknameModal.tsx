@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DEFAULT_NICKNAME } from "@/lib/constants";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 
 interface NicknameModalProps {
   open: boolean;
@@ -20,24 +21,26 @@ export default function NicknameModal({
     currentNickname === DEFAULT_NICKNAME ? "" : (currentNickname ?? "")
   );
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const { locked: loading, run, unlock } = useSubmitLock();
+
+  useEffect(() => {
+    if (!open) unlock();
+  }, [open, unlock]);
 
   if (!open) return null;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (loading || !nickname.trim()) return;
     setError("");
-    setLoading(true);
-    try {
+    void run(async () => {
       const result = await onSubmit(nickname);
       if (result.success) {
         onClose();
-      } else {
-        setError(result.error ?? "닉네임 변경에 실패했습니다.");
+        return "keep";
       }
-    } finally {
-      setLoading(false);
-    }
+      setError(result.error ?? "닉네임 변경에 실패했습니다.");
+      return "release";
+    });
   };
 
   const handleClose = () => {

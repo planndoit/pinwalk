@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { getActiveMembership } from "@/lib/crew/membership";
+import {
+  getCrewName,
+  notifyCrewLeaderTransferred,
+} from "@/lib/notifications/events";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /** 리더 위임: 대상이 멤버여야 함. 위임 후 기존 리더는 member가 됨. */
@@ -81,6 +85,13 @@ export async function POST(
   if (crewError) {
     return jsonError("위임에 실패했습니다.", 500);
   }
+
+  const crewName = (await getCrewName(crewId)) ?? "크루";
+  await notifyCrewLeaderTransferred({
+    userId: targetUserId,
+    crewId,
+    crewName,
+  });
 
   return NextResponse.json({ message: "리더를 위임했습니다." });
 }

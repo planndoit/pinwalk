@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/AuthProvider";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import { SERVICE_NAME } from "@/lib/constants";
 
 interface PointBalanceProps {
@@ -45,6 +46,7 @@ export default function PointBalance({
                 홍보 요청
               </button>
             )}
+            <NotificationBell variant="chip" />
             {showPoints ? (
               <div className={`${chipClassName} px-3.5`}>
                 <span className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-white text-[10px] font-extrabold flex items-center justify-center">

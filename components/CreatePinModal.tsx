@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DEFAULT_PIN_COST,
   DEFAULT_PIN_RADIUS_BY_COST,
@@ -8,6 +8,7 @@ import {
   PIN_TEXT_MAX_LENGTH,
   type PinCost,
 } from "@/lib/constants";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 import FlagIcon from "@/components/icons/FlagIcon";
 
 interface CreatePinModalProps {
@@ -31,28 +32,30 @@ export default function CreatePinModal({
   const [text, setText] = useState("");
   const [cost, setCost] = useState<PinCost>(DEFAULT_PIN_COST);
   const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const { locked: submitting, run, unlock } = useSubmitLock();
+
+  useEffect(() => {
+    if (!open) unlock();
+  }, [open, unlock]);
 
   if (!open) return null;
 
   const busy = loading || submitting;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (busy || !text.trim()) return;
     setError("");
-    setSubmitting(true);
-    try {
+    void run(async () => {
       const result = await onSubmit(text, cost);
       if (result.success) {
         setText("");
         setCost(DEFAULT_PIN_COST);
         onClose();
-      } else {
-        setError(result.error ?? "깃발 생성에 실패했습니다.");
+        return "keep";
       }
-    } finally {
-      setSubmitting(false);
-    }
+      setError(result.error ?? "깃발 생성에 실패했습니다.");
+      return "release";
+    });
   };
 
   const handleClose = () => {

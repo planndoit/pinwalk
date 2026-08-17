@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 import type { SerializedCrew } from "@/types/crew";
 
 export default function CrewInvitePageClient({ token }: { token: string }) {
@@ -12,6 +13,7 @@ export default function CrewInvitePageClient({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { locked: joining, run } = useSubmitLock();
 
   useEffect(() => {
     void (async () => {
@@ -34,16 +36,21 @@ export default function CrewInvitePageClient({ token }: { token: string }) {
 
   const handleJoin = () => {
     if (!crew) return;
-    requireAuth(async () => {
-      setMessage(null);
-      const res = await fetch(`/api/crews/${crew.id}/join`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        setMessage(data.error ?? "가입 신청에 실패했습니다.");
-        return;
-      }
-      setMessage("가입 신청을 보냈습니다.");
-      router.push("/crew");
+    requireAuth(() => {
+      void run(async () => {
+        setMessage(null);
+        const res = await fetch(`/api/crews/${crew.id}/join`, {
+          method: "POST",
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setMessage(data.error ?? "가입 신청에 실패했습니다.");
+          return "release";
+        }
+        setMessage("가입 신청을 보냈습니다.");
+        router.push("/crew");
+        return "keep";
+      });
     });
   };
 
@@ -109,9 +116,10 @@ export default function CrewInvitePageClient({ token }: { token: string }) {
         <button
           type="button"
           onClick={handleJoin}
-          className="mt-5 w-full py-3 rounded-xl bg-blue-600 text-white font-bold"
+          disabled={joining}
+          className="mt-5 w-full py-3 rounded-xl bg-blue-600 text-white font-bold disabled:opacity-50"
         >
-          가입 신청
+          {joining ? "신청 중..." : "가입 신청"}
         </button>
         <button
           type="button"

@@ -5,13 +5,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import MySubpageHeader from "@/components/my/MySubpageHeader";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { user, loading: authLoading, logout, openAuthModal } = useAuth();
   const [confirming, setConfirming] = useState(false);
-  const [withdrawing, setWithdrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { locked: withdrawing, run } = useSubmitLock();
 
   useEffect(() => {
     if (authLoading || user) return;
@@ -19,23 +20,19 @@ export default function SettingsPage() {
     openAuthModal("login");
   }, [authLoading, user, router, openAuthModal]);
 
-  const handleWithdraw = async () => {
-    if (withdrawing) return;
-    setWithdrawing(true);
-    setError(null);
-    try {
+  const handleWithdraw = () => {
+    void run(async () => {
       const res = await fetch("/api/auth/withdraw", { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "회원 탈퇴에 실패했습니다.");
         setConfirming(false);
-        return;
+        return "release";
       }
       await logout();
       router.replace("/");
-    } finally {
-      setWithdrawing(false);
-    }
+      return "keep";
+    });
   };
 
   if (!user) return null;
@@ -60,6 +57,26 @@ export default function SettingsPage() {
               className="flex items-center justify-between px-4 py-3.5"
             >
               <span className="text-sm text-gray-800">개인위치정보 수집·이용 안내</span>
+              <span className="text-xs text-gray-400">보기</span>
+            </Link>
+          </div>
+        </section>
+
+        <section className="mt-6">
+          <h2 className="text-sm font-bold text-gray-800 mb-3">알림</h2>
+          <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-100">
+            <Link
+              href="/my/notifications"
+              className="flex items-center justify-between px-4 py-3.5"
+            >
+              <span className="text-sm text-gray-800">알림함</span>
+              <span className="text-xs text-gray-400">보기</span>
+            </Link>
+            <Link
+              href="/my/settings/notifications"
+              className="flex items-center justify-between px-4 py-3.5"
+            >
+              <span className="text-sm text-gray-800">알림 설정</span>
               <span className="text-xs text-gray-400">보기</span>
             </Link>
           </div>

@@ -16,6 +16,7 @@ import {
   CREW_MEMBERS_MIN,
   CREW_NAME_MAX_LENGTH,
 } from "@/lib/constants";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 import type { SerializedCrew, SerializedCrewMember } from "@/types/crew";
 
 type AdminMember = SerializedCrewMember & { username: string | null };
@@ -27,7 +28,7 @@ export default function AdminCrewDetailPage() {
   const [crew, setCrew] = useState<SerializedCrew | null>(null);
   const [members, setMembers] = useState<AdminMember[]>([]);
   const [message, setMessage] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const { locked: saving, run } = useSubmitLock();
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -59,10 +60,9 @@ export default function AdminCrewDetailPage() {
     });
   }, [load]);
 
-  const handleSave = async () => {
-    setSaving(true);
-    setMessage(null);
-    try {
+  const handleSave = () => {
+    void run(async () => {
+      setMessage(null);
       const res = await fetch(`/api/admin/crews/${crewId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -76,28 +76,30 @@ export default function AdminCrewDetailPage() {
       const data = await res.json();
       if (!res.ok) {
         setMessage(data.error ?? "저장에 실패했습니다.");
-        return;
+        return "release";
       }
       setMessage("저장했습니다.");
       await load();
-    } finally {
-      setSaving(false);
-    }
+      return "release";
+    });
   };
 
-  const handleDissolve = async () => {
+  const handleDissolve = () => {
     if (!window.confirm("이 크루를 강제 해산할까요? 복구할 수 없습니다.")) {
       return;
     }
-    const res = await fetch(`/api/admin/crews/${crewId}/dissolve`, {
-      method: "POST",
+    void run(async () => {
+      const res = await fetch(`/api/admin/crews/${crewId}/dissolve`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error ?? "해산에 실패했습니다.");
+        return "release";
+      }
+      router.push("/admin/crews");
+      return "keep";
     });
-    const data = await res.json();
-    if (!res.ok) {
-      setMessage(data.error ?? "해산에 실패했습니다.");
-      return;
-    }
-    router.push("/admin/crews");
   };
 
   if (!crew) {

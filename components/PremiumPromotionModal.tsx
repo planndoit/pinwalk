@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 
 interface CommonCodeOption {
   code: string;
@@ -43,7 +44,7 @@ export default function PremiumPromotionModal({
   onSuccess,
 }: PremiumPromotionModalProps) {
   const [categories, setCategories] = useState<CommonCodeOption[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { locked: loading, run, unlock } = useSubmitLock();
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     categoryCode: "",
@@ -70,42 +71,46 @@ export default function PremiumPromotionModal({
     });
   }, [open]);
 
+  useEffect(() => {
+    if (!open) unlock();
+  }, [open, unlock]);
+
   if (!open) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    setLoading(true);
-    setError(null);
+    void run(async () => {
+      setError(null);
 
-    const res = await fetch("/api/premium-promotion-requests", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        categoryCode: form.categoryCode,
-        storeName: form.storeName,
-        contactPhone: form.contactPhone,
-        contactEmail: form.contactEmail || null,
-        contactName: form.contactName || null,
-        address: form.address,
-        placePhone: form.placePhone,
-        lat: selectedLocation?.lat ?? null,
-        lng: selectedLocation?.lng ?? null,
-        promoText: form.promoText,
-        promoLink: form.promoLink || null,
-      }),
+      const res = await fetch("/api/premium-promotion-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          categoryCode: form.categoryCode,
+          storeName: form.storeName,
+          contactPhone: form.contactPhone,
+          contactEmail: form.contactEmail || null,
+          contactName: form.contactName || null,
+          address: form.address,
+          placePhone: form.placePhone,
+          lat: selectedLocation?.lat ?? null,
+          lng: selectedLocation?.lng ?? null,
+          promoText: form.promoText,
+          promoLink: form.promoLink || null,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error);
+        return "release";
+      }
+
+      onSuccess(data.message);
+      onClose();
+      return "keep";
     });
-    const data = await res.json();
-
-    if (!res.ok) {
-      setError(data.error);
-      setLoading(false);
-      return;
-    }
-
-    onSuccess(data.message);
-    onClose();
-    setLoading(false);
   };
 
   return (

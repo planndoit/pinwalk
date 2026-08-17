@@ -5,7 +5,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ActivityTimeline from "@/components/ActivityTimeline";
 import { useAuth } from "@/components/AuthProvider";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import ProfileEditorSection from "@/components/my/ProfileEditorSection";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 import type { TimelineEvent, UserStats } from "@/types/ranking";
 
 export default function MyPage() {
@@ -22,7 +24,7 @@ export default function MyPage() {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { locked: saving, run: runSave } = useSubmitLock();
   const [toast, setToast] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -123,9 +125,7 @@ export default function MyPage() {
     nickname: string;
     avatar?: { base64: string; mime: string };
   }) => {
-    if (saving) return;
-    setSaving(true);
-    try {
+    await runSave(async () => {
       const body: Record<string, unknown> = { nickname: payload.nickname };
       if (payload.avatar) {
         body.avatar_base64 = payload.avatar.base64;
@@ -141,14 +141,13 @@ export default function MyPage() {
 
       if (!res.ok) {
         showToast(data.error ?? "저장에 실패했습니다.");
-        return;
+        return "release";
       }
 
       await refreshProfile();
       showToast("프로필이 저장되었습니다.");
-    } finally {
-      setSaving(false);
-    }
+      return "release";
+    });
   };
 
   const handleLogout = async () => {
@@ -175,7 +174,9 @@ export default function MyPage() {
         <header className="px-4 pt-safe pb-4 bg-white border-b border-gray-100">
           <div className="flex items-center justify-between mt-3">
             <h1 className="text-xl font-extrabold text-gray-900">마이페이지</h1>
-            <div className="relative" ref={menuRef}>
+            <div className="flex items-center gap-0.5">
+              <NotificationBell />
+              <div className="relative" ref={menuRef}>
               <button
                 type="button"
                 onClick={() => setMenuOpen((open) => !open)}
@@ -217,6 +218,7 @@ export default function MyPage() {
                   </button>
                 </div>
               ) : null}
+            </div>
             </div>
           </div>
         </header>

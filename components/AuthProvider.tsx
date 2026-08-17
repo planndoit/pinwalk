@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [isClient]);
 
   const shouldAuthenticate = isClient && supabase !== null;
-  const loading = shouldAuthenticate ? authLoading : false;
+  const loading = !isClient || (shouldAuthenticate ? authLoading : false);
 
   const fetchProfile = useCallback(async (): Promise<boolean> => {
     const res = await fetch("/api/profile");

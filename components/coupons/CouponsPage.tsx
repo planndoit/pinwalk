@@ -6,6 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { formatActivityDate } from "@/lib/formatDate";
 import { saveFocusPremiumPlace } from "@/lib/premium/focusPlace";
 import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 import type { SerializedUserCoupon } from "@/types/premiumClient";
 
 export default function CouponsPage() {
@@ -14,7 +15,7 @@ export default function CouponsPage() {
   const [coupons, setCoupons] = useState<SerializedUserCoupon[]>([]);
   const [selected, setSelected] = useState<SerializedUserCoupon | null>(null);
   const [confirmUse, setConfirmUse] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const { locked: using, run } = useSubmitLock();
   const [message, setMessage] = useState<string | null>(null);
 
   const fetchCoupons = useCallback(async () => {
@@ -38,18 +39,19 @@ export default function CouponsPage() {
     });
   }, [user, fetchCoupons]);
 
-  const handleUse = async () => {
+  const handleUse = () => {
     if (!selected) return;
-    setLoading(true);
-    const res = await fetch(`/api/my/coupons/${selected.id}/use`, {
-      method: "POST",
+    void run(async () => {
+      const res = await fetch(`/api/my/coupons/${selected.id}/use`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      setMessage(res.ok ? data.message : data.error);
+      setConfirmUse(false);
+      setSelected(null);
+      if (res.ok) void fetchCoupons();
+      return "release";
     });
-    const data = await res.json();
-    setMessage(res.ok ? data.message : data.error);
-    setConfirmUse(false);
-    setSelected(null);
-    setLoading(false);
-    if (res.ok) void fetchCoupons();
   };
 
   const handleViewPlace = () => {
@@ -196,10 +198,10 @@ export default function CouponsPage() {
                 <button
                   type="button"
                   onClick={handleUse}
-                  disabled={loading}
+                  disabled={using}
                   className="w-full py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50"
                 >
-                  {loading ? "처리 중..." : "사용 확인"}
+                  {using ? "처리 중..." : "사용 확인"}
                 </button>
                 <button
                   type="button"

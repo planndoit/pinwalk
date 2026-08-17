@@ -11,6 +11,7 @@ import {
   AdminTextarea,
 } from "@/components/admin/AdminUi";
 import { LANDMARK_SOURCE_ATTRIBUTION, TOUR_CONTENT_TYPE_LABELS } from "@/lib/constants";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 
 const MAP_HEIGHT = Math.round(320 * 1.5);
 
@@ -41,7 +42,7 @@ export default function AdminLandmarkDetailPage() {
   });
   const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const { locked: saving, run } = useSubmitLock();
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchDetail = useCallback(async () => {
@@ -87,7 +88,7 @@ export default function AdminLandmarkDetailPage() {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }, [form.radiusMeters]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.name.trim()) {
       setMessage("이름을 입력해주세요.");
       return;
@@ -102,9 +103,8 @@ export default function AdminLandmarkDetailPage() {
       return;
     }
 
-    setSaving(true);
-    setMessage(null);
-    try {
+    void run(async () => {
+      setMessage(null);
       const res = await fetch(`/api/admin/landmarks/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -125,13 +125,12 @@ export default function AdminLandmarkDetailPage() {
       const data = await res.json();
       if (!res.ok) {
         setMessage(data.error ?? "저장에 실패했습니다.");
-        return;
+        return "release";
       }
       window.alert("저장되었습니다.");
       router.push(backHref);
-    } finally {
-      setSaving(false);
-    }
+      return "keep";
+    });
   };
 
   const handleRefresh = async () => {

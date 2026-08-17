@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import type { RankingEntry, RankingType } from "@/types/ranking";
 
 type RankTab =
@@ -121,8 +122,13 @@ export default function RankingPage() {
     <div className="h-dvh overflow-y-auto bg-gray-50 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
       <div className="max-w-lg mx-auto">
         <header className="px-4 pt-safe pb-3 bg-white border-b border-gray-100">
-          <h1 className="text-xl font-extrabold text-gray-900 mt-3">랭킹</h1>
-          <p className="text-xs text-gray-400 mt-1">상위 100위까지 표시됩니다</p>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <div>
+              <h1 className="text-xl font-extrabold text-gray-900">랭킹</h1>
+              <p className="text-xs text-gray-400 mt-1">상위 100위까지 표시됩니다</p>
+            </div>
+            <NotificationBell />
+          </div>
         </header>
 
         <div className="px-4 pt-3 pb-2">

@@ -11,6 +11,7 @@ import {
   AdminTextarea,
 } from "@/components/admin/AdminUi";
 import { DEFAULT_LANDMARK_RADIUS_METERS } from "@/lib/constants";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 
 export default function AdminLandmarkNewPage() {
   const router = useRouter();
@@ -28,13 +29,13 @@ export default function AdminLandmarkNewPage() {
     adminNote: "",
   });
   const [message, setMessage] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const { locked: saving, run } = useSubmitLock();
 
   const handlePick = useCallback((lat: number, lng: number) => {
     setForm((prev) => ({ ...prev, lat, lng }));
   }, []);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.name.trim()) {
       setMessage("이름을 입력해주세요.");
       return;
@@ -49,9 +50,8 @@ export default function AdminLandmarkNewPage() {
       return;
     }
 
-    setSaving(true);
-    setMessage(null);
-    try {
+    void run(async () => {
+      setMessage(null);
       const res = await fetch("/api/admin/landmarks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,12 +72,11 @@ export default function AdminLandmarkNewPage() {
       const data = await res.json();
       if (!res.ok) {
         setMessage(data.error ?? "등록에 실패했습니다.");
-        return;
+        return "release";
       }
       router.push(`/admin/landmarks/${data.landmark.id}`);
-    } finally {
-      setSaving(false);
-    }
+      return "keep";
+    });
   };
 
   return (
