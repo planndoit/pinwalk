@@ -74,13 +74,21 @@ export async function GET(request: Request) {
       memberCountByCrew.set(id, (memberCountByCrew.get(id) ?? 0) + 1);
     }
 
-    const leaderIds = [...new Set(rows.map((row) => row.leader_id))];
-    const { data: leaders } = await admin
-      .from("profiles")
-      .select("id, nickname")
-      .in("id", leaderIds);
-    for (const leader of leaders ?? []) {
-      leaderNicknameById.set(leader.id as string, leader.nickname as string);
+    const leaderIds = [
+      ...new Set(
+        rows
+          .map((row) => row.leader_id)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+    if (leaderIds.length > 0) {
+      const { data: leaders } = await admin
+        .from("profiles")
+        .select("id, nickname")
+        .in("id", leaderIds);
+      for (const leader of leaders ?? []) {
+        leaderNicknameById.set(leader.id as string, leader.nickname as string);
+      }
     }
   }
 
@@ -88,7 +96,9 @@ export async function GET(request: Request) {
     crews: rows.map((row) =>
       serializeCrew(row, {
         memberCount: memberCountByCrew.get(row.id) ?? 0,
-        leaderNickname: leaderNicknameById.get(row.leader_id) ?? null,
+        leaderNickname: row.leader_id
+          ? leaderNicknameById.get(row.leader_id) ?? null
+          : null,
       })
     ),
     total: count ?? 0,

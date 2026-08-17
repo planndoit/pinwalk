@@ -20,15 +20,19 @@ export async function getCrewByInviteToken(
 
   if (error || !data) return null;
 
-  const { data: leader } = await admin
-    .from("profiles")
-    .select("nickname")
-    .eq("id", data.leader_id)
-    .maybeSingle();
+  let leaderNickname: string | null = null;
+  if (data.leader_id) {
+    const { data: leader } = await admin
+      .from("profiles")
+      .select("nickname")
+      .eq("id", data.leader_id)
+      .maybeSingle();
+    leaderNickname = leader?.nickname ?? null;
+  }
 
   return serializeCrew(data as Crew, {
     memberCount: await getCrewMemberCount(data.id),
-    leaderNickname: leader?.nickname ?? null,
+    leaderNickname,
   });
 }
 

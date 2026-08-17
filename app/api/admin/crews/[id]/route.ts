@@ -93,8 +93,9 @@ export async function GET(
   return NextResponse.json({
     crew: serializeCrew(crew, {
       memberCount: await getCrewMemberCount(id),
-      leaderNickname:
-        profileById.get(crew.leader_id)?.nickname ?? DEFAULT_NICKNAME,
+      leaderNickname: crew.leader_id
+        ? profileById.get(crew.leader_id)?.nickname ?? DEFAULT_NICKNAME
+        : null,
       includeInviteToken: true,
       combatPower: serializedMembers.reduce((s, m) => s + m.combatPower, 0),
     }),

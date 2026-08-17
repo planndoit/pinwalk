@@ -23,7 +23,11 @@ export async function POST(
     return jsonError("활성 크루를 찾을 수 없습니다.", 404);
   }
 
-  const result = await dissolveCrew(id, crew.leader_id as string);
+  if (!crew.leader_id) {
+    return jsonError("크루 리더 정보가 없습니다.", 500);
+  }
+
+  const result = await dissolveCrew(id, crew.leader_id);
   if (!result.ok) {
     return jsonError(result.error, 500);
   }

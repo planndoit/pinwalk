@@ -115,6 +115,8 @@ export function StatusBadge({
     rejected: "bg-red-50 text-red-700",
     available: "bg-green-50 text-green-700",
     used: "bg-gray-100 text-gray-600",
+    answered: "bg-green-50 text-green-700",
+    closed: "bg-gray-100 text-gray-600",
   };
   const labels: Record<string, string> = {
     pending: "대기",
@@ -123,6 +125,8 @@ export function StatusBadge({
     rejected: "반려",
     available: "사용가능",
     used: "사용완료",
+    answered: "답변완료",
+    closed: "종료",
   };
 
   return (

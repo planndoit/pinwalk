@@ -24,6 +24,8 @@ export default function MyPage() {
   const [hasMore, setHasMore] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const fetchingTimelineRef = useRef(false);
 
@@ -92,6 +94,26 @@ export default function MyPage() {
     return () => observer.disconnect();
   }, [events, hasMore, timelineLoading, fetchTimeline]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
   const showToast = (message: string) => {
     setToast(message);
     setTimeout(() => setToast(null), 2500);
@@ -130,6 +152,7 @@ export default function MyPage() {
   };
 
   const handleLogout = async () => {
+    setMenuOpen(false);
     await logout();
     router.replace("/");
   };
@@ -152,12 +175,49 @@ export default function MyPage() {
         <header className="px-4 pt-safe pb-4 bg-white border-b border-gray-100">
           <div className="flex items-center justify-between mt-3">
             <h1 className="text-xl font-extrabold text-gray-900">마이페이지</h1>
-            <button
-              onClick={handleLogout}
-              className="text-xs text-gray-400 font-medium px-2 py-1"
-            >
-              로그아웃
-            </button>
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100"
+                aria-label="설정"
+                aria-expanded={menuOpen}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+              </button>
+              {menuOpen ? (
+                <div className="absolute right-0 mt-1 w-36 bg-white rounded-xl border border-gray-100 shadow-lg overflow-hidden z-20">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      router.push("/my/settings");
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                  >
+                    설정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleLogout()}
+                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 border-t border-gray-100"
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
 
@@ -261,26 +321,6 @@ export default function MyPage() {
                 </span>
               </p>
             </div>
-          </div>
-        </section>
-
-        <section className="px-4 pb-4">
-          <h2 className="text-sm font-bold text-gray-800 mb-3">약관 및 위치정보</h2>
-          <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-100">
-            <Link
-              href="/legal/location-terms"
-              className="flex items-center justify-between px-4 py-3.5"
-            >
-              <span className="text-sm text-gray-800">위치기반서비스 이용약관</span>
-              <span className="text-xs text-gray-400">보기</span>
-            </Link>
-            <Link
-              href="/legal/location-consent"
-              className="flex items-center justify-between px-4 py-3.5"
-            >
-              <span className="text-sm text-gray-800">개인위치정보 수집·이용 안내</span>
-              <span className="text-xs text-gray-400">보기</span>
-            </Link>
           </div>
         </section>
 

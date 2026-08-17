@@ -44,7 +44,13 @@ export async function GET(request: Request) {
   }
 
   const rows = (data ?? []) as Crew[];
-  const leaderIds = [...new Set(rows.map((row) => row.leader_id))];
+  const leaderIds = [
+    ...new Set(
+      rows
+        .map((row) => row.leader_id)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
   const { data: leaders } =
     leaderIds.length > 0
       ? await admin.from("profiles").select("id, nickname").in("id", leaderIds)
@@ -62,7 +68,9 @@ export async function GET(request: Request) {
       const memberCount = await getCrewMemberCount(row.id);
       return serializeCrew(row, {
         memberCount,
-        leaderNickname: nicknameById.get(row.leader_id) ?? null,
+        leaderNickname: row.leader_id
+          ? nicknameById.get(row.leader_id) ?? null
+          : null,
         includeInviteToken: true,
       });
     })

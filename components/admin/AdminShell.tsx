@@ -23,6 +23,10 @@ const MENU = [
     ],
   },
   {
+    label: "고객지원",
+    children: [{ href: "/admin/inquiries", label: "문의 관리" }],
+  },
+  {
     label: "설정",
     children: [
       { href: "/admin/settings/common-codes", label: "공통코드 관리" },

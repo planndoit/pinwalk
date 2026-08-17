@@ -93,6 +93,17 @@ const ROUTE_META: { test: (pathname: string) => boolean; meta: AdminPageMeta }[]
       meta: { title: "크루 상세" },
     },
     {
+      test: (p) => p === "/admin/inquiries",
+      meta: {
+        title: "문의 관리",
+        description: "회원 문의를 확인하고 답변합니다.",
+      },
+    },
+    {
+      test: (p) => /^\/admin\/inquiries\/[^/]+$/.test(p),
+      meta: { title: "문의 상세" },
+    },
+    {
       test: (p) => p === "/admin/settings/common-codes",
       meta: { title: "공통코드 관리" },
     },

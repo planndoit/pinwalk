@@ -51,11 +51,17 @@ export async function GET(request: Request) {
 
   const combatByUser = await getCombatPowersByUserIds(allUserIds);
 
-  const leaderIds = [...new Set(rows.map((row) => row.leader_id))];
-  const { data: leaders } = await admin
-    .from("profiles")
-    .select("id, nickname")
-    .in("id", leaderIds);
+  const leaderIds = [
+    ...new Set(
+      rows
+        .map((row) => row.leader_id)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const { data: leaders } =
+    leaderIds.length > 0
+      ? await admin.from("profiles").select("id, nickname").in("id", leaderIds)
+      : { data: [] as { id: string; nickname: string }[] };
   const nicknameById = new Map(
     (leaders ?? []).map((row) => [
       row.id as string,
@@ -73,7 +79,9 @@ export async function GET(request: Request) {
       return {
         crew: serializeCrew(crew, {
           memberCount: memberIds.length,
-          leaderNickname: nicknameById.get(crew.leader_id) ?? null,
+          leaderNickname: crew.leader_id
+            ? nicknameById.get(crew.leader_id) ?? null
+            : null,
           combatPower,
         }),
         combatPower,

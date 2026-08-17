@@ -12,7 +12,7 @@ export interface Crew {
   description: string | null;
   area_code: string;
   max_members: number;
-  leader_id: string;
+  leader_id: string | null;
   invite_token: string;
   image_data?: string | null;
   image_mime: string | null;
@@ -47,7 +47,7 @@ export interface SerializedCrew {
   areaLabel: string;
   maxMembers: number;
   memberCount: number;
-  leaderId: string;
+  leaderId: string | null;
   leaderNickname?: string | null;
   inviteToken: string;
   hasImage: boolean;

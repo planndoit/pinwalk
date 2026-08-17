@@ -79,6 +79,23 @@ export function buildPromotionRequestEmailHtml(data: {
   `;
 }
 
+export function buildInquiryEmailHtml(data: {
+  title: string;
+  content: string;
+  nickname: string;
+  username: string | null;
+}): string {
+  return `
+    <h2>새로운 문의가 접수되었습니다</h2>
+    <ul>
+      <li><strong>제목:</strong> ${escapeHtml(data.title)}</li>
+      <li><strong>닉네임:</strong> ${escapeHtml(data.nickname)}</li>
+      <li><strong>아이디:</strong> ${escapeHtml(data.username ?? "-")}</li>
+    </ul>
+    <p>${escapeHtml(data.content).replaceAll("\n", "<br />")}</p>
+  `;
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/components/AuthProvider";
 import {
   CREW_AREA_OPTIONS,
@@ -262,7 +263,7 @@ function CrewHome({
     });
   }, [loadPending, loadMembers]);
 
-  useEffect(() => {
+  const openSettings = () => {
     setSettingsForm({
       name: crew.name,
       description: crew.description ?? "",
@@ -271,7 +272,9 @@ function CrewHome({
     });
     setPendingImage(null);
     setRemoveImage(false);
-  }, [crew]);
+    setMessage(null);
+    setShowSettings(true);
+  };
 
   const sortedMembers = [...members].sort((a, b) => {
     if (memberSort === "conquests") {
@@ -406,10 +409,7 @@ function CrewHome({
             {role === "leader" ? (
               <button
                 type="button"
-                onClick={() => {
-                  setShowSettings(true);
-                  setMessage(null);
-                }}
+                onClick={openSettings}
                 className="shrink-0 px-2.5 py-1.5 rounded-lg border border-gray-200 text-[11px] font-bold text-gray-700"
               >
                 설정
@@ -624,9 +624,10 @@ function CrewHome({
         </div>
       </div>
 
-      {showSettings ? (
-        <div className="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl p-4 space-y-3 max-h-[90dvh] overflow-y-auto">
+      {showSettings
+        ? createPortal(
+            <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
+              <div className="w-full max-w-md bg-white rounded-2xl p-4 space-y-3 max-h-[80dvh] overflow-y-auto shadow-2xl">
             <h2 className="text-base font-extrabold text-gray-900">크루 설정</h2>
             <label className="block text-sm">
               <span className="text-gray-700 font-medium">크루 이름</span>
@@ -705,9 +706,11 @@ function CrewHome({
                 {savingSettings ? "저장 중..." : "저장"}
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

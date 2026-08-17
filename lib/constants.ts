@@ -104,3 +104,14 @@ export function getCrewAreaLabel(areaCode: string): string {
     areaCode
   );
 }
+
+export const INQUIRY_TITLE_MAX_LENGTH = 40;
+export const INQUIRY_CONTENT_MAX_LENGTH = 2000;
+export const INQUIRY_REPLY_MAX_LENGTH = 2000;
+
+export const INQUIRY_STATUSES = ["pending", "answered", "closed"] as const;
+export type InquiryStatus = (typeof INQUIRY_STATUSES)[number];
+
+export function isInquiryStatus(value: string): value is InquiryStatus {
+  return (INQUIRY_STATUSES as readonly string[]).includes(value);
+}
