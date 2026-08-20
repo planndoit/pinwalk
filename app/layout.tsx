@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "@/components/AuthProvider";
+import CapacitorBridge from "@/components/CapacitorBridge";
 import AppShell from "@/components/layout/AppShell";
 import { SERVICE_NAME } from "@/lib/constants";
 import "./globals.css";
@@ -71,6 +72,7 @@ export default function RootLayout({
     <html lang="ko" className="h-full">
       <body className="h-full overflow-hidden bg-gray-50 antialiased">
         <AuthProvider>
+          <CapacitorBridge />
           <AppShell>{children}</AppShell>
         </AuthProvider>
       </body>

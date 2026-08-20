@@ -1,6 +1,6 @@
 # 앱 스토어 출시 가이드
 
-> 상태: **진행 전** — Capacitor 기반 iOS/Android 스토어 출시  
+> 상태: **Android 진행 중** — Capacitor Android 프로젝트 생성·푸시/딥링크 연동 완료. iOS는 MacBook에서 별도 진행.  
 > 목적: pinwalk를 모바일 앱으로 출시할 때 따라갈 작업 순서와 체크리스트  
 > 작성: 2026-08-17  
 > 전제: 웹은 Next.js 풀스택(Vercel) + Supabase + 네이버 지도. 인앱 알림·푸시 토큰 API는 `030_notifications.sql` 기준 구현됨.
@@ -91,13 +91,15 @@ pinwalk는 `/api/*` 서버 라우트를 많이 사용하므로 **정적 빌드(s
 ### 4-1. 초기화
 
 ```bash
-npm install @capacitor/core @capacitor/cli
-npx cap init
-npm install @capacitor/ios @capacitor/android
-npx cap add ios
+npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/app \
+  @capacitor/push-notifications @capacitor/splash-screen @capacitor/status-bar
 npx cap add android
-npx cap sync
+npx cap sync android
+npm run cap:android   # Android Studio 열기
 ```
+
+- [x] Android 프로젝트 생성 (`android/`, `com.planndoit.pinwalk`)
+- [ ] iOS — MacBook에서 `npx cap add ios` (별도 진행)
 
 ### 4-2. WebView URL 설정
 
@@ -137,16 +139,16 @@ const config = {
 
 - `POST /api/my/push-tokens` — 토큰 등록
 - `DELETE /api/my/push-tokens` — 토큰 삭제
-- `lib/notifications/push.ts` — `FCM_SERVER_KEY` 설정 시 FCM 발송
+- `lib/notifications/push.ts` — Firebase 서비스 계정으로 FCM HTTP v1 발송
 
 **앱에서 할 일:**
 
 - [ ] Firebase 프로젝트 생성
-- [ ] Android: `google-services.json` 추가
-- [ ] iOS: APNs 키 → Firebase 연동, `GoogleService-Info.plist` 추가
-- [ ] `@capacitor/push-notifications`로 토큰 수신 → `POST /api/my/push-tokens`
-- [ ] 푸시 탭 시 딥링크 (`data.path`, `/my/notifications`, `/crew` 등)
-- [ ] Vercel 환경변수에 `FCM_SERVER_KEY` 등록
+- [ ] Android: `google-services.json` → `android/app/` (`google-services.json.example` 참고)
+- [ ] iOS: APNs 키 → Firebase 연동, `GoogleService-Info.plist` 추가 (MacBook)
+- [x] `@capacitor/push-notifications`로 토큰 수신 → `POST /api/my/push-tokens` (`lib/capacitor/push.ts`)
+- [x] 푸시 탭 시 딥링크 (`data.path`) — `CapacitorBridge`
+- [ ] Vercel에 Firebase 서비스 계정 등록 (`FIREBASE_SERVICE_ACCOUNT_JSON` 또는 `FIREBASE_PROJECT_ID` + `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY`)
 
 ### 5-2. 위치 권한 (OS)
 
@@ -162,7 +164,10 @@ const config = {
 ```xml
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 ```
+
+- [x] Android 위치·알림 권한 선언
 
 - WebView `navigator.geolocation`은 대부분 동작
 - 권한 거부 시 `@capacitor/geolocation` fallback 검토
@@ -220,9 +225,12 @@ const config = {
 
 ### 8-1. Android Studio
 
-- [ ] `applicationId`, keystore 생성·안전 보관
-- [ ] `targetSdkVersion` 최신 요구사항 충족
-- [ ] 알림 채널(Android 8+) 설정
+- [x] `applicationId` `com.planndoit.pinwalk`, Capacitor 프로젝트 생성
+- [ ] keystore 생성·안전 보관 (`android/keystore.properties.example` 참고)
+- [x] `targetSdkVersion` 36 (Capacitor 기본)
+- [ ] 알림 채널(Android 8+) — FCM 연동 후 실기기 확인
+
+상세: `android/README.md`
 
 ### 8-2. Google Play Console
 
@@ -294,7 +302,7 @@ const config = {
 
 | 변수 | 용도 |
 |------|------|
-| `FCM_SERVER_KEY` | 서버 → FCM 푸시 발송 (`lib/notifications/push.ts`) |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | 서버 → FCM HTTP v1 푸시 발송 (`lib/notifications/push.ts`) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Auth·DB |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Auth·DB |
 | `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID` | 지도 |

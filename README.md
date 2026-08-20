@@ -54,3 +54,14 @@ npm run dev
 ## 배포 (Vercel)
 
 Vercel에 연결 후 환경변수를 모두 설정하고 배포합니다.
+
+## Android 앱 (Capacitor)
+
+웹 API를 그대로 쓰는 WebView 앱입니다. 상세는 `android/README.md`, 전체 출시 순서는 `docs/app-release-guide.md`를 참고하세요.
+
+```bash
+npm run cap:sync:android   # 플러그인/설정 동기화
+npm run cap:android        # Android Studio 열기
+```
+
+Firebase `google-services.json`과 Play Console keystore는 출시 직전에 설정합니다.
