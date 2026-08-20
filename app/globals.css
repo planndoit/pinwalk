@@ -27,6 +27,11 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+.px-safe {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+}
+
 @keyframes slide-up {
   from {
     transform: translateY(100%);
