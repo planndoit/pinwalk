@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import OverlayPortal from "@/components/layout/OverlayPortal";
-import ZoomableViewport from "@/components/ZoomableViewport";
+import ZoomableViewport, {
+  type ZoomableViewportHandle,
+} from "@/components/ZoomableViewport";
 import { formatActivityDate } from "@/lib/formatDate";
 import {
   KOREA_MAP_SIZE,
@@ -54,6 +56,45 @@ function geometryToPath(geometry: SigunguFeature["geometry"]): string {
   return parts.join(" ");
 }
 
+function geometryBBox(geometry: SigunguFeature["geometry"]): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+} {
+  const polygons =
+    geometry.type === "Polygon"
+      ? [geometry.coordinates as number[][][]]
+      : (geometry.coordinates as number[][][][]);
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const polygon of polygons) {
+    const outer = polygon[0];
+    if (!outer) continue;
+    for (const point of outer) {
+      if (!point || point.length < 2) continue;
+      const { x, y } = projectKoreaLngLat(point[0], point[1]);
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+function regionFill(visited: boolean, selected: boolean): string {
+  if (selected) return visited ? "#f59e0b" : "#fcd34d";
+  return visited ? "#2563eb" : "#f3f4f6";
+}
+
+function regionStroke(visited: boolean, selected: boolean): string {
+  if (selected) return "#b45309";
+  return visited ? "#1e40af" : "#e5e7eb";
+}
+
 function groupVisitedRegions(stats: VisitStats) {
   const groups: {
     sido_code: string;
@@ -89,6 +130,7 @@ export default function VisitMapModal({
   const [geojson, setGeojson] = useState<SigunguCollection | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const viewportRef = useRef<ZoomableViewportHandle>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -124,6 +166,27 @@ export default function VisitMapModal({
     return map;
   }, [visits]);
 
+  const focusRegion = useCallback(
+    (code: string) => {
+      const feature = geojson?.features.find(
+        (item) => item.properties.SIG_CD === code
+      );
+      if (!feature) return;
+      const bbox = geometryBBox(feature.geometry);
+      if (!Number.isFinite(bbox.minX) || !Number.isFinite(bbox.maxX)) return;
+      viewportRef.current?.focusRect(bbox, KOREA_MAP_SIZE);
+    },
+    [geojson]
+  );
+
+  const selectFromList = useCallback(
+    (code: string) => {
+      setSelectedCode(code);
+      focusRegion(code);
+    },
+    [focusRegion]
+  );
+
   const selectedFeature = geojson?.features.find(
     (feature) => feature.properties.SIG_CD === selectedCode
   );
@@ -136,157 +199,156 @@ export default function VisitMapModal({
 
   return (
     <OverlayPortal>
-    <div className={`fixed inset-0 ${OVERLAY_Z_CLASS} flex items-end sm:items-center justify-center`}>
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="visit-map-title"
-        className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85dvh] flex flex-col"
+        className={`fixed inset-0 ${OVERLAY_Z_CLASS} flex items-end sm:items-center justify-center`}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2
-            id="visit-map-title"
-            className="text-base font-bold text-gray-900 pr-4"
-          >
-            내가 방문한 곳
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 shrink-0 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center"
-            aria-label="닫기"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="overflow-y-auto px-5 py-4">
-          <p className="text-sm text-gray-600">
-            {visits
-              ? `${visits.visited_count} / ${visits.total_count}개 시·군·구 · ${visits.sido_visited_count}개 시·도`
-              : "방문 기록을 불러오는 중..."}
-          </p>
-
-          <div className="mt-3 rounded-2xl bg-slate-50 border border-gray-100 overflow-hidden">
-            {loadError ? (
-              <p className="text-sm text-red-500 text-center py-10">
-                {loadError}
-              </p>
-            ) : !geojson ? (
-              <div className="flex justify-center py-16">
-                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : (
-              <ZoomableViewport
-                className="w-full"
-                style={{
-                  aspectRatio: `${KOREA_MAP_SIZE.width} / ${KOREA_MAP_SIZE.height}`,
-                }}
-              >
-              <svg
-                viewBox={`0 0 ${KOREA_MAP_SIZE.width} ${KOREA_MAP_SIZE.height}`}
-                className="block h-full w-full"
-                role="img"
-                aria-label="전국 시군구 방문 지도"
-              >
-                {geojson.features.map((feature) => {
-                  const code = feature.properties.SIG_CD;
-                  const visited = visitedByCode.has(code);
-                  const selected = selectedCode === code;
-                  return (
-                    <path
-                      key={code}
-                      d={geometryToPath(feature.geometry)}
-                      fillRule="evenodd"
-                      onClick={() => setSelectedCode(code)}
-                      className="cursor-pointer"
-                      fill={
-                        selected
-                          ? visited
-                            ? "#1d4ed8"
-                            : "#cbd5e1"
-                          : visited
-                            ? "#2563eb"
-                            : "#f3f4f6"
-                      }
-                      stroke={visited ? "#1e40af" : "#e5e7eb"}
-                      strokeWidth={selected ? 0.018 : 0.01}
-                    />
-                  );
-                })}
-              </svg>
-              </ZoomableViewport>
-            )}
+        <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="visit-map-title"
+          className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85dvh] flex flex-col"
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h2
+              id="visit-map-title"
+              className="text-base font-bold text-gray-900 pr-4"
+            >
+              내가 방문한 곳
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 shrink-0 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center"
+              aria-label="닫기"
+            >
+              ✕
+            </button>
           </div>
 
-          {selectedFeature ? (
-            <div className="mt-3 rounded-2xl border border-gray-100 bg-white px-4 py-3">
-              <p className="text-xs text-gray-400">
-                {selectedFeature.properties.CTP_KOR_NM}
-              </p>
-              <p className="text-sm font-bold text-gray-900 mt-0.5">
-                {selectedFeature.properties.SIG_KOR_NM}
-              </p>
-              {selectedVisit ? (
-                <p className="text-xs text-gray-500 mt-1">
-                  첫 방문 {formatActivityDate(selectedVisit.first_visited_at)} ·
-                  깃발 {selectedVisit.pin_count.toLocaleString()}개
+          <div className="overflow-y-auto px-5 py-4">
+            <p className="text-sm text-gray-600">
+              {visits
+                ? `${visits.visited_count} / ${visits.total_count}개 시·군·구 · ${visits.sido_visited_count}개 시·도`
+                : "방문 기록을 불러오는 중..."}
+            </p>
+
+            <div className="mt-3 rounded-2xl bg-slate-50 border border-gray-100 overflow-hidden">
+              {loadError ? (
+                <p className="text-sm text-red-500 text-center py-10">
+                  {loadError}
                 </p>
+              ) : !geojson ? (
+                <div className="flex justify-center py-16">
+                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
               ) : (
-                <p className="text-xs text-gray-400 mt-1">아직 방문하지 않은 곳</p>
+                <ZoomableViewport
+                  ref={viewportRef}
+                  className="w-full"
+                  style={{
+                    aspectRatio: `${KOREA_MAP_SIZE.width} / ${KOREA_MAP_SIZE.height}`,
+                  }}
+                >
+                  <svg
+                    viewBox={`0 0 ${KOREA_MAP_SIZE.width} ${KOREA_MAP_SIZE.height}`}
+                    className="block h-full w-full"
+                    role="img"
+                    aria-label="전국 시군구 방문 지도"
+                  >
+                    {geojson.features.map((feature) => {
+                      const code = feature.properties.SIG_CD;
+                      const visited = visitedByCode.has(code);
+                      const selected = selectedCode === code;
+                      return (
+                        <path
+                          key={code}
+                          d={geometryToPath(feature.geometry)}
+                          fillRule="evenodd"
+                          onClick={() => setSelectedCode(code)}
+                          className="cursor-pointer"
+                          fill={regionFill(visited, selected)}
+                          stroke={regionStroke(visited, selected)}
+                          strokeWidth={selected ? 0.028 : 0.01}
+                        />
+                      );
+                    })}
+                  </svg>
+                </ZoomableViewport>
               )}
             </div>
-          ) : (
-            <p className="text-xs text-gray-400 mt-3">
-              지역을 누르면 이름을 확인할 수 있어요.
-            </p>
-          )}
 
-          <div className="mt-5">
-            <h3 className="text-sm font-bold text-gray-800 mb-2">방문 목록</h3>
-            {groups.length === 0 ? (
-              <p className="text-sm text-gray-400 py-6 text-center">
-                깃발을 꽂으면 방문한 시·군·구가 여기에 쌓여요.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {groups.map((group) => (
-                  <div key={group.sido_code}>
-                    <p className="text-xs font-semibold text-gray-500 mb-1.5">
-                      {group.sido_name}
-                    </p>
-                    <ul className="space-y-1">
-                      {group.regions.map((region) => (
-                        <li key={region.code}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedCode(region.code)}
-                            className={`w-full text-left rounded-xl px-3 py-2 border ${
-                              selectedCode === region.code
-                                ? "border-blue-200 bg-blue-50"
-                                : "border-gray-100 bg-white"
-                            }`}
-                          >
-                            <p className="text-sm font-semibold text-gray-900">
-                              {region.name}
-                            </p>
-                            <p className="text-[11px] text-gray-400 mt-0.5">
-                              첫 방문 {formatActivityDate(region.first_visited_at)}{" "}
-                              · 깃발 {region.pin_count.toLocaleString()}개
-                            </p>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+            {selectedFeature ? (
+              <div className="mt-3 rounded-2xl border border-gray-100 bg-white px-4 py-3">
+                <p className="text-xs text-gray-400">
+                  {selectedFeature.properties.CTP_KOR_NM}
+                </p>
+                <p className="text-sm font-bold text-gray-900 mt-0.5">
+                  {selectedFeature.properties.SIG_KOR_NM}
+                </p>
+                {selectedVisit ? (
+                  <p className="text-xs text-gray-500 mt-1">
+                    첫 방문{" "}
+                    {formatActivityDate(selectedVisit.first_visited_at)} · 깃발{" "}
+                    {selectedVisit.pin_count.toLocaleString()}개
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-1">
+                    아직 방문하지 않은 곳
+                  </p>
+                )}
               </div>
+            ) : (
+              <p className="text-xs text-gray-400 mt-3">
+                지역을 누르면 이름을 확인할 수 있어요.
+              </p>
             )}
+
+            <div className="mt-5">
+              <h3 className="text-sm font-bold text-gray-800 mb-2">방문 목록</h3>
+              {groups.length === 0 ? (
+                <p className="text-sm text-gray-400 py-6 text-center">
+                  깃발을 꽂으면 방문한 시·군·구가 여기에 쌓여요.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {groups.map((group) => (
+                    <div key={group.sido_code}>
+                      <p className="text-xs font-semibold text-gray-500 mb-1.5">
+                        {group.sido_name}
+                      </p>
+                      <ul className="space-y-1">
+                        {group.regions.map((region) => (
+                          <li key={region.code}>
+                            <button
+                              type="button"
+                              onClick={() => selectFromList(region.code)}
+                              className={`w-full text-left rounded-xl px-3 py-2 border ${
+                                selectedCode === region.code
+                                  ? "border-amber-300 bg-amber-50"
+                                  : "border-gray-100 bg-white"
+                              }`}
+                            >
+                              <p className="text-sm font-semibold text-gray-900">
+                                {region.name}
+                              </p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">
+                                첫 방문{" "}
+                                {formatActivityDate(region.first_visited_at)} ·
+                                깃발 {region.pin_count.toLocaleString()}개
+                              </p>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </OverlayPortal>
   );
 }
