@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 
 interface AuthModalProps {
   open: boolean;
@@ -30,6 +31,7 @@ export default function AuthModal({
   if (!open) return null;
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
       <div
         className="absolute inset-0 bg-black/50"
@@ -93,5 +95,6 @@ export default function AuthModal({
         </p>
       </div>
     </div>
+    </OverlayPortal>
   );
 }

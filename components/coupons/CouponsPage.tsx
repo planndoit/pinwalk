@@ -7,6 +7,7 @@ import { formatActivityDate } from "@/lib/formatDate";
 import { saveFocusPremiumPlace } from "@/lib/premium/focusPlace";
 import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
 import { useSubmitLock } from "@/lib/useSubmitLock";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 import type { SerializedUserCoupon } from "@/types/premiumClient";
 
 export default function CouponsPage() {
@@ -142,6 +143,7 @@ export default function CouponsPage() {
       </div>
 
       {selected && (
+        <OverlayPortal>
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg bg-white rounded-2xl p-5 max-h-[85dvh] overflow-y-auto">
             <h3 className="text-lg font-bold">{selected.title}</h3>
@@ -225,6 +227,7 @@ export default function CouponsPage() {
             </button>
           </div>
         </div>
+        </OverlayPortal>
       )}
     </div>
   );

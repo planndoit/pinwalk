@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 
 export type CelebrationType = "plant" | "conquer";
 
@@ -43,6 +44,7 @@ export default function CelebrationOverlay({
   }, [type]);
 
   return (
+    <OverlayPortal>
     <div className="celebration-overlay fixed inset-0 z-[100] pointer-events-none overflow-hidden flex items-center justify-center">
       {type === "plant" ? (
         <div className="relative flex items-center justify-center">
@@ -93,5 +95,6 @@ export default function CelebrationOverlay({
         </>
       )}
     </div>
+    </OverlayPortal>
   );
 }

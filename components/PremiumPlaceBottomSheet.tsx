@@ -1,6 +1,7 @@
 "use client";
 
 import type { SerializedPremiumPlace } from "@/types/premiumClient";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
 import { toExternalHref, toTelHref } from "@/lib/validation/premium";
 
@@ -22,6 +23,7 @@ export default function PremiumPlaceBottomSheet({
   const placePhone = place.placePhone?.trim() || null;
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-40">
       <button
         type="button"
@@ -95,5 +97,6 @@ export default function PremiumPlaceBottomSheet({
         </div>
       </div>
     </div>
+    </OverlayPortal>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_NICKNAME } from "@/lib/constants";
 import { useSubmitLock } from "@/lib/useSubmitLock";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 
 interface NicknameModalProps {
   open: boolean;
@@ -49,6 +50,7 @@ export default function NicknameModal({
   };
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/50"
@@ -92,5 +94,6 @@ export default function NicknameModal({
         </div>
       </div>
     </div>
+    </OverlayPortal>
   );
 }

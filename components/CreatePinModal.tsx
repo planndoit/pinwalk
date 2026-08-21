@@ -10,6 +10,7 @@ import {
 } from "@/lib/constants";
 import { useSubmitLock } from "@/lib/useSubmitLock";
 import FlagIcon from "@/components/icons/FlagIcon";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 
 interface CreatePinModalProps {
   open: boolean;
@@ -65,6 +66,7 @@ export default function CreatePinModal({
   };
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div
         className="absolute inset-0 bg-black/50"
@@ -152,5 +154,6 @@ export default function CreatePinModal({
         </div>
       </div>
     </div>
+    </OverlayPortal>
   );
 }

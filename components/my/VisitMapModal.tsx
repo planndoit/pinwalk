@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import OverlayPortal from "@/components/layout/OverlayPortal";
+import ZoomableViewport from "@/components/ZoomableViewport";
 import { formatActivityDate } from "@/lib/formatDate";
 import {
   KOREA_MAP_SIZE,
   projectKoreaLngLat,
 } from "@/lib/geo/koreaMapProjection";
+import { OVERLAY_Z_CLASS } from "@/lib/layout/constants";
 import type { SigunguCollection, SigunguFeature, VisitStats } from "@/types/visit";
 
 let geojsonPromise: Promise<SigunguCollection> | null = null;
@@ -132,7 +135,8 @@ export default function VisitMapModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center">
+    <OverlayPortal>
+    <div className={`fixed inset-0 ${OVERLAY_Z_CLASS} flex items-end sm:items-center justify-center`}>
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div
         role="dialog"
@@ -164,7 +168,7 @@ export default function VisitMapModal({
               : "방문 기록을 불러오는 중..."}
           </p>
 
-          <div className="mt-3 rounded-2xl bg-slate-50 border border-gray-100 p-3">
+          <div className="mt-3 rounded-2xl bg-slate-50 border border-gray-100 overflow-hidden">
             {loadError ? (
               <p className="text-sm text-red-500 text-center py-10">
                 {loadError}
@@ -174,9 +178,15 @@ export default function VisitMapModal({
                 <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               </div>
             ) : (
+              <ZoomableViewport
+                className="w-full"
+                style={{
+                  aspectRatio: `${KOREA_MAP_SIZE.width} / ${KOREA_MAP_SIZE.height}`,
+                }}
+              >
               <svg
                 viewBox={`0 0 ${KOREA_MAP_SIZE.width} ${KOREA_MAP_SIZE.height}`}
-                className="w-full h-auto"
+                className="block h-full w-full"
                 role="img"
                 aria-label="전국 시군구 방문 지도"
               >
@@ -206,6 +216,7 @@ export default function VisitMapModal({
                   );
                 })}
               </svg>
+              </ZoomableViewport>
             )}
           </div>
 
@@ -276,5 +287,6 @@ export default function VisitMapModal({
         </div>
       </div>
     </div>
+    </OverlayPortal>
   );
 }

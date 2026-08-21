@@ -8,6 +8,7 @@ import {
 } from "@/lib/constants";
 import { calculateConquerCost } from "@/lib/points";
 import { useSubmitLock } from "@/lib/useSubmitLock";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 import type { ConquerProbability } from "@/lib/constants";
 
 interface ConquerModalProps {
@@ -74,6 +75,7 @@ export default function ConquerModal({
   };
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div
         className="absolute inset-0 bg-black/50"
@@ -177,5 +179,6 @@ export default function ConquerModal({
         )}
       </div>
     </div>
+    </OverlayPortal>
   );
 }

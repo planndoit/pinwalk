@@ -44,7 +44,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {!isMapTab && (
-        <div className="absolute inset-0 z-10 overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden">
           {children}
         </div>
       )}

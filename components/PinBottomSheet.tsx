@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import FlagIcon from "@/components/icons/FlagIcon";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 import type { Pin, PinAttempt } from "@/types/pin";
 import { DEFAULT_NICKNAME } from "@/lib/constants";
 import { getFlagLabel, getFlagTier } from "@/lib/flagVisual";
@@ -130,6 +131,7 @@ export default function PinBottomSheet({
   };
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-40 flex items-end justify-center">
       <div
         className="absolute inset-0 bg-black/30"
@@ -244,5 +246,6 @@ export default function PinBottomSheet({
         )}
       </div>
     </div>
+    </OverlayPortal>
   );
 }

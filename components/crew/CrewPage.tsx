@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useAuth } from "@/components/AuthProvider";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 import {
   CREW_AREA_OPTIONS,
   CREW_CREATE_COST,
@@ -632,8 +632,8 @@ function CrewHome({
         </div>
       </div>
 
-      {showSettings
-        ? createPortal(
+      {showSettings ? (
+        <OverlayPortal>
             <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
               <div className="w-full max-w-md bg-white rounded-2xl p-4 space-y-3 max-h-[80dvh] overflow-y-auto shadow-2xl">
             <h2 className="text-base font-extrabold text-gray-900">크루 설정</h2>
@@ -715,10 +715,9 @@ function CrewHome({
               </button>
             </div>
               </div>
-            </div>,
-            document.body
-          )
-        : null}
+            </div>
+        </OverlayPortal>
+      ) : null}
     </div>
   );
 }
@@ -969,6 +968,7 @@ export default function CrewPage() {
       </div>
 
       {showCreate ? (
+        <OverlayPortal>
         <div className="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center justify-center p-4">
           <div className="w-full max-w-md bg-white rounded-2xl p-4 space-y-3">
             <h2 className="text-base font-extrabold text-gray-900">
@@ -1039,6 +1039,7 @@ export default function CrewPage() {
             </div>
           </div>
         </div>
+        </OverlayPortal>
       ) : null}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 import LegalDocumentView from "./LegalDocumentView";
 import type { LegalDocument } from "@/lib/legal/locationLegal";
 
@@ -25,6 +26,7 @@ export default function LegalDocumentModal({
   if (!open || !document) return null;
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85dvh] flex flex-col">
@@ -55,5 +57,6 @@ export default function LegalDocumentModal({
         </div>
       </div>
     </div>
+    </OverlayPortal>
   );
 }

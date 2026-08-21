@@ -6,6 +6,7 @@ import {
   formatRemainingTime,
 } from "@/lib/naverMap";
 import { RANDOM_POINT_CLAIM_RADIUS_METERS } from "@/lib/constants";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 
 interface RandomPointBottomSheetProps {
   point: RandomPoint | null;
@@ -28,6 +29,7 @@ export default function RandomPointBottomSheet({
     distance !== null && distance <= RANDOM_POINT_CLAIM_RADIUS_METERS;
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-40 flex items-end justify-center">
       <div
         className="absolute inset-0 bg-black/30"
@@ -80,5 +82,6 @@ export default function RandomPointBottomSheet({
         )}
       </div>
     </div>
+    </OverlayPortal>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LANDMARK_SOURCE_ATTRIBUTION } from "@/lib/constants";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 import type {
   LandmarkRankingEntry,
   SerializedLandmark,
@@ -58,6 +59,7 @@ export default function LandmarkBottomSheet({
   if (!landmark) return null;
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-40">
       <button
         type="button"
@@ -183,5 +185,6 @@ export default function LandmarkBottomSheet({
         </div>
       </div>
     </div>
+    </OverlayPortal>
   );
 }

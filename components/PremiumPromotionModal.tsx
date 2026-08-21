@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSubmitLock } from "@/lib/useSubmitLock";
+import OverlayPortal from "@/components/layout/OverlayPortal";
 
 interface CommonCodeOption {
   code: string;
@@ -114,6 +115,7 @@ export default function PremiumPromotionModal({
   };
 
   return (
+    <OverlayPortal>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <form
         onSubmit={handleSubmit}
@@ -302,5 +304,6 @@ export default function PremiumPromotionModal({
         </div>
       </form>
     </div>
+    </OverlayPortal>
   );
 }
