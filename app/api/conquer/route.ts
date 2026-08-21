@@ -30,6 +30,7 @@ import {
   notifyPinConquered,
   notifyPinDefenseSuccess,
 } from "@/lib/notifications/events";
+import { recordRegionVisit } from "@/lib/visits/recordVisit";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -237,6 +238,20 @@ export async function POST(request: Request) {
       targetPin.user_id,
       user.id,
     ]);
+  }
+
+  try {
+    await recordRegionVisit({
+      userId: user.id,
+      lat: Number(newPin.lat),
+      lng: Number(newPin.lng),
+      visitedAt:
+        typeof newPin.created_at === "string"
+          ? newPin.created_at
+          : new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("recordRegionVisit failed:", error);
   }
 
   return NextResponse.json({

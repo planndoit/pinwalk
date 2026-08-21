@@ -7,8 +7,10 @@ import ActivityTimeline from "@/components/ActivityTimeline";
 import { useAuth } from "@/components/AuthProvider";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import ProfileEditorSection from "@/components/my/ProfileEditorSection";
+import VisitStatsSection from "@/components/my/VisitStatsSection";
 import { useSubmitLock } from "@/lib/useSubmitLock";
 import type { TimelineEvent, UserStats } from "@/types/ranking";
+import type { VisitStats } from "@/types/visit";
 
 export default function MyPage() {
   const {
@@ -21,6 +23,7 @@ export default function MyPage() {
   } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [visits, setVisits] = useState<VisitStats | null>(null);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -36,6 +39,14 @@ export default function MyPage() {
     if (res.ok) {
       const data = await res.json();
       setStats(data.stats);
+    }
+  }, []);
+
+  const fetchVisits = useCallback(async () => {
+    const res = await fetch("/api/my/visits");
+    if (res.ok) {
+      const data = (await res.json()) as VisitStats;
+      setVisits(data);
     }
   }, []);
 
@@ -75,9 +86,10 @@ export default function MyPage() {
     if (!user) return;
     queueMicrotask(() => {
       void fetchStats();
+      void fetchVisits();
       void fetchTimeline();
     });
-  }, [user, fetchStats, fetchTimeline]);
+  }, [user, fetchStats, fetchVisits, fetchTimeline]);
 
   useEffect(() => {
     if (!loadMoreRef.current || !hasMore) return;
@@ -325,6 +337,8 @@ export default function MyPage() {
             </div>
           </div>
         </section>
+
+        <VisitStatsSection visits={visits} />
 
         <section className="px-4 pb-6">
           <h2 className="text-sm font-bold text-gray-800 mb-3">활동 내역</h2>

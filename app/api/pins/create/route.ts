@@ -13,6 +13,7 @@ import {
 import { setPinLandmarks } from "@/lib/landmark/pinLandmarks";
 import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
 import { refreshCrewLandmarkScoresForUsers } from "@/lib/crew/scores";
+import { recordRegionVisit } from "@/lib/visits/recordVisit";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -155,6 +156,20 @@ export async function POST(request: Request) {
     await setPinLandmarks(pin.id, landmarkIds);
     await refreshUsersLandmarkScores(landmarkIds, [user.id]);
     await refreshCrewLandmarkScoresForUsers(landmarkIds, [user.id]);
+  }
+
+  try {
+    await recordRegionVisit({
+      userId: user.id,
+      lat,
+      lng,
+      visitedAt:
+        typeof pin.created_at === "string"
+          ? pin.created_at
+          : new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("recordRegionVisit failed:", error);
   }
 
   return NextResponse.json({

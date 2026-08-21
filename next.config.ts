@@ -26,6 +26,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  outputFileTracingIncludes: {
+    "/api/**": ["./public/geo/korea-sigungu.json"],
+  },
   async headers() {
     return [
       {
