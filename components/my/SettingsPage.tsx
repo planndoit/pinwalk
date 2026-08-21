@@ -46,6 +46,13 @@ export default function SettingsPage() {
           <h2 className="text-sm font-bold text-gray-800 mb-3">약관</h2>
           <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-100">
             <Link
+              href="/legal/privacy"
+              className="flex items-center justify-between px-4 py-3.5"
+            >
+              <span className="text-sm text-gray-800">개인정보처리방침</span>
+              <span className="text-xs text-gray-400">보기</span>
+            </Link>
+            <Link
               href="/legal/location-terms"
               className="flex items-center justify-between px-4 py-3.5"
             >

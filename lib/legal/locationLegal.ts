@@ -17,7 +17,7 @@ export type LegalSection = {
 };
 
 export type LegalDocument = {
-  id: "location-terms" | "location-consent";
+  id: "location-terms" | "location-consent" | "privacy-policy";
   title: string;
   version: string;
   effectiveDate: string;
@@ -154,6 +154,8 @@ function buildLocationConsent(operator: OperatorInfo): LegalDocument {
   };
 }
 
+import { getPrivacyPolicyDocument } from "./privacyPolicy";
+
 export function getLocationTermsDocument(): LegalDocument {
   return buildLocationTerms(getOperatorInfo());
 }
@@ -167,5 +169,6 @@ export function getLegalDocumentById(
 ): LegalDocument | null {
   if (id === "location-terms") return getLocationTermsDocument();
   if (id === "location-consent") return getLocationConsentDocument();
+  if (id === "privacy-policy") return getPrivacyPolicyDocument();
   return null;
 }
