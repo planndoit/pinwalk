@@ -1,3 +1,5 @@
+import { FirebaseMessaging } from "@capacitor-firebase/messaging";
+import { Capacitor } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { getCapacitorPlatform, isCapacitorNative } from "@/lib/capacitor/platform";
 
@@ -22,6 +24,10 @@ export async function unregisterCurrentPushToken(): Promise<void> {
   const token = registeredToken;
   registeredToken = null;
 
+  if (Capacitor.getPlatform() === "ios") {
+    await FirebaseMessaging.deleteToken().catch(() => undefined);
+  }
+
   await fetch("/api/my/push-tokens", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
@@ -29,7 +35,7 @@ export async function unregisterCurrentPushToken(): Promise<void> {
   }).catch(() => undefined);
 }
 
-function attachPushListeners(onNavigate: (path: string) => void): void {
+function attachAndroidPushListeners(onNavigate: (path: string) => void): void {
   if (listenersAttached) return;
   listenersAttached = true;
 
@@ -49,13 +55,24 @@ function attachPushListeners(onNavigate: (path: string) => void): void {
   });
 }
 
-export async function initCapacitorPush(
-  onNavigate: (path: string) => void
-): Promise<void> {
-  if (!isCapacitorNative()) return;
+function attachIosPushListeners(onNavigate: (path: string) => void): void {
+  if (listenersAttached) return;
+  listenersAttached = true;
 
-  attachPushListeners(onNavigate);
+  FirebaseMessaging.addListener("tokenReceived", (event) => {
+    void registerToken(event.token);
+  });
 
+  FirebaseMessaging.addListener("notificationActionPerformed", (event) => {
+    const data = event.notification?.data as Record<string, unknown> | undefined;
+    const path = data?.path;
+    if (typeof path === "string" && path.startsWith("/")) {
+      onNavigate(path);
+    }
+  });
+}
+
+async function initAndroidPush(): Promise<void> {
   let permission = await PushNotifications.checkPermissions();
   if (permission.receive === "prompt") {
     permission = await PushNotifications.requestPermissions();
@@ -66,4 +83,35 @@ export async function initCapacitorPush(
   }
 
   await PushNotifications.register();
+}
+
+async function initIosPush(): Promise<void> {
+  let permission = await FirebaseMessaging.checkPermissions();
+  if (permission.receive === "prompt") {
+    permission = await FirebaseMessaging.requestPermissions();
+  }
+
+  if (permission.receive !== "granted") {
+    return;
+  }
+
+  const { token } = await FirebaseMessaging.getToken();
+  if (token) {
+    await registerToken(token);
+  }
+}
+
+export async function initCapacitorPush(
+  onNavigate: (path: string) => void
+): Promise<void> {
+  if (!isCapacitorNative()) return;
+
+  if (Capacitor.getPlatform() === "ios") {
+    attachIosPushListeners(onNavigate);
+    await initIosPush();
+    return;
+  }
+
+  attachAndroidPushListeners(onNavigate);
+  await initAndroidPush();
 }

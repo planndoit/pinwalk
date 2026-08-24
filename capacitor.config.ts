@@ -10,6 +10,17 @@ const config: CapacitorConfig = {
   appId: "com.planndoit.pinwalk",
   appName: SERVICE_NAME,
   webDir: "public",
+  experimental: {
+    ios: {
+      spm: {
+        packageOptions: {
+          "@capacitor-firebase/messaging": {
+            symlink: true,
+          },
+        },
+      },
+    },
+  },
   server: {
     url: serverUrl,
     cleartext: false,
@@ -26,6 +37,9 @@ const config: CapacitorConfig = {
       showSpinner: false,
     },
     PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"],
+    },
+    FirebaseMessaging: {
       presentationOptions: ["badge", "sound", "alert"],
     },
   },

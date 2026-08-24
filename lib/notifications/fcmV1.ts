@@ -170,6 +170,20 @@ export async function sendFcmV1Message(
           android: {
             priority: "HIGH",
           },
+          apns: {
+            headers: {
+              "apns-priority": "10",
+            },
+            payload: {
+              aps: {
+                alert: {
+                  title: payload.title,
+                  body: payload.body,
+                },
+                sound: "default",
+              },
+            },
+          },
         },
       }),
     }

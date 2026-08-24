@@ -9,13 +9,17 @@
     "lint": "eslint",
     "cap:sync": "cap sync",
     "cap:sync:android": "cap sync android",
-    "cap:android": "cap open android"
+    "cap:sync:ios": "cap sync ios",
+    "cap:android": "cap open android",
+    "cap:ios": "cap open ios"
   },
   "dependencies": {
+    "@capacitor-firebase/messaging": "^8.4.0",
     "@capacitor/android": "^8.5.0",
     "@capacitor/app": "^8.1.1",
     "@capacitor/cli": "^8.5.0",
     "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
     "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3",

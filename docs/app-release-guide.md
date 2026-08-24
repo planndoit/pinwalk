@@ -1,6 +1,6 @@
 # 앱 스토어 출시 가이드
 
-> 상태: **Android 진행 중** — Capacitor Android 프로젝트 생성·푸시/딥링크 연동 완료. iOS는 MacBook에서 별도 진행.  
+> 상태: **Android 진행 중 · iOS 1~2단계 완료** — 3단계(APNs)부터 [Apple Developer Program](https://developer.apple.com/programs/) 결제 후 재개. 진행표: [`docs/ios-release-progress.md`](ios-release-progress.md) · 절차: [`ios/README.md`](../ios/README.md).  
 > 목적: pinwalk를 모바일 앱으로 출시할 때 따라갈 작업 순서와 체크리스트  
 > 작성: 2026-08-17  
 > 전제: 웹은 Next.js 풀스택(Vercel) + Supabase + 네이버 지도. 인앱 알림·푸시 토큰 API는 `030_notifications.sql` 기준 구현됨.
@@ -99,7 +99,12 @@ npm run cap:android   # Android Studio 열기
 ```
 
 - [x] Android 프로젝트 생성 (`android/`, `com.planndoit.pinwalk`)
-- [ ] iOS — MacBook에서 `npx cap add ios` (별도 진행)
+- [x] iOS 프로젝트 생성 (`ios/`, `com.planndoit.pinwalk`) — [`ios/README.md`](../ios/README.md)
+- [x] iOS Firebase iOS 앱 등록 + `GoogleService-Info.plist` (로컬, git 제외) — [진행표](ios-release-progress.md)
+- [x] iOS Xcode plist · Push Notifications · Background Modes — [진행표](ios-release-progress.md)
+- [ ] Apple Developer Program 결제
+- [ ] iOS APNs Auth Key → Firebase 업로드
+- [ ] iOS 실기기 테스트 · TestFlight · App Store 심사
 
 ### 4-2. WebView URL 설정
 

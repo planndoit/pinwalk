@@ -50,3 +50,7 @@ android/keystore.properties
 *.keystore
 !android/keystore.properties.example
 
+# capacitor / ios
+ios/App/App/GoogleService-Info*.plist
+!ios/App/App/GoogleService-Info.plist.example
+

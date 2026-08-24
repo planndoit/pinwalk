@@ -102,4 +102,4 @@ NCP Maps API 콘솔에 Android 패키지명 `com.planndoit.pinwalk` 등록 후 W
 
 ## iOS
 
-iOS 프로젝트는 MacBook에서 별도 진행 (`npx cap add ios`).
+[`ios/README.md`](../ios/README.md) 참고. Xcode에서 Signing·Push Notifications capability·TestFlight 제출.
