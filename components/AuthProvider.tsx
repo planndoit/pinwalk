@@ -15,6 +15,11 @@ import {
   isSessionIdleExpired,
   touchActivity,
 } from "@/lib/auth/session";
+import {
+  clearNativeSession,
+  loadNativeSession,
+  persistNativeSession,
+} from "@/lib/auth/nativeSession";
 import type { Profile } from "@/types/profile";
 import type { User } from "@supabase/supabase-js";
 import AuthModal from "@/components/auth/AuthModal";
@@ -70,21 +75,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loading = !isClient || (shouldAuthenticate ? authLoading : false);
 
   const fetchProfile = useCallback(async (): Promise<boolean> => {
-    const res = await fetch("/api/profile");
-    if (res.ok) {
-      const data = await res.json();
-      setProfile(data.profile);
-      return true;
+    try {
+      const res = await fetch("/api/profile");
+      if (res.ok) {
+        const data = await res.json();
+        setProfile(data.profile);
+        return true;
+      }
+      setProfile(null);
+      return false;
+    } catch {
+      setProfile(null);
+      return false;
     }
-    setProfile(null);
-    return false;
   }, []);
+
+  const loadProfileWithRetry = useCallback(async () => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const profileOk = await fetchProfile();
+      if (profileOk) return true;
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
+    return false;
+  }, [fetchProfile]);
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     if (supabase) {
       await supabase.auth.signOut();
     }
+    await clearNativeSession();
     clearActivity();
     setUser(null);
     setProfile(null);
@@ -98,9 +118,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const {
+    let {
       data: { user: currentUser },
     } = await supabase.auth.getUser();
+
+    if (!currentUser) {
+      const stored = await loadNativeSession();
+      if (stored) {
+        const { error } = await supabase.auth.setSession(stored);
+        if (error) {
+          await clearNativeSession();
+        } else {
+          const restored = await supabase.auth.getUser();
+          currentUser = restored.data.user;
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (session) {
+            await persistNativeSession(session);
+          }
+        }
+      }
+    }
 
     if (!currentUser) {
       setUser(null);
@@ -109,24 +148,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setUser(currentUser);
-
-    let profileOk = false;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      profileOk = await fetchProfile();
-      if (profileOk) break;
-      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
-    }
-
-    if (!profileOk) {
-      await supabase.auth.signOut();
-      clearActivity();
-      setUser(null);
-      setProfile(null);
-      return;
-    }
-
+    await loadProfileWithRetry();
     touchActivity();
-  }, [supabase, fetchProfile, logout]);
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) {
+      await persistNativeSession(session);
+    }
+  }, [supabase, loadProfileWithRetry, logout]);
 
   const refreshProfile = useCallback(async () => {
     await fetchProfile();
@@ -159,29 +190,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(session?.user ?? null);
 
     if (session?.user) {
+      await persistNativeSession(session);
       setProfile(null);
-      let profileOk = false;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        profileOk = await fetchProfile();
-        if (profileOk) break;
-        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
-      }
-
-      if (!profileOk) {
-        await supabase.auth.signOut();
-        clearActivity();
-        setUser(null);
-        setProfile(null);
-        return;
-      }
-
+      await loadProfileWithRetry();
       touchActivity();
       setAuthModalOpen(false);
       return;
     }
 
     setAuthModalOpen(false);
-  }, [supabase, fetchProfile]);
+  }, [supabase, loadProfileWithRetry]);
 
   useEffect(() => {
     if (!shouldAuthenticate || !supabase) return;
@@ -199,7 +217,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile();
+        void persistNativeSession(session);
+        void fetchProfile();
         touchActivity();
       } else {
         setProfile(null);

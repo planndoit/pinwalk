@@ -12,13 +12,7 @@ const config: CapacitorConfig = {
   webDir: "public",
   experimental: {
     ios: {
-      spm: {
-        packageOptions: {
-          "@capacitor-firebase/messaging": {
-            symlink: true,
-          },
-        },
-      },
+      spm: {},
     },
   },
   server: {
@@ -30,6 +24,9 @@ const config: CapacitorConfig = {
     allowMixedContent: false,
   },
   plugins: {
+    CapacitorCookies: {
+      enabled: true,
+    },
     SplashScreen: {
       launchShowDuration: 1500,
       launchAutoHide: true,

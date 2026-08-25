@@ -1,4 +1,5 @@
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import { persistNativeSession } from "@/lib/auth/nativeSession";
 
 export async function establishSession(
   supabase: SupabaseClient,
@@ -16,4 +17,6 @@ export async function establishSession(
   if (error) {
     throw error;
   }
+
+  await persistNativeSession(session);
 }
