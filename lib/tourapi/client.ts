@@ -1,5 +1,6 @@
 import { SERVICE_NAME, TOUR_LANDMARK_CONTENT_TYPE_IDS } from "@/lib/constants";
 import { getTourApiMobileApp, getTourApiServiceKey } from "@/lib/env";
+import { toHttpsUrl } from "@/lib/url";
 import type { TourApiLandmarkCandidate } from "@/types/landmark";
 
 const TOUR_API_BASE = "https://apis.data.go.kr/B551011/KorService2";
@@ -63,7 +64,7 @@ function mapCandidate(item: TourApiItem): TourApiLandmarkCandidate | null {
     lat,
     lng,
     address,
-    imageUrl: str(item.firstimage ?? item.firstImage),
+    imageUrl: toHttpsUrl(str(item.firstimage ?? item.firstImage)),
     tel: str(item.tel),
     areaCode: str(item.areacode ?? item.areaCode),
     sigunguCode: str(item.sigungucode ?? item.sigunguCode),
@@ -307,7 +308,7 @@ export async function fetchTourDetailCommon(contentId: string): Promise<{
     lat: num(item.mapy ?? item.mapY),
     lng: num(item.mapx ?? item.mapX),
     address: [addr1, addr2].filter(Boolean).join(" ") || null,
-    imageUrl: str(item.firstimage ?? item.firstImage),
+    imageUrl: toHttpsUrl(str(item.firstimage ?? item.firstImage)),
     tel: str(item.tel),
     overview: str(item.overview),
     areaCode: str(item.areacode ?? item.areaCode),

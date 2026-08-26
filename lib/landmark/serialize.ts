@@ -1,4 +1,5 @@
 import type { Landmark, SerializedLandmark } from "@/types/landmark";
+import { toHttpsUrl } from "@/lib/url";
 
 export function serializeLandmark(
   row: Landmark,
@@ -16,7 +17,7 @@ export function serializeLandmark(
     lat: row.lat,
     lng: row.lng,
     address: row.address,
-    imageUrl: row.image_url,
+    imageUrl: toHttpsUrl(row.image_url),
     tel: row.tel,
     overview: row.overview,
     areaCode: row.area_code,
