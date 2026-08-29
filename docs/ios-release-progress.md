@@ -1,6 +1,6 @@
 # iOS 앱 출시 진행 상황
 
-> 최종 업데이트: 2026-08-25  
+> 최종 업데이트: 2026-08-29  
 > 상세 절차: [`ios/README.md`](../ios/README.md) · 단계별 대화 가이드는 이 문서의 **「단계별 진행」** 참고
 
 ---
@@ -12,13 +12,13 @@
 | 코드·프로젝트 (Capacitor iOS) | ✅ 완료 |
 | Firebase iOS 앱 등록 | ✅ 완료 (1단계) |
 | Xcode plist · Signing · Capabilities | ✅ 완료 (2단계) |
-| Apple Developer Program 결제 | ⏸ **대기** — 3단계부터 필요 |
-| APNs Auth Key → Firebase 업로드 | ⏸ 대기 (3단계) |
-| iPhone 실기기 빌드·기능 테스트 | ⏸ 대기 (4단계) |
+| Apple Developer Program 결제 | ✅ 유효 (만료 11일 전 확인) |
+| APNs Auth Key → Firebase 업로드 | ✅ 완료 (3단계) |
+| iPhone 실기기 빌드·기능 테스트 | 🔄 진행 중 (4단계) — 로그인 UX 수정 |
 | TestFlight | ⏸ 대기 |
 | App Store 심사·출시 | ⏸ 대기 |
 
-**다음에 할 일:** [Apple Developer Program](https://developer.apple.com/programs/) 가입·결제 후 **3단계(APNs Auth Key)** 부터 재개.
+**다음에 할 일:** 4단계 실기기 테스트 마무리 → TestFlight(5단계).
 
 ---
 
@@ -34,7 +34,7 @@
 - [x] `lib/notifications/fcmV1.ts` — APNs 페이로드
 - [x] 앱 아이콘·스플래시 (`assets/logo.png` → `capacitor-assets`)
 - [x] `npm run cap:sync:ios`, `npm run cap:ios` 스크립트
-- [x] `GoogleService-Info.plist.example` (실제 plist는 git 제외)
+- [x] `@capacitor/preferences` — iOS 네이티브 세션 저장 (로그인 fix)
 
 ---
 
@@ -68,18 +68,16 @@ npm run cap:ios
 - Capabilities: Push Notifications, Background Modes (Remote notifications)
 - Bundle Identifier: `com.planndoit.pinwalk`
 
-### ⏸ 3단계 — APNs Auth Key → Firebase (Apple Developer 결제 후)
+### ✅ 3단계 — APNs Auth Key → Firebase
 
-1. [Apple Developer - Keys](https://developer.apple.com/account/resources/authkeys/list) → APNs 키(.p8) 생성
-2. Key ID · Team ID 메모
-3. [Firebase Console](https://console.firebase.google.com/) → 프로젝트 설정 → **Cloud Messaging** → Apple 앱 구성 → `.p8` 업로드
+- Firebase Cloud Messaging에 APNs 인증 키 업로드 완료
 
-### ⏸ 4단계 — iPhone 실기기 빌드·테스트
+### 🔄 4단계 — iPhone 실기기 빌드·테스트
 
-- Xcode Signing **Team** 선택
-- 실기기 USB → Run (시뮬레이터는 푸시 불가)
-- 로그인 · 위치 · 지도 · 알림함 확인
-- Supabase `push_tokens`에 `platform=ios` 토큰 등록 확인
+- [x] 실기기 Run, 지도, 알림 허용, `push_tokens` ios 토큰
+- [x] 로그인 UX 버그 수정 (`@capacitor/preferences` iOS 동기화)
+- [ ] 로그인 후 모달 정상 닫힘 재확인
+- [ ] 앱 재시작 후 세션 유지 확인
 
 ### ⏸ 5단계 — TestFlight
 
@@ -98,7 +96,7 @@ npm run cap:ios
 
 | 항목 | Android | iOS |
 |------|---------|-----|
-| 상태 | Play Console 제출 진행 중 | 3단계부터 대기 |
+| 상태 | Play Console 제출 진행 중 | 4단계 진행 중 |
 | 푸시 클라이언트 | `@capacitor/push-notifications` | `@capacitor-firebase/messaging` |
 | Firebase 설정 파일 | `android/app/google-services.json` | `ios/App/App/GoogleService-Info.plist` |
 | 서버 FCM | `FIREBASE_SERVICE_ACCOUNT_JSON` (Vercel) | 동일 |

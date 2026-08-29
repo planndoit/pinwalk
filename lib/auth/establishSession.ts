@@ -18,5 +18,9 @@ export async function establishSession(
     throw error;
   }
 
-  await persistNativeSession(session);
+  try {
+    await persistNativeSession(session);
+  } catch {
+    // Preferences 플러그인 미동기화 등으로 저장 실패해도 setSession은 성공했을 수 있음
+  }
 }

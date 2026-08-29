@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { establishSession } from "@/lib/auth/establishSession";
+import { hasActiveSupabaseSession } from "@/lib/auth/hasActiveSupabaseSession";
 import {
   getLocationConsentDocument,
   getLocationTermsDocument,
@@ -73,6 +74,11 @@ export default function SignupForm({
       await establishSession(supabase, data.session);
       await onSuccess();
     } catch {
+      const supabase = createClient();
+      if (await hasActiveSupabaseSession(supabase)) {
+        await onSuccess();
+        return;
+      }
       setError("회원가입 처리 중 오류가 발생했습니다.");
       setLoading(false);
     }

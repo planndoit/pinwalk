@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { establishSession } from "@/lib/auth/establishSession";
+import { hasActiveSupabaseSession } from "@/lib/auth/hasActiveSupabaseSession";
 import { createClient } from "@/lib/supabase/client";
 import { REMEMBERED_USERNAME_KEY } from "@/lib/auth/constants";
 
@@ -59,6 +60,11 @@ export default function LoginForm({
       await establishSession(supabase, data.session);
       await onSuccess();
     } catch {
+      const supabase = createClient();
+      if (await hasActiveSupabaseSession(supabase)) {
+        await onSuccess();
+        return;
+      }
       setError("로그인 처리 중 오류가 발생했습니다.");
       setLoading(false);
     }
