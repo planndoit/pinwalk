@@ -6,10 +6,12 @@ import { hasActiveSupabaseSession } from "@/lib/auth/hasActiveSupabaseSession";
 import { createClient } from "@/lib/supabase/client";
 import { REMEMBERED_USERNAME_KEY } from "@/lib/auth/constants";
 
+import type { AuthSuccessPayload } from "@/types/authClient";
+
 interface LoginFormProps {
   loading: boolean;
   setLoading: (loading: boolean) => void;
-  onSuccess: () => void | Promise<void>;
+  onSuccess: (payload?: AuthSuccessPayload) => void | Promise<void>;
 }
 
 export default function LoginForm({
@@ -58,7 +60,7 @@ export default function LoginForm({
 
       const supabase = createClient();
       await establishSession(supabase, data.session);
-      await onSuccess();
+      await onSuccess({ profile: data.profile });
     } catch {
       const supabase = createClient();
       if (await hasActiveSupabaseSession(supabase)) {
@@ -66,6 +68,7 @@ export default function LoginForm({
         return;
       }
       setError("로그인 처리 중 오류가 발생했습니다.");
+    } finally {
       setLoading(false);
     }
   };

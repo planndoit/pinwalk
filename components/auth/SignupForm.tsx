@@ -9,13 +9,14 @@ import {
   LOCATION_LEGAL_VERSION,
 } from "@/lib/legal/locationLegal";
 import { createClient } from "@/lib/supabase/client";
+import type { AuthSuccessPayload } from "@/types/authClient";
 import LegalDocumentModal from "@/components/legal/LegalDocumentModal";
 import type { LegalDocument } from "@/lib/legal/locationLegal";
 
 interface SignupFormProps {
   loading: boolean;
   setLoading: (loading: boolean) => void;
-  onSuccess: () => void | Promise<void>;
+  onSuccess: (payload?: AuthSuccessPayload) => void | Promise<void>;
 }
 
 export default function SignupForm({
@@ -72,7 +73,7 @@ export default function SignupForm({
 
       const supabase = createClient();
       await establishSession(supabase, data.session);
-      await onSuccess();
+      await onSuccess({ profile: data.profile });
     } catch {
       const supabase = createClient();
       if (await hasActiveSupabaseSession(supabase)) {
@@ -80,6 +81,7 @@ export default function SignupForm({
         return;
       }
       setError("회원가입 처리 중 오류가 발생했습니다.");
+    } finally {
       setLoading(false);
     }
   };

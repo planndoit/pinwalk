@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
+import type { AuthSuccessPayload } from "@/types/authClient";
 import OverlayPortal from "@/components/layout/OverlayPortal";
 
 interface AuthModalProps {
   open: boolean;
   mode: "login" | "signup";
   onClose: () => void;
-  onSuccess: () => void | Promise<void>;
+  onSuccess: (payload?: AuthSuccessPayload) => void | Promise<void>;
   onSwitchMode: (mode: "login" | "signup") => void;
 }
 

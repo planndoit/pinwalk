@@ -20,6 +20,7 @@ import {
   loadNativeSession,
   persistNativeSession,
 } from "@/lib/auth/nativeSession";
+import type { AuthSuccessPayload } from "@/types/authClient";
 import type { Profile } from "@/types/profile";
 import type { User } from "@supabase/supabase-js";
 import AuthModal from "@/components/auth/AuthModal";
@@ -180,26 +181,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [user, profile, openAuthModal]
   );
 
-  const handleAuthSuccess = useCallback(async () => {
-    if (!supabase) return;
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    setUser(session?.user ?? null);
-
-    if (session?.user) {
-      await persistNativeSession(session);
-      setProfile(null);
-      await loadProfileWithRetry();
-      touchActivity();
+  const handleAuthSuccess = useCallback(
+    async (payload?: AuthSuccessPayload) => {
       setAuthModalOpen(false);
-      return;
-    }
 
-    setAuthModalOpen(false);
-  }, [supabase, loadProfileWithRetry]);
+      if (payload?.profile) {
+        setProfile(payload.profile);
+      }
+
+      if (!supabase) return;
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        setUser(session.user);
+        touchActivity();
+        void persistNativeSession(session);
+      }
+
+      if (!payload?.profile) {
+        void loadProfileWithRetry();
+      }
+    },
+    [supabase, loadProfileWithRetry]
+  );
+
+  useEffect(() => {
+    if (authModalOpen && user && profile) {
+      setAuthModalOpen(false);
+    }
+  }, [authModalOpen, user, profile]);
 
   useEffect(() => {
     if (!shouldAuthenticate || !supabase) return;
