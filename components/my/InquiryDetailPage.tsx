@@ -48,7 +48,7 @@ export default function InquiryDetailPage() {
 
   return (
     <div className="h-dvh overflow-y-auto bg-gray-50 pb-safe">
-      <div className="max-w-lg mx-auto px-4 py-6">
+      <div className="max-w-lg mx-auto px-4 pt-page pb-6">
         <MySubpageHeader title="문의 상세" />
 
         {error ? (

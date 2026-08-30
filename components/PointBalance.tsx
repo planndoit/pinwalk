@@ -24,7 +24,7 @@ export default function PointBalance({
   return (
     <header className="absolute top-0 left-0 right-0 z-20 pointer-events-none overflow-hidden">
       <div className="px-safe pt-safe">
-        <div className="mt-3 flex items-center gap-1.5 pointer-events-auto max-w-lg mx-auto min-w-0">
+        <div className="mt-2 flex items-center gap-1.5 pointer-events-auto max-w-lg mx-auto min-w-0">
           <div className={`${chipClassName} min-w-0 shrink pl-2.5 pr-2.5 sm:pl-3 sm:pr-3.5`}>
             <span className="text-base leading-none shrink-0">🚩</span>
             <h1 className="text-gray-900 text-sm font-extrabold leading-none tracking-tight truncate">

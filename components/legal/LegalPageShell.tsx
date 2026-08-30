@@ -9,7 +9,7 @@ export default function LegalPageShell({ children }: { children: ReactNode }) {
   return (
     <div className="h-dvh overflow-y-auto bg-gray-50">
       <div className="max-w-lg mx-auto min-h-full bg-white">
-        <header className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white/95 backdrop-blur">
+        <header className="sticky top-0 z-10 flex items-center gap-3 px-4 pt-safe pb-3 border-b border-gray-100 bg-white/95 backdrop-blur">
           <button
             type="button"
             onClick={() => router.back()}

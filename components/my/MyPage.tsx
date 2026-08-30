@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ActivityTimeline from "@/components/ActivityTimeline";
 import { useAuth } from "@/components/AuthProvider";
+import MainTabHeader from "@/components/layout/MainTabHeader";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import ProfileEditorSection from "@/components/my/ProfileEditorSection";
 import VisitStatsSection from "@/components/my/VisitStatsSection";
@@ -183,57 +184,57 @@ export default function MyPage() {
   return (
     <div className="h-dvh overflow-y-auto bg-gray-50 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
       <div className="max-w-lg mx-auto">
-        <header className="px-4 pt-safe pb-4 bg-white border-b border-gray-100">
-          <div className="flex items-center justify-between mt-3">
-            <h1 className="text-xl font-extrabold text-gray-900">마이페이지</h1>
-            <div className="flex items-center gap-0.5">
+        <MainTabHeader
+          title="마이페이지"
+          action={
+            <>
               <NotificationBell />
               <div className="relative" ref={menuRef}>
-              <button
-                type="button"
-                onClick={() => setMenuOpen((open) => !open)}
-                className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100"
-                aria-label="설정"
-                aria-expanded={menuOpen}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((open) => !open)}
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100"
+                  aria-label="설정"
+                  aria-expanded={menuOpen}
                 >
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-              </button>
-              {menuOpen ? (
-                <div className="absolute right-0 mt-1 w-36 bg-white rounded-xl border border-gray-100 shadow-lg overflow-hidden z-20">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      router.push("/my/settings");
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    설정
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleLogout()}
-                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 border-t border-gray-100"
-                  >
-                    로그아웃
-                  </button>
-                </div>
-              ) : null}
-            </div>
-            </div>
-          </div>
-        </header>
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </button>
+                {menuOpen ? (
+                  <div className="absolute right-0 mt-1 w-36 bg-white rounded-xl border border-gray-100 shadow-lg overflow-hidden z-20">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        router.push("/my/settings");
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                    >
+                      설정
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleLogout()}
+                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 border-t border-gray-100"
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          }
+        />
 
         <ProfileEditorSection
           key={profile.updated_at}

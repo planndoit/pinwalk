@@ -13,6 +13,7 @@ import {
 } from "@/lib/constants";
 import { compressAvatarFile } from "@/lib/avatar";
 import { useSubmitLock } from "@/lib/useSubmitLock";
+import MainTabHeader from "@/components/layout/MainTabHeader";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import type { SerializedCrew, SerializedCrewMember } from "@/types/crew";
 
@@ -385,11 +386,11 @@ function CrewHome({
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
-      <div className="max-w-lg mx-auto px-4 pt-safe">
-        <div className="mt-4 flex justify-end">
-          <NotificationBell />
-        </div>
-        <div className="mt-2 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+      <div className="max-w-lg mx-auto">
+        <MainTabHeader title="크루" action={<NotificationBell />} />
+
+        <div className="px-4 pt-3">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden shrink-0">
               {crew.hasImage ? (
@@ -630,6 +631,7 @@ function CrewHome({
             </button>
           ) : null}
         </div>
+        </div>
       </div>
 
       {showSettings ? (
@@ -858,28 +860,31 @@ export default function CrewPage() {
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
-      <div className="max-w-lg mx-auto px-4 pt-safe">
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <h1 className="text-lg font-extrabold text-gray-900">크루</h1>
-          <div className="flex items-center gap-1">
-            <NotificationBell />
-            <button
-            type="button"
-            onClick={() =>
-              requireAuth(() => {
-                setShowCreate(true);
-                setMessage(null);
-              })
-            }
-            className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold"
-          >
-            만들기 ({CREW_CREATE_COST}P)
-          </button>
-          </div>
-        </div>
+      <div className="max-w-lg mx-auto">
+        <MainTabHeader
+          title="크루"
+          action={
+            <>
+              <NotificationBell />
+              <button
+                type="button"
+                onClick={() =>
+                  requireAuth(() => {
+                    setShowCreate(true);
+                    setMessage(null);
+                  })
+                }
+                className="ml-1 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold"
+              >
+                만들기 ({CREW_CREATE_COST}P)
+              </button>
+            </>
+          }
+        />
 
+        <div className="px-4 pt-3">
         {mine?.pendingRequest ? (
-          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
             <p className="text-sm font-semibold text-amber-900">
               가입 승인 대기 중
             </p>
@@ -896,7 +901,7 @@ export default function CrewPage() {
           </div>
         ) : null}
 
-        <div className="mt-3 space-y-2">
+        <div className={`${mine?.pendingRequest ? "mt-3" : ""} space-y-2`}>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -964,6 +969,7 @@ export default function CrewPage() {
               표시할 크루가 없습니다.
             </p>
           ) : null}
+        </div>
         </div>
       </div>
 

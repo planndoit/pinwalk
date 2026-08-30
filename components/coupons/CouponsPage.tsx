@@ -90,7 +90,7 @@ export default function CouponsPage() {
 
   return (
     <div className="h-dvh overflow-y-auto bg-gray-50 pb-safe">
-      <div className="max-w-lg mx-auto px-4 py-6">
+      <div className="max-w-lg mx-auto px-4 pt-page pb-6">
         <div className="flex items-start gap-2 mb-6">
           <button
             type="button"

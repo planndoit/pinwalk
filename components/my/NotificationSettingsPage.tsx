@@ -89,7 +89,7 @@ export default function NotificationSettingsPage() {
 
   return (
     <div className="h-dvh overflow-y-auto bg-gray-50 pb-safe">
-      <div className="max-w-lg mx-auto px-4 py-6 min-h-full">
+      <div className="max-w-lg mx-auto px-4 pt-page pb-6 min-h-full">
         <MySubpageHeader title="알림 설정" />
 
         {error ? (

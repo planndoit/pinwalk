@@ -23,6 +23,11 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* 서브페이지 본문: status bar + 기본 상단 여백 */
+.pt-page {
+  padding-top: calc(1.5rem + env(safe-area-inset-top, 0px));
+}
+
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
