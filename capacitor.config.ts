@@ -1,10 +1,10 @@
 import type { CapacitorConfig } from "@capacitor/cli";
-import { SERVICE_NAME } from "./lib/constants";
+import { PRODUCTION_SITE_URL, SERVICE_NAME } from "./lib/constants";
 
 const serverUrl =
   process.env.CAPACITOR_SERVER_URL?.trim() ||
   process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-  "https://pinwalk.vercel.app";
+  PRODUCTION_SITE_URL;
 
 const config: CapacitorConfig = {
   appId: "com.planndoit.pinwalk",

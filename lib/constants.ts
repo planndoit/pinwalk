@@ -30,6 +30,9 @@ export const PIN_TEXT_MAX_LENGTH = 20;
 export const DEFAULT_NICKNAME = "익명의 워커";
 export const SERVICE_NAME = "이땅내땅";
 
+/** 프로덕션 공개 도메인 (Vercel 커스텀 도메인). */
+export const PRODUCTION_SITE_URL = "https://pinwalk.kr";
+
 export const DAILY_BONUS_AMOUNT = 10;
 export const DAILY_BONUS_RESET_HOUR_KST = 9;
 

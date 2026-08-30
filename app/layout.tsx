@@ -3,18 +3,11 @@ import { AuthProvider } from "@/components/AuthProvider";
 import CapacitorBridge from "@/components/CapacitorBridge";
 import AppShell from "@/components/layout/AppShell";
 import { SERVICE_NAME } from "@/lib/constants";
+import { getSiteUrl } from "@/lib/siteUrl";
 import "./globals.css";
 
 const siteDescription = "여긴 이제 내 땅. 지도 위 깃발 점령 게임";
-const siteUrl = (() => {
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL;
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  return "https://pinwalk.vercel.app";
-})();
+const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
