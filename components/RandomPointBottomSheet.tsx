@@ -11,6 +11,7 @@ import OverlayPortal from "@/components/layout/OverlayPortal";
 interface RandomPointBottomSheetProps {
   point: RandomPoint | null;
   distance: number | null;
+  claimRadius?: number;
   onClose: () => void;
   onClaim: () => void;
   claiming?: boolean;
@@ -19,14 +20,14 @@ interface RandomPointBottomSheetProps {
 export default function RandomPointBottomSheet({
   point,
   distance,
+  claimRadius = RANDOM_POINT_CLAIM_RADIUS_METERS,
   onClose,
   onClaim,
   claiming,
 }: RandomPointBottomSheetProps) {
   if (!point) return null;
 
-  const canClaim =
-    distance !== null && distance <= RANDOM_POINT_CLAIM_RADIUS_METERS;
+  const canClaim = distance !== null && distance <= claimRadius;
 
   return (
     <OverlayPortal>
@@ -76,7 +77,7 @@ export default function RandomPointBottomSheet({
           </button>
         ) : (
           <p className="text-sm text-gray-500 text-center mt-4 bg-amber-50 rounded-xl px-3.5 py-3">
-            {RANDOM_POINT_CLAIM_RADIUS_METERS}m 안으로 가까이 가면 획득할 수
+            {claimRadius}m 안으로 가까이 가면 획득할 수
             있어요.
           </p>
         )}

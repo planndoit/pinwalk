@@ -2,6 +2,12 @@ import {
   DEFAULT_LANDMARK_RADIUS_METERS,
   DEFAULT_PIN_COST,
   DEFAULT_PIN_RADIUS_BY_COST,
+  RANDOM_POINT_CLAIM_RADIUS_METERS,
+  RANDOM_POINT_COUNT,
+  RANDOM_POINT_EXPIRES_MINUTES,
+  RANDOM_POINT_RADIUS_METERS,
+  RANDOM_POINT_SPAWN_INTERVAL_MINUTES,
+  RANDOM_POINT_VALUES,
   SERVICE_NAME,
   isPinCost,
   type PinCost,
@@ -12,6 +18,21 @@ function readInt(name: string, fallback: number): number {
   if (!raw) return fallback;
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readPositiveIntList(
+  name: string,
+  fallback: readonly number[]
+): number[] {
+  const raw = process.env[name]?.trim();
+  if (!raw) return [...fallback];
+
+  const parsed = raw
+    .split(",")
+    .map((part) => Number.parseInt(part.trim(), 10))
+    .filter((value) => Number.isFinite(value) && value > 0);
+
+  return parsed.length > 0 ? parsed : [...fallback];
 }
 
 export function getPremiumPlaceRadiusMeters(): number {
@@ -85,6 +106,36 @@ export function getResendApiKey(): string | null {
 
 export function getLandmarkRadiusMeters(): number {
   return readInt("LANDMARK_RADIUS_METERS", DEFAULT_LANDMARK_RADIUS_METERS);
+}
+
+export function getRandomPointRadiusMeters(): number {
+  return readInt("RANDOM_POINT_RADIUS_METERS", RANDOM_POINT_RADIUS_METERS);
+}
+
+export function getRandomPointExpiresMinutes(): number {
+  return readInt("RANDOM_POINT_EXPIRES_MINUTES", RANDOM_POINT_EXPIRES_MINUTES);
+}
+
+export function getRandomPointClaimRadiusMeters(): number {
+  return readInt(
+    "RANDOM_POINT_CLAIM_RADIUS_METERS",
+    RANDOM_POINT_CLAIM_RADIUS_METERS
+  );
+}
+
+export function getRandomPointSpawnIntervalMinutes(): number {
+  return readInt(
+    "RANDOM_POINT_SPAWN_INTERVAL_MINUTES",
+    RANDOM_POINT_SPAWN_INTERVAL_MINUTES
+  );
+}
+
+export function getRandomPointCount(): number {
+  return readInt("RANDOM_POINT_COUNT", RANDOM_POINT_COUNT);
+}
+
+export function getRandomPointValues(): number[] {
+  return readPositiveIntList("RANDOM_POINT_VALUES", RANDOM_POINT_VALUES);
 }
 
 /** data.go.kr 발급 키. 포털에서 복사한 값을 그대로 사용(이미 인코딩된 경우 유지). */

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
+import { getRandomPointClaimRadiusMeters } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET() {
@@ -22,5 +23,8 @@ export async function GET() {
     return jsonError("랜덤 포인트 조회에 실패했습니다.", 500);
   }
 
-  return NextResponse.json({ randomPoints: randomPoints ?? [] });
+  return NextResponse.json({
+    randomPoints: randomPoints ?? [],
+    claimRadiusMeters: getRandomPointClaimRadiusMeters(),
+  });
 }

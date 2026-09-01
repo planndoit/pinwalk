@@ -26,6 +26,8 @@ export const RANDOM_POINT_COUNT = 3;
 export const RANDOM_POINT_EXPIRES_MINUTES = 15;
 export const RANDOM_POINT_CLAIM_RADIUS_METERS = 30;
 
+/** 랜덤 포인트 튜닝은 .env.local의 RANDOM_POINT_* 로 오버라이드. */
+
 export const PIN_TEXT_MAX_LENGTH = 20;
 export const DEFAULT_NICKNAME = "익명의 워커";
 export const SERVICE_NAME = "이땅내땅";

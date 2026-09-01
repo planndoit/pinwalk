@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import {
-  RANDOM_POINT_COUNT,
-  RANDOM_POINT_EXPIRES_MINUTES,
-  RANDOM_POINT_RADIUS_METERS,
-  RANDOM_POINT_SPAWN_INTERVAL_MINUTES,
-  RANDOM_POINT_VALUES,
-} from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
+import {
+  getRandomPointCount,
+  getRandomPointExpiresMinutes,
+  getRandomPointRadiusMeters,
+  getRandomPointSpawnIntervalMinutes,
+  getRandomPointValues,
+} from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateRandomPointWithinRadius } from "@/lib/geo";
 
@@ -39,10 +39,10 @@ export async function POST(request: Request) {
   }
 
   if (profile.last_random_point_spawn_at) {
+    const spawnIntervalMinutes = getRandomPointSpawnIntervalMinutes();
     const lastSpawn = new Date(profile.last_random_point_spawn_at);
     const cooldownEnd = new Date(
-      lastSpawn.getTime() +
-        RANDOM_POINT_SPAWN_INTERVAL_MINUTES * 60 * 1000
+      lastSpawn.getTime() + spawnIntervalMinutes * 60 * 1000
     );
 
     if (cooldownEnd > new Date()) {
@@ -57,19 +57,23 @@ export async function POST(request: Request) {
 
   const expiresAt = new Date();
   expiresAt.setMinutes(
-    expiresAt.getMinutes() + RANDOM_POINT_EXPIRES_MINUTES
+    expiresAt.getMinutes() + getRandomPointExpiresMinutes()
   );
   const now = new Date().toISOString();
 
-  const pointsToInsert = Array.from({ length: RANDOM_POINT_COUNT }, () => {
+  const spawnRadiusMeters = getRandomPointRadiusMeters();
+  const randomPointCount = getRandomPointCount();
+  const randomPointValues = getRandomPointValues();
+
+  const pointsToInsert = Array.from({ length: randomPointCount }, () => {
     const coords = generateRandomPointWithinRadius(
       current_lat,
       current_lng,
-      RANDOM_POINT_RADIUS_METERS
+      spawnRadiusMeters
     );
     const value =
-      RANDOM_POINT_VALUES[
-        Math.floor(Math.random() * RANDOM_POINT_VALUES.length)
+      randomPointValues[
+        Math.floor(Math.random() * randomPointValues.length)
       ];
 
     return {

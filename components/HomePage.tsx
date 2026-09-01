@@ -28,6 +28,7 @@ import { clampPointToRadius, getDistanceMeters } from "@/lib/geo";
 import {
   DEFAULT_PIN_RADIUS_BY_COST,
   LANDMARK_PIN_RADIUS_METERS,
+  RANDOM_POINT_CLAIM_RADIUS_METERS,
   type ConquerProbability,
   type PinCost,
 } from "@/lib/constants";
@@ -88,6 +89,9 @@ export default function HomePage({ active = true }: HomePageProps) {
     lng: number;
   } | null>(null);
   const [couponClaimRadius, setCouponClaimRadius] = useState(15);
+  const [randomPointClaimRadius, setRandomPointClaimRadius] = useState(
+    RANDOM_POINT_CLAIM_RADIUS_METERS
+  );
   const [pinPlacementRadius, setPinPlacementRadius] = useState(100);
   const [pinRadiusByCost, setPinRadiusByCost] = useState(DEFAULT_PIN_RADIUS_BY_COST);
   const [maxPinRadiusMeters, setMaxPinRadiusMeters] = useState(
@@ -128,6 +132,9 @@ export default function HomePage({ active = true }: HomePageProps) {
     if (res.ok) {
       const data = await res.json();
       setRandomPoints(data.randomPoints ?? []);
+      if (typeof data.claimRadiusMeters === "number") {
+        setRandomPointClaimRadius(data.claimRadiusMeters);
+      }
     }
   }, []);
 
@@ -1037,6 +1044,7 @@ export default function HomePage({ active = true }: HomePageProps) {
       <RandomPointBottomSheet
         point={selectedRandomPoint}
         distance={randomPointDistance}
+        claimRadius={randomPointClaimRadius}
         onClose={() => setSelectedRandomPoint(null)}
         onClaim={handleClaimRandomPoint}
         claiming={actionLoading}

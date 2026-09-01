@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { RANDOM_POINT_CLAIM_RADIUS_METERS } from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
+import { getRandomPointClaimRadiusMeters } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addPoints } from "@/lib/pins";
 import { getDistanceMeters } from "@/lib/geo";
@@ -58,9 +58,11 @@ export async function POST(request: Request) {
     randomPoint.lng
   );
 
-  if (distance > RANDOM_POINT_CLAIM_RADIUS_METERS) {
+  const claimRadiusMeters = getRandomPointClaimRadiusMeters();
+
+  if (distance > claimRadiusMeters) {
     return jsonError(
-      `${RANDOM_POINT_CLAIM_RADIUS_METERS}m 안으로 가까이 가면 획득할 수 있어요. (현재 ${Math.round(distance)}m)`
+      `${claimRadiusMeters}m 안으로 가까이 가면 획득할 수 있어요. (현재 ${Math.round(distance)}m)`
     );
   }
 
