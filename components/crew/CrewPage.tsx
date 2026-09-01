@@ -14,6 +14,8 @@ import {
 import { compressAvatarFile } from "@/lib/avatar";
 import { useSubmitLock } from "@/lib/useSubmitLock";
 import MainTabHeader from "@/components/layout/MainTabHeader";
+import GuideHelpButton from "@/components/guide/GuideHelpButton";
+import GuideModal from "@/components/guide/GuideModal";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import type { SerializedCrew, SerializedCrewMember } from "@/types/crew";
 
@@ -211,10 +213,12 @@ function CrewHome({
   crew,
   role,
   onChanged,
+  onOpenGuide,
 }: {
   crew: SerializedCrew;
   role: "leader" | "member";
   onChanged: () => Promise<void>;
+  onOpenGuide: () => void;
 }) {
   const { user, refreshProfile } = useAuth();
   const [pending, setPending] = useState<
@@ -387,7 +391,19 @@ function CrewHome({
   return (
     <div className="h-full overflow-y-auto bg-gray-50 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
       <div className="max-w-lg mx-auto">
-        <MainTabHeader title="크루" action={<NotificationBell />} />
+        <MainTabHeader
+          title="크루"
+          action={
+            <>
+              <GuideHelpButton
+                variant="plain"
+                label="크루 가이드"
+                onClick={onOpenGuide}
+              />
+              <NotificationBell />
+            </>
+          }
+        />
 
         <div className="px-4 pt-3">
         <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
@@ -745,6 +761,7 @@ export default function CrewPage() {
     base64: string;
     mime: string;
   } | null>(null);
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   const loadMine = useCallback(async () => {
     if (!user) {
@@ -848,23 +865,38 @@ export default function CrewPage() {
   if (mine?.membership) {
     const { crew, role } = mine.membership;
     return (
-      <CrewHome
-        crew={crew}
-        role={role}
-        onChanged={async () => {
-          await loadMine();
-        }}
-      />
+      <>
+        <CrewHome
+          crew={crew}
+          role={role}
+          onOpenGuide={() => setShowGuideModal(true)}
+          onChanged={async () => {
+            await loadMine();
+          }}
+        />
+        <GuideModal
+          open={showGuideModal}
+          title="크루 가이드"
+          scope="crew"
+          onClose={() => setShowGuideModal(false)}
+        />
+      </>
     );
   }
 
   return (
+    <>
     <div className="h-full overflow-y-auto bg-gray-50 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
       <div className="max-w-lg mx-auto">
         <MainTabHeader
           title="크루"
           action={
             <>
+              <GuideHelpButton
+                variant="plain"
+                label="크루 가이드"
+                onClick={() => setShowGuideModal(true)}
+              />
               <NotificationBell />
               <button
                 type="button"
@@ -884,7 +916,7 @@ export default function CrewPage() {
 
         <div className="px-4 pt-3">
         {mine?.pendingRequest ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
             <p className="text-sm font-semibold text-amber-900">
               가입 승인 대기 중
             </p>
@@ -901,7 +933,7 @@ export default function CrewPage() {
           </div>
         ) : null}
 
-        <div className={`${mine?.pendingRequest ? "mt-3" : ""} space-y-2`}>
+        <div className="mt-3 space-y-2">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -1048,5 +1080,12 @@ export default function CrewPage() {
         </OverlayPortal>
       ) : null}
     </div>
+    <GuideModal
+      open={showGuideModal}
+      title="크루 가이드"
+      scope="crew"
+      onClose={() => setShowGuideModal(false)}
+    />
+    </>
   );
 }
