@@ -32,6 +32,24 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* 하단 오버레이·모달: 시스템 네비게이션 바 위로 올림 */
+.pb-overlay-safe {
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+html.cap-native .pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+
+html.cap-native .pb-overlay-safe {
+  padding-bottom: max(3rem, calc(0.75rem + env(safe-area-inset-bottom, 0px)));
+}
+
+body.auth-modal-open [data-bottom-nav] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .px-safe {
   padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
   padding-right: max(0.75rem, env(safe-area-inset-right, 0px));

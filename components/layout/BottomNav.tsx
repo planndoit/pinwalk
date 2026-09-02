@@ -49,7 +49,7 @@ export default function BottomNav() {
   const { requireAuth } = useAuth();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none" data-bottom-nav>
       <div className="max-w-lg mx-auto px-4 pb-safe pointer-events-auto">
         <div className="bg-white/95 backdrop-blur border border-gray-200 rounded-2xl shadow-xl mb-3 flex">
           {tabs.map((tab) => {

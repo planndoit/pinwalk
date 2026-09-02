@@ -24,6 +24,8 @@ async function touchCookiePersistence(): Promise<void> {
 export async function initCapacitorNative(): Promise<void> {
   if (!isCapacitorNative()) return;
 
+  document.documentElement.classList.add("cap-native");
+
   try {
     await StatusBar.setStyle({ style: Style.Dark });
     await StatusBar.setBackgroundColor({ color: "#f9fafb" });
