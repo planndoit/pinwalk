@@ -13,6 +13,7 @@ export interface Pin {
   expires_at: string | null;
   conquered_by: string | null;
   conquered_at: string | null;
+  last_reinforced_at?: string | null;
   created_at: string;
   updated_at: string;
   nickname?: string;

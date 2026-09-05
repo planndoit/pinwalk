@@ -1,7 +1,6 @@
 import {
   DEFAULT_LANDMARK_RADIUS_METERS,
-  DEFAULT_PIN_COST,
-  DEFAULT_PIN_RADIUS_BY_COST,
+  FIXED_PIN_RADIUS_METERS,
   RANDOM_POINT_CLAIM_RADIUS_METERS,
   RANDOM_POINT_COUNT,
   RANDOM_POINT_EXPIRES_MINUTES,
@@ -9,7 +8,7 @@ import {
   RANDOM_POINT_SPAWN_INTERVAL_MINUTES,
   RANDOM_POINT_VALUES,
   SERVICE_NAME,
-  isPinCost,
+  PIN_COST_STEPS,
   type PinCost,
 } from "./constants";
 
@@ -39,29 +38,25 @@ export function getPremiumPlaceRadiusMeters(): number {
   return readInt("PREMIUM_PLACE_RADIUS_METERS", 100);
 }
 
-export function getPinPlacementRadiusMeters(): number {
-  return readInt("PIN_PLACEMENT_RADIUS_METERS", 100);
+/** 일반 깃발 반경(m). cost와 무관. PIN_RADIUS_METERS 로 오버라이드. */
+export function getFixedPinRadiusMeters(): number {
+  return readInt("PIN_RADIUS_METERS", FIXED_PIN_RADIUS_METERS);
 }
 
+/** @deprecated getFixedPinRadiusMeters 사용. */
 export function getPinRadiusByCost(): Record<PinCost, number> {
-  return {
-    100: readInt("PIN_RADIUS_METERS_100", DEFAULT_PIN_RADIUS_BY_COST[100]),
-    300: readInt("PIN_RADIUS_METERS_300", DEFAULT_PIN_RADIUS_BY_COST[300]),
-    500: readInt("PIN_RADIUS_METERS_500", DEFAULT_PIN_RADIUS_BY_COST[500]),
-    1000: readInt("PIN_RADIUS_METERS_1000", DEFAULT_PIN_RADIUS_BY_COST[1000]),
-  };
+  const radius = getFixedPinRadiusMeters();
+  return Object.fromEntries(
+    PIN_COST_STEPS.map((cost) => [cost, radius])
+  ) as Record<PinCost, number>;
 }
 
-export function getPinRadiusMeters(cost: number): number {
-  const byCost = getPinRadiusByCost();
-  if (isPinCost(cost)) {
-    return byCost[cost];
-  }
-  return byCost[DEFAULT_PIN_COST];
+export function getPinRadiusMeters(_cost?: number): number {
+  return getFixedPinRadiusMeters();
 }
 
 export function getMaxPinRadiusMeters(): number {
-  return Math.max(...Object.values(getPinRadiusByCost()));
+  return getFixedPinRadiusMeters();
 }
 
 export function getPremiumCouponSpawnDistanceMeters(): number {

@@ -2,11 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
-  DEFAULT_PIN_COST,
-  DEFAULT_PIN_RADIUS_BY_COST,
-  PIN_COST_OPTIONS,
+  PIN_CREATE_COST,
   PIN_TEXT_MAX_LENGTH,
-  type PinCost,
 } from "@/lib/constants";
 import { useSubmitLock } from "@/lib/useSubmitLock";
 import FlagIcon from "@/components/icons/FlagIcon";
@@ -16,11 +13,9 @@ interface CreatePinModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (
-    text: string,
-    cost: PinCost
+    text: string
   ) => Promise<{ success: boolean; error?: string }>;
   loading?: boolean;
-  radiusByCost?: Record<PinCost, number>;
 }
 
 export default function CreatePinModal({
@@ -28,10 +23,8 @@ export default function CreatePinModal({
   onClose,
   onSubmit,
   loading,
-  radiusByCost = DEFAULT_PIN_RADIUS_BY_COST,
 }: CreatePinModalProps) {
   const [text, setText] = useState("");
-  const [cost, setCost] = useState<PinCost>(DEFAULT_PIN_COST);
   const [error, setError] = useState("");
   const { locked: submitting, run, unlock } = useSubmitLock();
 
@@ -47,10 +40,9 @@ export default function CreatePinModal({
     if (busy || !text.trim()) return;
     setError("");
     void run(async () => {
-      const result = await onSubmit(text, cost);
+      const result = await onSubmit(text);
       if (result.success) {
         setText("");
-        setCost(DEFAULT_PIN_COST);
         onClose();
         return "keep";
       }
@@ -67,93 +59,59 @@ export default function CreatePinModal({
 
   return (
     <OverlayPortal>
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={busy ? undefined : handleClose}
-      />
-      <div className="relative w-full max-w-lg bg-white rounded-t-3xl px-6 pt-3 pb-8 animate-slide-up shadow-2xl">
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
-
-        <h2 className="text-xl font-bold text-gray-900">
-          선택한 위치에 깃발을 꽂을까요?
-        </h2>
-        <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">
-          투자 포인트가 높을수록 영향 반경이 넓어지고, 점령 시에도 더 많은
-          포인트가 필요합니다.
-        </p>
-
-        <p className="text-xs text-gray-500 font-medium mt-4 mb-2">투자 포인트</p>
-        <div className="grid grid-cols-4 gap-2">
-          {PIN_COST_OPTIONS.map((option) => {
-            const selected = option === cost;
-            const radiusMeters = radiusByCost[option];
-            return (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setCost(option)}
-                disabled={busy}
-                className={`py-3 rounded-2xl border-2 transition-colors disabled:opacity-50 flex flex-col items-center gap-1 ${
-                  selected ? "border-blue-500 bg-blue-50" : "border-gray-200"
-                }`}
-              >
-                <FlagIcon size={20} tier={option} color={selected ? "#2563eb" : "#6b7280"} />
-                <span
-                  className={`block text-sm font-extrabold ${
-                    selected ? "text-blue-600" : "text-gray-700"
-                  }`}
-                >
-                  {option}P
-                </span>
-                <span
-                  className={`block text-[11px] font-medium ${
-                    selected ? "text-blue-500" : "text-gray-400"
-                  }`}
-                >
-                  {radiusMeters}m
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value.slice(0, PIN_TEXT_MAX_LENGTH))}
-          placeholder="하고 싶은 이야기를 작성해 주세요"
-          disabled={busy}
-          className="w-full mt-4 p-3.5 bg-gray-50 border border-gray-200 rounded-2xl resize-none h-20 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors disabled:opacity-60"
-          maxLength={PIN_TEXT_MAX_LENGTH}
+      <div className="fixed inset-0 z-50 flex items-end justify-center">
+        <div
+          className="absolute inset-0 bg-black/50"
+          onClick={busy ? undefined : handleClose}
         />
-        <p className="text-right text-xs text-gray-400 mt-1.5">
-          {text.length}/{PIN_TEXT_MAX_LENGTH}
-        </p>
+        <div className="relative w-full max-w-lg bg-white rounded-t-3xl px-6 pt-3 pb-8 animate-slide-up shadow-2xl">
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
 
-        {error && (
-          <p className="text-sm text-red-500 mt-2 bg-red-50 rounded-xl px-3.5 py-2.5">
-            {error}
+          <h2 className="text-xl font-bold text-gray-900">
+            현재 위치에 깃발을 꽂을까요?
+          </h2>
+          <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">
+            {PIN_CREATE_COST}P로 깃발을 꽂습니다. 나중에 현장에서{" "}
+            <span className="font-semibold text-gray-700">깃발 강화</span>로
+            키울 수 있어요.
           </p>
-        )}
 
-        <div className="flex gap-2.5 mt-4">
+          <label className="block mt-5">
+            <span className="text-xs font-semibold text-gray-500">깃발 문구</span>
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className="shrink-0 text-blue-600">
+                <FlagIcon size={22} tier={100} color="#2563eb" />
+              </span>
+              <input
+                value={text}
+                onChange={(e) =>
+                  setText(e.target.value.slice(0, PIN_TEXT_MAX_LENGTH))
+                }
+                maxLength={PIN_TEXT_MAX_LENGTH}
+                disabled={busy}
+                placeholder="짧은 문구를 적어주세요"
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm bg-gray-50 disabled:opacity-60"
+              />
+            </div>
+            <span className="mt-1 block text-right text-[11px] text-gray-400 tabular-nums">
+              {text.length}/{PIN_TEXT_MAX_LENGTH}
+            </span>
+          </label>
+
+          {error ? (
+            <p className="mt-3 text-sm text-red-500 text-center">{error}</p>
+          ) : null}
+
           <button
-            onClick={handleClose}
-            disabled={busy}
-            className="flex-1 py-3.5 rounded-2xl bg-gray-100 text-gray-600 font-semibold active:scale-98 transition-transform disabled:opacity-50"
-          >
-            취소
-          </button>
-          <button
+            type="button"
             onClick={handleSubmit}
             disabled={busy || !text.trim()}
-            className="flex-[1.6] py-3.5 rounded-2xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/25 disabled:opacity-40 disabled:shadow-none active:scale-98 transition-transform"
+            className="w-full mt-4 py-3.5 rounded-2xl bg-blue-600 text-white font-bold disabled:opacity-40"
           >
-            {busy ? "생성 중..." : `🚩 ${cost}P로 깃발 꽂기`}
+            {busy ? "생성 중..." : `🚩 ${PIN_CREATE_COST}P로 깃발 꽂기`}
           </button>
         </div>
       </div>
-    </div>
     </OverlayPortal>
   );
 }

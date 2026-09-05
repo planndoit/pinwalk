@@ -3,6 +3,7 @@ import {
   CONQUER_PROBABILITIES,
   DEFAULT_PIN_COST,
   LANDMARK_PIN_RADIUS_METERS,
+  normalizePinCost,
   type ConquerProbability,
 } from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
@@ -103,12 +104,13 @@ export async function POST(request: Request) {
     targetPin.lng
   );
 
-  const pinCost =
-    typeof targetPin.cost === "number" ? targetPin.cost : DEFAULT_PIN_COST;
+  const pinCost = normalizePinCost(
+    typeof targetPin.cost === "number" ? targetPin.cost : DEFAULT_PIN_COST
+  );
   const pinRadiusMeters =
     typeof targetPin.radius_meters === "number"
       ? targetPin.radius_meters
-      : getPinRadiusMeters(pinCost);
+      : getPinRadiusMeters();
 
   if (distance > pinRadiusMeters) {
     return jsonError("핀 반경 안에 있어야 점령할 수 있습니다.");
@@ -193,7 +195,7 @@ export async function POST(request: Request) {
 
   const newRadius = inLandmarkZone
     ? LANDMARK_PIN_RADIUS_METERS
-    : getPinRadiusMeters(pinCost);
+    : getPinRadiusMeters();
 
   const { data: newPin, error: createError } = await admin
     .from("pins")
@@ -206,6 +208,7 @@ export async function POST(request: Request) {
       status: "active",
       cost: pinCost,
       expires_at: null,
+      last_reinforced_at: null,
     })
     .select()
     .single();

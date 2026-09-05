@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { isPinCost, LANDMARK_PIN_RADIUS_METERS } from "@/lib/constants";
+import {
+  LANDMARK_PIN_RADIUS_METERS,
+  PIN_CREATE_COST,
+} from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findPinPlacementConflicts, deductPoints } from "@/lib/pins";
 import { validatePinText } from "@/lib/validation";
-import { getDistanceMeters } from "@/lib/geo";
-import { getPinPlacementRadiusMeters, getPinRadiusMeters } from "@/lib/env";
+import { getPinRadiusMeters } from "@/lib/env";
 import {
   absorbPinsIntoLandmark,
   findContainingLandmarks,
@@ -22,48 +24,22 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const {
-    lat,
-    lng,
-    text,
-    cost: rawCost,
-    current_lat,
-    current_lng,
-  } = body as {
-    lat?: number;
-    lng?: number;
+  const { text, current_lat, current_lng } = body as {
     text?: string;
-    cost?: number;
     current_lat?: number;
     current_lng?: number;
   };
-
-  if (typeof lat !== "number" || typeof lng !== "number") {
-    return jsonError("위치 정보가 올바르지 않습니다.");
-  }
 
   if (typeof current_lat !== "number" || typeof current_lng !== "number") {
     return jsonError("현재 위치 정보가 필요합니다.");
   }
 
-  const placementRadiusMeters = getPinPlacementRadiusMeters();
-  const distanceFromUser = getDistanceMeters(current_lat, current_lng, lat, lng);
-  if (distanceFromUser > placementRadiusMeters) {
-    return jsonError(
-      `깃발은 현재 위치 반경 ${placementRadiusMeters}m 안에만 꽂을 수 있습니다.`
-    );
-  }
+  const lat = current_lat;
+  const lng = current_lng;
+  const cost = PIN_CREATE_COST;
 
   if (typeof text !== "string") {
     return jsonError("깃발 문구를 입력해주세요.");
-  }
-
-  const cost =
-    typeof rawCost === "number" && isPinCost(rawCost)
-      ? rawCost
-      : undefined;
-  if (cost === undefined) {
-    return jsonError("깃발 포인트가 올바르지 않습니다.");
   }
 
   const validation = validatePinText(text);
@@ -93,7 +69,7 @@ export async function POST(request: Request) {
   const radiusMeters =
     landmarkIds.length > 0
       ? LANDMARK_PIN_RADIUS_METERS
-      : getPinRadiusMeters(cost);
+      : getPinRadiusMeters();
 
   const nearbyPins = await findPinPlacementConflicts(
     lat,
@@ -119,6 +95,7 @@ export async function POST(request: Request) {
       status: "active",
       cost,
       expires_at: null,
+      last_reinforced_at: null,
     })
     .select()
     .single();

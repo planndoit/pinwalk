@@ -1,19 +1,60 @@
 export const INITIAL_POINTS = 1000;
 
-export const PIN_COST_OPTIONS = [100, 300, 500, 1000] as const;
-export type PinCost = (typeof PIN_COST_OPTIONS)[number];
+/** 깃발 생성 비용 (고정). */
+export const PIN_CREATE_COST = 100;
+
+/** 깃발 강화 1회 비용. */
+export const PIN_REINFORCE_COST = 100;
+
+/** 깃발 최대 투자 포인트. */
+export const PIN_MAX_COST = 1000;
+
+/** 허용 cost: 100, 200, …, 1000 */
+export const PIN_COST_STEPS = [
+  100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+] as const;
+export type PinCost = (typeof PIN_COST_STEPS)[number];
 export const DEFAULT_PIN_COST: PinCost = 100;
 
-/** 투자 포인트별 영향 반경(m) 기본값. .env.local의 PIN_RADIUS_METERS_* 로 오버라이드. */
+/** @deprecated PIN_COST_STEPS 사용. 하위 호환용 별칭. */
+export const PIN_COST_OPTIONS = PIN_COST_STEPS;
+
+/** 일반 깃발 영향 반경(m). cost와 무관하게 고정. */
+export const FIXED_PIN_RADIUS_METERS = 100;
+
+/** @deprecated FIXED_PIN_RADIUS_METERS 사용. */
 export const DEFAULT_PIN_RADIUS_BY_COST: Record<PinCost, number> = {
-  100: 100,
-  300: 150,
-  500: 200,
-  1000: 300,
+  100: FIXED_PIN_RADIUS_METERS,
+  200: FIXED_PIN_RADIUS_METERS,
+  300: FIXED_PIN_RADIUS_METERS,
+  400: FIXED_PIN_RADIUS_METERS,
+  500: FIXED_PIN_RADIUS_METERS,
+  600: FIXED_PIN_RADIUS_METERS,
+  700: FIXED_PIN_RADIUS_METERS,
+  800: FIXED_PIN_RADIUS_METERS,
+  900: FIXED_PIN_RADIUS_METERS,
+  1000: FIXED_PIN_RADIUS_METERS,
 };
 
+/** 깃발 강화 쿨다운 (생성·강화 후). */
+export const PIN_REINFORCE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
 export function isPinCost(value: number): value is PinCost {
-  return (PIN_COST_OPTIONS as readonly number[]).includes(value);
+  return (PIN_COST_STEPS as readonly number[]).includes(value);
+}
+
+export function normalizePinCost(value: number): PinCost {
+  if (isPinCost(value)) return value;
+  const stepped = Math.round(value / 100) * 100;
+  if (isPinCost(stepped)) return stepped;
+  if (stepped < 100) return 100;
+  return 1000;
+}
+
+export function getNextPinCost(cost: number): PinCost | null {
+  const current = normalizePinCost(cost);
+  if (current >= PIN_MAX_COST) return null;
+  return (current + PIN_REINFORCE_COST) as PinCost;
 }
 
 export const CONQUER_PROBABILITIES = [10, 25, 50, 75] as const;

@@ -1,7 +1,9 @@
+import type { FlagTier } from "@/lib/flagVisual";
+
 interface FlagIconProps {
   size?: number;
   color?: string;
-  tier?: 100 | 300 | 500 | 1000;
+  tier?: FlagTier;
   className?: string;
 }
 
@@ -11,8 +13,10 @@ export default function FlagIcon({
   tier = 100,
   className,
 }: FlagIconProps) {
-  const accent =
-    tier === 1000 ? "#f59e0b" : tier === 500 ? "#fbbf24" : color;
+  const isGold = tier >= 900;
+  const hasDiamond = tier >= 500;
+  const hasInner = tier >= 300;
+  const accent = isGold ? "#f59e0b" : hasDiamond ? "#fbbf24" : color;
 
   return (
     <svg
@@ -26,27 +30,27 @@ export default function FlagIcon({
         x1="5"
         y1="21"
         x2="5"
-        y2={tier === 1000 ? 2.5 : 3}
-        stroke={tier === 1000 ? accent : color}
+        y2={isGold ? 2.5 : 3}
+        stroke={isGold ? accent : color}
         strokeWidth="2.5"
         strokeLinecap="round"
       />
-      {tier === 100 && (
-        <path d="M5 3 L19 7.5 L5 12 Z" fill={color} />
-      )}
-      {tier === 300 && (
+      {!hasInner && <path d="M5 3 L19 7.5 L5 12 Z" fill={color} />}
+      {hasInner && !isGold && (
         <>
           <path d="M5 3 L20 7 L5 11 Z" fill={color} />
-          <path d="M7 6.2 L16.5 7.2 L7 9.5 Z" fill="rgba(0,0,0,0.18)" />
+          {tier >= 300 && tier < 500 && (
+            <path d="M7 6.2 L16.5 7.2 L7 9.5 Z" fill="rgba(0,0,0,0.18)" />
+          )}
+          {hasDiamond && (
+            <path d="M8.5 5.8 L11 7 L8.5 8.2 L6 7 Z" fill={accent} />
+          )}
+          {tier >= 700 && tier < 900 && (
+            <path d="M7 5.8 L17 7 L7 9.8 Z" fill="rgba(0,0,0,0.14)" />
+          )}
         </>
       )}
-      {tier === 500 && (
-        <>
-          <path d="M5 3 L20 7 L5 11 Z" fill={color} />
-          <path d="M8.5 5.8 L11 7 L8.5 8.2 L6 7 Z" fill={accent} />
-        </>
-      )}
-      {tier === 1000 && (
+      {isGold && (
         <>
           <path d="M5 3.5 L20 7 L5 11.5 Z" fill={accent} />
           <path

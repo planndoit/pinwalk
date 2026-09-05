@@ -6,7 +6,6 @@ import MapView from "@/components/MapView";
 import PointBalance from "@/components/PointBalance";
 import CurrentLocationButton from "@/components/CurrentLocationButton";
 import CreatePinModal from "@/components/CreatePinModal";
-import PinLocationPicker from "@/components/PinLocationPicker";
 import ConquerModal from "@/components/ConquerModal";
 import PinBottomSheet from "@/components/PinBottomSheet";
 import RandomPointBottomSheet from "@/components/RandomPointBottomSheet";
@@ -25,13 +24,12 @@ import CelebrationOverlay, {
   type CelebrationType,
 } from "@/components/CelebrationOverlay";
 import GuideModal from "@/components/guide/GuideModal";
-import { clampPointToRadius, getDistanceMeters } from "@/lib/geo";
+import { getDistanceMeters } from "@/lib/geo";
 import {
   DEFAULT_PIN_RADIUS_BY_COST,
   LANDMARK_PIN_RADIUS_METERS,
   RANDOM_POINT_CLAIM_RADIUS_METERS,
   type ConquerProbability,
-  type PinCost,
 } from "@/lib/constants";
 import { consumeFocusPremiumPlace } from "@/lib/premium/focusPlace";
 import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
@@ -77,15 +75,6 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [showPremiumPromotionModal, setShowPremiumPromotionModal] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [promotionLocationPickMode, setPromotionLocationPickMode] = useState(false);
-  const [pinLocationPickMode, setPinLocationPickMode] = useState(false);
-  const [pinPickAnchor, setPinPickAnchor] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
-  const [pinPickedLocation, setPinPickedLocation] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
   const [promotionPickedLocation, setPromotionPickedLocation] = useState<{
     lat: number;
     lng: number;
@@ -94,8 +83,6 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [randomPointClaimRadius, setRandomPointClaimRadius] = useState(
     RANDOM_POINT_CLAIM_RADIUS_METERS
   );
-  const [pinPlacementRadius, setPinPlacementRadius] = useState(100);
-  const [pinRadiusByCost, setPinRadiusByCost] = useState(DEFAULT_PIN_RADIUS_BY_COST);
   const [maxPinRadiusMeters, setMaxPinRadiusMeters] = useState(
     Math.max(...Object.values(DEFAULT_PIN_RADIUS_BY_COST))
   );
@@ -348,10 +335,6 @@ export default function HomePage({ active = true }: HomePageProps) {
 
       if (pinConfigRes.ok) {
         const data = await pinConfigRes.json();
-        setPinPlacementRadius(data.placementRadiusMeters ?? 100);
-        if (data.radiusByCost) {
-          setPinRadiusByCost(data.radiusByCost);
-        }
         if (typeof data.maxRadiusMeters === "number") {
           setMaxPinRadiusMeters(data.maxRadiusMeters);
         }
@@ -486,129 +469,87 @@ export default function HomePage({ active = true }: HomePageProps) {
   };
 
   const handleCreatePinClick = () => {
-    if (actionLoading || pinLocationPickMode || promotionLocationPickMode) return;
+    if (actionLoading || promotionLocationPickMode) return;
     requireAuth(() => {
       if (!position) {
         showToast("현재 위치를 먼저 확인해주세요.");
         return;
       }
 
-      setPinPickAnchor({ lat: position.lat, lng: position.lng });
-      setPinPickedLocation({ lat: position.lat, lng: position.lng });
-      setPinLocationPickMode(true);
-      recenterNonceRef.current += 1;
-      setRecenterRequest({
-        lat: position.lat,
-        lng: position.lng,
-        nonce: recenterNonceRef.current,
-      });
+      const plantLat = position.lat;
+      const plantLng = position.lng;
+
+      void (async () => {
+        setActionLoading(true);
+        try {
+          const res = await fetch(
+            `/api/pins?lat=${plantLat}&lng=${plantLng}&radius=${maxPinRadiusMeters}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+
+            const containingLandmarks = landmarks.filter((landmark) => {
+              const d = getDistanceMeters(
+                plantLat,
+                plantLng,
+                landmark.lat,
+                landmark.lng
+              );
+              return d <= landmark.radiusMeters;
+            });
+            const containingIds = new Set(
+              containingLandmarks.map((landmark) => landmark.id)
+            );
+
+            const nearby = (data.pins ?? []).filter((p: Pin) => {
+              const distance = getDistanceMeters(plantLat, plantLng, p.lat, p.lng);
+              const pinLandmarkIds = p.landmark_ids ?? [];
+
+              if (containingIds.size > 0) {
+                const sharesLandmark =
+                  pinLandmarkIds.some((id) => containingIds.has(id)) ||
+                  containingLandmarks.some(
+                    (landmark) =>
+                      getDistanceMeters(
+                        p.lat,
+                        p.lng,
+                        landmark.lat,
+                        landmark.lng
+                      ) <= landmark.radiusMeters
+                  );
+                if (!sharesLandmark) return false;
+                return (
+                  distance <=
+                  Math.max(p.radius_meters, LANDMARK_PIN_RADIUS_METERS)
+                );
+              }
+
+              if (pinLandmarkIds.length > 0) {
+                return distance <= p.radius_meters;
+              }
+              return distance <= p.radius_meters;
+            });
+            if (nearby.length > 0) {
+              showToast("이미 점령된 영역입니다. 점령에 도전해보세요.");
+              return;
+            }
+          }
+
+          setShowCreateModal(true);
+        } finally {
+          setActionLoading(false);
+        }
+      })();
     });
   };
 
-  const handleCancelPinLocationPick = () => {
-    setPinLocationPickMode(false);
-    setPinPickAnchor(null);
-    setPinPickedLocation(null);
-  };
-
-  const handleConfirmPinLocationPick = () => {
-    if (!pinPickedLocation) return;
-
-    void (async () => {
-      setActionLoading(true);
-      try {
-        const res = await fetch(
-          `/api/pins?lat=${pinPickedLocation.lat}&lng=${pinPickedLocation.lng}&radius=${maxPinRadiusMeters}`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const pickLat = pinPickedLocation.lat;
-          const pickLng = pinPickedLocation.lng;
-
-          const containingLandmarks = landmarks.filter((landmark) => {
-            const d = getDistanceMeters(
-              pickLat,
-              pickLng,
-              landmark.lat,
-              landmark.lng
-            );
-            return d <= landmark.radiusMeters;
-          });
-          const containingIds = new Set(
-            containingLandmarks.map((landmark) => landmark.id)
-          );
-
-          const nearby = (data.pins ?? []).filter((p: Pin) => {
-            const distance = getDistanceMeters(pickLat, pickLng, p.lat, p.lng);
-            const pinLandmarkIds = p.landmark_ids ?? [];
-
-            if (containingIds.size > 0) {
-              const sharesLandmark =
-                pinLandmarkIds.some((id) => containingIds.has(id)) ||
-                containingLandmarks.some(
-                  (landmark) =>
-                    getDistanceMeters(
-                      p.lat,
-                      p.lng,
-                      landmark.lat,
-                      landmark.lng
-                    ) <= landmark.radiusMeters
-                );
-              if (!sharesLandmark) return false;
-              return (
-                distance <=
-                Math.max(p.radius_meters, LANDMARK_PIN_RADIUS_METERS)
-              );
-            }
-
-            if (pinLandmarkIds.length > 0) {
-              return distance <= p.radius_meters;
-            }
-            return distance <= p.radius_meters;
-          });
-          if (nearby.length > 0) {
-            showToast(
-              "이미 점령된 영역입니다. 다른 위치를 선택하거나 점령에 도전해보세요."
-            );
-            return;
-          }
-        }
-
-        setPinLocationPickMode(false);
-        setShowCreateModal(true);
-      } finally {
-        setActionLoading(false);
-      }
-    })();
-  };
-
-  const handlePinMapClick = useCallback(
-    (lat: number, lng: number) => {
-      if (!pinPickAnchor) return;
-      setPinPickedLocation(
-        clampPointToRadius(
-          pinPickAnchor.lat,
-          pinPickAnchor.lng,
-          lat,
-          lng,
-          pinPlacementRadius
-        )
-      );
-    },
-    [pinPickAnchor, pinPlacementRadius]
-  );
-
   const handleLocationMapClick = useCallback(
     (lat: number, lng: number) => {
-      if (pinLocationPickMode) {
-        handlePinMapClick(lat, lng);
-        return;
-      }
       if (promotionLocationPickMode) {
         setPromotionPickedLocation({ lat, lng });
       }
     },
-    [pinLocationPickMode, promotionLocationPickMode, handlePinMapClick]
+    [promotionLocationPickMode]
   );
 
   const handleSpawnRandomPoints = () => {
@@ -644,8 +585,8 @@ export default function HomePage({ active = true }: HomePageProps) {
     });
   };
 
-  const handleCreatePin = async (text: string, cost: PinCost) => {
-    if (!position || !pinPickedLocation) {
+  const handleCreatePin = async (text: string) => {
+    if (!position) {
       return { success: false, error: "위치 정보가 없습니다." };
     }
 
@@ -655,12 +596,9 @@ export default function HomePage({ active = true }: HomePageProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lat: pinPickedLocation.lat,
-          lng: pinPickedLocation.lng,
           current_lat: position.lat,
           current_lng: position.lng,
           text,
-          cost,
         }),
       });
       const data = await res.json();
@@ -670,12 +608,10 @@ export default function HomePage({ active = true }: HomePageProps) {
       }
 
       const plantedLat =
-        typeof data.pin?.lat === "number" ? data.pin.lat : pinPickedLocation.lat;
+        typeof data.pin?.lat === "number" ? data.pin.lat : position.lat;
       const plantedLng =
-        typeof data.pin?.lng === "number" ? data.pin.lng : pinPickedLocation.lng;
+        typeof data.pin?.lng === "number" ? data.pin.lng : position.lng;
 
-      setPinPickAnchor(null);
-      setPinPickedLocation(null);
       await refreshProfile();
       await fetchPins();
       await fetchLandmarks();
@@ -819,10 +755,8 @@ export default function HomePage({ active = true }: HomePageProps) {
     setShowPremiumPromotionModal(true);
   };
 
-  const locationPickMode = promotionLocationPickMode || pinLocationPickMode;
-  const activePickedLocation = pinLocationPickMode
-    ? pinPickedLocation
-    : promotionPickedLocation;
+  const locationPickMode = promotionLocationPickMode;
+  const activePickedLocation = promotionPickedLocation;
 
   const handleClaimCouponSpawn = async () => {
     if (!position || !selectedCouponSpawn || !user) return;
@@ -954,11 +888,9 @@ export default function HomePage({ active = true }: HomePageProps) {
         }}
         locationPickMode={locationPickMode}
         pickedLocation={activePickedLocation}
-        locationPickAnchor={pinLocationPickMode ? pinPickAnchor : null}
-        locationPickRadiusMeters={
-          pinLocationPickMode ? pinPlacementRadius : undefined
-        }
-        locationPickMarkerKind={pinLocationPickMode ? "pin" : "default"}
+        locationPickAnchor={null}
+        locationPickRadiusMeters={undefined}
+        locationPickMarkerKind="default"
         onMapClick={locationPickMode ? handleLocationMapClick : undefined}
         layerVisibility={layerVisibility}
         crewHighlightUserIds={
@@ -1001,25 +933,13 @@ export default function HomePage({ active = true }: HomePageProps) {
         />
       )}
 
-      {pinLocationPickMode && (
-        <PinLocationPicker
-          onCancel={handleCancelPinLocationPick}
-          onConfirm={handleConfirmPinLocationPick}
-          canConfirm={pinPickedLocation !== null}
-          loading={actionLoading}
-        />
-      )}
-
       <CreatePinModal
         open={showCreateModal}
         onClose={() => {
           setShowCreateModal(false);
-          setPinPickAnchor(null);
-          setPinPickedLocation(null);
         }}
         onSubmit={handleCreatePin}
         loading={actionLoading}
-        radiusByCost={pinRadiusByCost}
       />
 
       <ConquerModal
@@ -1040,8 +960,18 @@ export default function HomePage({ active = true }: HomePageProps) {
           void refreshProfile();
           showToast("깃발을 삭제했어요.");
         }}
+        onReinforced={(updated) => {
+          setSelectedPin(updated);
+          setPins((prev) =>
+            prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p))
+          );
+          void refreshProfile();
+          void fetchLandmarks();
+          showToast(`깃발을 ${updated.cost}P로 강화했어요!`);
+        }}
         isOwner={selectedPin?.user_id === user?.id}
         disabled={actionLoading}
+        currentPosition={position}
       />
 
       <RandomPointBottomSheet

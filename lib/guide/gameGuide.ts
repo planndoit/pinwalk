@@ -6,7 +6,10 @@ import {
   DAILY_BONUS_AMOUNT,
   DAILY_BONUS_RESET_HOUR_KST,
   DEFAULT_PIN_COST,
-  PIN_COST_OPTIONS,
+  FIXED_PIN_RADIUS_METERS,
+  PIN_CREATE_COST,
+  PIN_MAX_COST,
+  PIN_REINFORCE_COST,
   SERVICE_NAME,
 } from "@/lib/constants";
 import {
@@ -75,13 +78,25 @@ export function getGameGuideSections(): GuideSection[] {
       id: "plant-pin",
       title: "깃발 꽂기",
       paragraphs: [
-        "지도에서 위치를 고른 뒤 투자 포인트를 넣어 깃발을 꽂습니다. 투자가 클수록 영향 반경이 넓어집니다.",
+        `현재 위치에 ${PIN_CREATE_COST}P로 깃발을 꽂습니다. 영향 반경은 ${FIXED_PIN_RADIUS_METERS}m입니다.`,
       ],
       bullets: [
-        `투자 옵션: ${PIN_COST_OPTIONS.join("P / ")}P`,
         "빈 땅이면 바로 깃발이 생깁니다.",
         "이미 누군가 깃발이 있는 영역이면 점령에 도전해야 합니다.",
         "랜드마크 안에서는 깃발 반경이 더 좁아지고, 랜드마크 점수에 반영됩니다.",
+      ],
+    },
+    {
+      id: "reinforce-pin",
+      title: "깃발 강화",
+      paragraphs: [
+        "내가 꽂아 둔 깃발 영역 안에서 깃발을 선택하면 강화할 수 있습니다.",
+        `강화할 때마다 ${PIN_REINFORCE_COST}P가 들어가고, 투자 포인트가 ${PIN_REINFORCE_COST}P씩 오릅니다. 최대 ${PIN_MAX_COST}P까지 키울 수 있습니다.`,
+        "생성 또는 마지막 강화 후 24시간이 지나야 다시 강화할 수 있습니다.",
+      ],
+      bullets: [
+        "강화해도 영향 반경은 변하지 않습니다.",
+        "투자 포인트가 높을수록 점령 비용·방어 보상이 커지고, 지도에서 깃발 모습이 달라집니다.",
       ],
     },
     {
