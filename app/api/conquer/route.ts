@@ -164,6 +164,8 @@ export async function POST(request: Request) {
         ownerUserId: targetPin.user_id as string,
         pinId: target_pin_id,
         reward: defenseReward,
+        lat: Number(targetPin.lat),
+        lng: Number(targetPin.lng),
       });
     }
 

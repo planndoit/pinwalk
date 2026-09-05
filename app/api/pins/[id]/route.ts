@@ -5,6 +5,35 @@ import { getPinLandmarkIds } from "@/lib/landmark/pinLandmarks";
 import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
 import { refreshCrewLandmarkScoresForUsers } from "@/lib/crew/scores";
 
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const admin = createAdminClient();
+
+  const { data: pin, error } = await admin
+    .from("pins")
+    .select("*, profiles!pins_user_id_fkey(nickname)")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !pin) {
+    return jsonError("깃발을 찾을 수 없습니다.", 404);
+  }
+
+  const landmarkIds = await getPinLandmarkIds(id);
+
+  return NextResponse.json({
+    pin: {
+      ...pin,
+      nickname: pin.profiles?.nickname ?? "익명의 워커",
+      landmark_ids: landmarkIds,
+      profiles: undefined,
+    },
+  });
+}
+
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }

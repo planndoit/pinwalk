@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { getRandomPointClaimRadiusMeters } from "@/lib/env";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { addPoints } from "@/lib/pins";
 import { getDistanceMeters } from "@/lib/geo";
+import { notifyPinToll } from "@/lib/notifications/events";
+import { addPoints } from "@/lib/pins";
+import {
+  buildTerritoryInfo,
+  calculateClaimPoints,
+  calculateTollPoints,
+  findContainingActivePins,
+} from "@/lib/randomPoints/territory";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -66,6 +73,24 @@ export async function POST(request: Request) {
     );
   }
 
+  const containingPins = await findContainingActivePins(
+    randomPoint.lat,
+    randomPoint.lng
+  );
+  const territory = buildTerritoryInfo(
+    randomPoint.points,
+    containingPins,
+    user.id
+  );
+  const earned = calculateClaimPoints(
+    randomPoint.points,
+    territory.inOwnTerritory
+  );
+  const otherPins = containingPins.filter((pin) => pin.user_id !== user.id);
+  const tollPoints = otherPins.length > 0
+    ? calculateTollPoints(randomPoint.points)
+    : 0;
+
   const now = new Date().toISOString();
 
   const { data: claimed, error: claimError } = await admin
@@ -83,11 +108,15 @@ export async function POST(request: Request) {
     return jsonError("이미 획득했거나 만료된 포인트입니다.");
   }
 
+  const claimDescription = territory.inOwnTerritory
+    ? `랜덤 포인트 획득 (내 영역 ${earned}P)`
+    : "랜덤 포인트 획득";
+
   const addResult = await addPoints(
     user.id,
-    randomPoint.points,
+    earned,
     "random_point_claim",
-    "랜덤 포인트 획득",
+    claimDescription,
     random_point_id
   );
 
@@ -95,9 +124,84 @@ export async function POST(request: Request) {
     return jsonError(addResult.error!, 500);
   }
 
+  const tollResults: Array<{
+    pinId: string;
+    ownerId: string;
+    tollPoints: number;
+  }> = [];
+
+  for (const pin of otherPins) {
+    if (tollPoints <= 0) continue;
+
+    const { data: tollRow, error: tollInsertError } = await admin
+      .from("pin_tolls")
+      .insert({
+        pin_id: pin.id,
+        random_point_id,
+        collector_id: user.id,
+        owner_id: pin.user_id,
+        base_points: randomPoint.points,
+        toll_points: tollPoints,
+        point_lat: randomPoint.lat,
+        point_lng: randomPoint.lng,
+      })
+      .select("id")
+      .single();
+
+    if (tollInsertError || !tollRow) {
+      continue;
+    }
+
+    const tollAdd = await addPoints(
+      pin.user_id,
+      tollPoints,
+      "pin_toll",
+      "통행료",
+      tollRow.id as string
+    );
+
+    if (!tollAdd.success) {
+      continue;
+    }
+
+    tollResults.push({
+      pinId: pin.id,
+      ownerId: pin.user_id,
+      tollPoints,
+    });
+
+    await notifyPinToll({
+      ownerUserId: pin.user_id,
+      collectorUserId: user.id,
+      pinId: pin.id,
+      pinText: pin.text,
+      lat: pin.lat,
+      lng: pin.lng,
+      pointLat: randomPoint.lat,
+      pointLng: randomPoint.lng,
+      tollPoints,
+      basePoints: randomPoint.points,
+    });
+  }
+
+  const messageParts = [`${earned.toLocaleString()}P 획득!`];
+  if (territory.inOwnTerritory) {
+    messageParts.push("내 영역 2배");
+  }
+  if (tollResults.length > 0) {
+    messageParts.push(
+      tollResults.length === 1
+        ? `통행료 ${tollPoints.toLocaleString()}P`
+        : `통행료 ${tollPoints.toLocaleString()}P × ${tollResults.length}`
+    );
+  }
+
   return NextResponse.json({
-    message: "포인트 획득 완료!",
+    message: messageParts.join(" · "),
     points: addResult.newPoints,
-    earned: randomPoint.points,
+    earned,
+    basePoints: randomPoint.points,
+    inOwnTerritory: territory.inOwnTerritory,
+    tolls: tollResults,
   });
 }

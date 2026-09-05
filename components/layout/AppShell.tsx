@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import HomePage from "@/components/HomePage";
 import BottomNav from "./BottomNav";
@@ -40,7 +41,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         }
         aria-hidden={!isMapTab}
       >
-        <HomePage active={isMapTab} />
+        <Suspense fallback={null}>
+          <HomePage active={isMapTab} />
+        </Suspense>
       </div>
 
       {!isMapTab && (

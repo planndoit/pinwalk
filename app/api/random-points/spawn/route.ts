@@ -9,6 +9,8 @@ import {
 } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateRandomPointWithinRadius } from "@/lib/geo";
+import { annotateRandomPointsTerritory } from "@/lib/randomPoints/territory";
+import type { RandomPoint } from "@/types/randomPoint";
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -103,8 +105,31 @@ export async function POST(request: Request) {
     })
     .eq("id", user.id);
 
+  const annotated = await annotateRandomPointsTerritory(
+    randomPoints as RandomPoint[],
+    user.id
+  );
+
+  const ownBonusCount = annotated.filter((p) => p.territory?.inOwnTerritory)
+    .length;
+  const tollCount = annotated.filter(
+    (p) => (p.territory?.otherPinCount ?? 0) > 0
+  ).length;
+
+  let message = "주변에 포인트가 생겼어요. 가까이 다가가서 획득해보세요.";
+  if (ownBonusCount > 0 && tollCount > 0) {
+    message =
+      "주변에 포인트가 생겼어요. 내 영역은 2배, 다른 사람 영역에서는 통행료가 나요.";
+  } else if (ownBonusCount > 0) {
+    message =
+      "주변에 포인트가 생겼어요. 내 영역 안 포인트는 2배로 가져가요.";
+  } else if (tollCount > 0) {
+    message =
+      "주변에 포인트가 생겼어요. 다른 사람 영역이면 주인이 통행료 10%를 받아요.";
+  }
+
   return NextResponse.json({
-    randomPoints,
-    message: "주변에 포인트가 생겼어요. 가까이 다가가서 획득해보세요.",
+    randomPoints: annotated,
+    message,
   });
 }

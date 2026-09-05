@@ -7,9 +7,11 @@ import {
   DAILY_BONUS_RESET_HOUR_KST,
   DEFAULT_PIN_COST,
   FIXED_PIN_RADIUS_METERS,
+  OWN_TERRITORY_POINT_MULTIPLIER,
   PIN_CREATE_COST,
   PIN_MAX_COST,
   PIN_REINFORCE_COST,
+  PIN_TOLL_RATE,
   SERVICE_NAME,
 } from "@/lib/constants";
 import {
@@ -25,6 +27,7 @@ import {
   calculateDefenseReward,
 } from "@/lib/points";
 import type { ConquerProbability } from "@/lib/constants";
+import { calculateTollPoints } from "@/lib/randomPoints/territory";
 
 export type GuideSection = {
   id: string;
@@ -52,6 +55,9 @@ export function getGameGuideSections(): GuideSection[] {
   const randomPointValues = getRandomPointValues();
   const conquerExamples = formatConquerExamples(DEFAULT_PIN_COST);
   const maxProbability = Math.max(...CONQUER_PROBABILITIES);
+  const tollExampleBase = 50;
+  const tollExample = calculateTollPoints(tollExampleBase);
+  const tollPercent = Math.round(PIN_TOLL_RATE * 100);
 
   return [
     {
@@ -71,8 +77,23 @@ export function getGameGuideSections(): GuideSection[] {
       bullets: [
         `✨ 포인트 찾기: 내 주변 ${randomPointRadiusMeters}m 안에 ${randomPointCount}개가 생겨요. ${randomPointExpiresMinutes}분 안에 ${randomPointClaimRadiusMeters}m까지 다가가면 획득할 수 있고, 다시 찾기는 ${randomPointSpawnIntervalMinutes}분마다 가능해요.`,
         `한 번에 ${randomPointValues.join(" / ")}P 중 하나가 랜덤으로 들어와요.`,
+        `내 깃발 영역 안에 생긴 포인트는 ${OWN_TERRITORY_POINT_MULTIPLIER}배로 가져가요.`,
+        `다른 사람 깃발 영역에서 주우면, 그 깃발 주인에게 기본 포인트의 ${tollPercent}%가 통행료로 가요. 예: ${tollExampleBase}P면 통행료 ${tollExample}P. 깃발이 여러 개 겹치면 각 주인에게 모두 지급돼요.`,
         `매일 출석 보너스 ${DAILY_BONUS_AMOUNT}P — 오전 ${DAILY_BONUS_RESET_HOUR_KST}시 이후 하루 1회`,
         "남의 깃발 점령에 성공하면 그 땅이 내 깃발이 되고, 누군가의 점령을 막아 내면 방어 보상을 받아요.",
+      ],
+    },
+    {
+      id: "toll",
+      title: "통행료",
+      paragraphs: [
+        "누군가 내 깃발 영역에서 포인트를 주우면, 내게 통행료가 들어와요. 알림·푸시로 바로 알려 주고, 알림을 누르면 그 깃발 위치로 이동해요.",
+        "깃발을 열어 보면 점령 기록 옆에 통행료 기록도 쌓여요. 누가 어디서 주웠는지 확인할 수 있어요.",
+      ],
+      bullets: [
+        `통행료는 주운 포인트 기본값의 ${tollPercent}%예요. (반올림)`,
+        "내 영역에서 내가 주우면 2배만 받고, 내게 통행료는 안 나와요.",
+        "영역이 겹친 깃발이 여러 개면, 겹친 모든 깃발 주인에게 각각 통행료가 가요.",
       ],
     },
     {
@@ -86,6 +107,7 @@ export function getGameGuideSections(): GuideSection[] {
         "빈 땅이면 바로 깃발이 생겨요.",
         "이미 다른 깃발이 있는 곳이면 점령에 도전해야 해요.",
         "랜드마크 안에서는 영역이 더 좁아지고, 랜드마크 점수에 반영돼요.",
+        "내 영역을 넓혀 두면, 포인트 찾기에서 2배·통행료 이득도 커져요.",
       ],
     },
     {

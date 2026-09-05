@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import MapView from "@/components/MapView";
 import PointBalance from "@/components/PointBalance";
@@ -48,6 +49,8 @@ interface HomePageProps {
 }
 
 export default function HomePage({ active = true }: HomePageProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, profile, loading: authLoading, refreshProfile, requireAuth } =
     useAuth();
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(
@@ -108,6 +111,8 @@ export default function HomePage({ active = true }: HomePageProps) {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
+  const focusPinRequestRef = useRef<string | null>(null);
+
   const fetchPins = useCallback(async () => {
     const res = await fetch("/api/pins?all=true", { cache: "no-store" });
     if (res.ok) {
@@ -126,6 +131,69 @@ export default function HomePage({ active = true }: HomePageProps) {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!active) return;
+
+    const pinId = searchParams.get("pinId");
+    if (!pinId) {
+      focusPinRequestRef.current = null;
+      return;
+    }
+
+    if (focusPinRequestRef.current === pinId) return;
+    focusPinRequestRef.current = pinId;
+
+    const lat = Number.parseFloat(searchParams.get("lat") ?? "");
+    const lng = Number.parseFloat(searchParams.get("lng") ?? "");
+    let cancelled = false;
+
+    void (async () => {
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        recenterNonceRef.current += 1;
+        setRecenterRequest({
+          lat,
+          lng,
+          nonce: recenterNonceRef.current,
+        });
+      }
+
+      const res = await fetch(`/api/pins/${pinId}`, { cache: "no-store" });
+      if (cancelled) return;
+
+      if (!res.ok) {
+        showToast("해당 깃발을 찾을 수 없어요.");
+        router.replace("/", { scroll: false });
+        return;
+      }
+
+      const data = await res.json();
+      const pin = data.pin as Pin | undefined;
+      if (!pin) {
+        showToast("해당 깃발을 찾을 수 없어요.");
+        router.replace("/", { scroll: false });
+        return;
+      }
+
+      setSelectedRandomPoint(null);
+      setSelectedLandmark(null);
+      setSelectedPremiumPlace(null);
+      setSelectedCouponSpawn(null);
+      setSelectedPin(pin);
+
+      if (pin.status === "active") {
+        setPins((prev) =>
+          prev.some((item) => item.id === pin.id) ? prev : [...prev, pin]
+        );
+      }
+
+      router.replace("/", { scroll: false });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [active, searchParams, router, showToast]);
 
   const fetchPremiumPlaces = useCallback(async () => {
     const res = await fetch("/api/premium-places", { cache: "no-store" });
@@ -577,7 +645,11 @@ export default function HomePage({ active = true }: HomePageProps) {
           return;
         }
 
-        await fetchRandomPoints();
+        if (Array.isArray(data.randomPoints)) {
+          setRandomPoints(data.randomPoints);
+        } else {
+          await fetchRandomPoints();
+        }
         showToast(data.message);
       } finally {
         setActionLoading(false);

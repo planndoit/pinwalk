@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import FlagIcon from "@/components/icons/FlagIcon";
 import OverlayPortal from "@/components/layout/OverlayPortal";
 import type { Pin, PinAttempt } from "@/types/pin";
+import type { PinToll } from "@/types/randomPoint";
 import {
   DEFAULT_NICKNAME,
   PIN_MAX_COST,
@@ -16,6 +17,7 @@ import {
   getFlagTier,
   getPinReinforceCooldownMsRemaining,
 } from "@/lib/flagVisual";
+import { formatActivityDate } from "@/lib/formatDate";
 import { getDistanceMeters } from "@/lib/geo";
 import { useSubmitLock } from "@/lib/useSubmitLock";
 
@@ -41,13 +43,29 @@ type AttemptHistory = {
   summary: AttemptSummary;
 };
 
+type TollSummary = {
+  total: number;
+  totalTollPoints: number;
+};
+
+type TollHistory = {
+  tolls: PinToll[];
+  summary: TollSummary;
+};
+
 const EMPTY_SUMMARY: AttemptSummary = {
   successCount: 0,
   failCount: 0,
   total: 0,
 };
 
+const EMPTY_TOLL_SUMMARY: TollSummary = {
+  total: 0,
+  totalTollPoints: 0,
+};
+
 const attemptHistoryCache = new Map<string, AttemptHistory>();
+const tollHistoryCache = new Map<string, TollHistory>();
 
 function formatAttemptText(attempt: PinAttempt): string {
   if (attempt.success && attempt.previous_owner_nickname) {
@@ -72,6 +90,10 @@ export default function PinBottomSheet({
   const [attempts, setAttempts] = useState<PinAttempt[]>([]);
   const [summary, setSummary] = useState<AttemptSummary>(EMPTY_SUMMARY);
   const [attemptsLoading, setAttemptsLoading] = useState(false);
+  const [tolls, setTolls] = useState<PinToll[]>([]);
+  const [tollSummary, setTollSummary] =
+    useState<TollSummary>(EMPTY_TOLL_SUMMARY);
+  const [tollsLoading, setTollsLoading] = useState(false);
   const [cooldownMs, setCooldownMs] = useState(0);
   const [reinforceError, setReinforceError] = useState<string | null>(null);
   const { locked: deleting, run, unlock } = useSubmitLock();
@@ -144,6 +166,48 @@ export default function PinBottomSheet({
     };
   }, [pin]);
 
+  useEffect(() => {
+    if (!pin) return;
+
+    const pinId = pin.id;
+    const cached = tollHistoryCache.get(pinId);
+    if (cached) {
+      setTolls(cached.tolls);
+      setTollSummary(cached.summary);
+      setTollsLoading(false);
+    } else {
+      setTolls([]);
+      setTollSummary(EMPTY_TOLL_SUMMARY);
+      setTollsLoading(true);
+    }
+
+    let cancelled = false;
+    fetch(`/api/pins/${pinId}/tolls`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const next: TollHistory = {
+          tolls: data.tolls ?? [],
+          summary: data.summary ?? EMPTY_TOLL_SUMMARY,
+        };
+        tollHistoryCache.set(pinId, next);
+        setTolls(next.tolls);
+        setTollSummary(next.summary);
+      })
+      .catch(() => {
+        if (cancelled || cached) return;
+        setTolls([]);
+        setTollSummary(EMPTY_TOLL_SUMMARY);
+      })
+      .finally(() => {
+        if (!cancelled) setTollsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pin]);
+
   if (!pin) return null;
 
   const tier = getFlagTier(pin.cost);
@@ -179,6 +243,7 @@ export default function PinBottomSheet({
         return "release";
       }
       attemptHistoryCache.delete(pin.id);
+      tollHistoryCache.delete(pin.id);
       onDeleted?.(pin.id);
       return "keep";
     });
@@ -351,6 +416,45 @@ export default function PinBottomSheet({
                       </p>
                       <p className="text-gray-400 mt-0.5">
                         {a.selected_probability}% 시도
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {tollsLoading && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-2xl shrink-0">
+              <p className="text-xs font-semibold text-gray-600">통행료 기록</p>
+              <p className="mt-2.5 text-xs text-gray-400">불러오는 중...</p>
+            </div>
+          )}
+
+          {!tollsLoading && tollSummary.total > 0 && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-2xl flex flex-col min-h-0 shrink">
+              <div className="flex items-center justify-between shrink-0">
+                <p className="text-xs font-semibold text-gray-600">통행료 기록</p>
+                <p className="text-xs text-emerald-600 font-semibold">
+                  +{tollSummary.totalTollPoints.toLocaleString()}P ·{" "}
+                  {tollSummary.total}건
+                </p>
+              </div>
+              <ul className="mt-2.5 space-y-2 overflow-y-auto max-h-48 pr-1">
+                {tolls.map((toll) => (
+                  <li
+                    key={toll.id}
+                    className="text-xs text-gray-600 flex items-start gap-2"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 bg-amber-500" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-800">
+                        {toll.collector_nickname ?? DEFAULT_NICKNAME}님이
+                        포인트 주움 → 통행료 +{toll.toll_points}P
+                      </p>
+                      <p className="text-gray-400 mt-0.5">
+                        {formatActivityDate(toll.created_at)} · 기본{" "}
+                        {toll.base_points}P의 10%
                       </p>
                     </div>
                   </li>

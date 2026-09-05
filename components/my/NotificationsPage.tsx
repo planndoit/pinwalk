@@ -29,6 +29,17 @@ function resolveNotificationPath(notification: SerializedNotification): string {
     return path;
   }
 
+  const pinId = notification.data.pinId;
+  const lat = notification.data.lat;
+  const lng = notification.data.lng;
+  if (
+    typeof pinId === "string" &&
+    typeof lat === "number" &&
+    typeof lng === "number"
+  ) {
+    return `/?pinId=${encodeURIComponent(pinId)}&lat=${lat}&lng=${lng}`;
+  }
+
   switch (notification.type) {
     case "crew_join_request":
     case "crew_join_approved":
@@ -45,6 +56,7 @@ function resolveNotificationPath(notification: SerializedNotification): string {
     }
     case "pin_conquered":
     case "pin_defense_success":
+    case "pin_toll":
       return "/";
     case "admin_points":
       return "/my";

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { getRandomPointClaimRadiusMeters } from "@/lib/env";
+import { annotateRandomPointsTerritory } from "@/lib/randomPoints/territory";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { RandomPoint } from "@/types/randomPoint";
 
 export async function GET() {
   const user = await getAuthenticatedUser();
@@ -23,8 +25,13 @@ export async function GET() {
     return jsonError("랜덤 포인트 조회에 실패했습니다.", 500);
   }
 
+  const annotated = await annotateRandomPointsTerritory(
+    (randomPoints ?? []) as RandomPoint[],
+    user.id
+  );
+
   return NextResponse.json({
-    randomPoints: randomPoints ?? [],
+    randomPoints: annotated,
     claimRadiusMeters: getRandomPointClaimRadiusMeters(),
   });
 }

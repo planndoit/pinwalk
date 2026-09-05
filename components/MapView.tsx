@@ -324,7 +324,39 @@ function createCouponSpawnMarkerContent(title: string): string {
   `;
 }
 
-function createRandomPointMarkerContent(points: number): string {
+function createRandomPointMarkerContent(
+  points: number,
+  territory?: {
+    inOwnTerritory?: boolean;
+    otherPinCount?: number;
+    claimPoints?: number;
+  }
+): string {
+  const displayPoints = territory?.claimPoints ?? points;
+  const showDouble = territory?.inOwnTerritory === true;
+  const showToll = (territory?.otherPinCount ?? 0) > 0;
+  const badge = showDouble
+    ? `<div style="
+        position: absolute; top: -8px; right: -10px;
+        background: #059669; color: white;
+        font-size: 9px; font-weight: 800;
+        padding: 2px 5px; border-radius: 999px;
+        border: 1.5px solid white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        white-space: nowrap;
+      ">2배</div>`
+    : showToll
+      ? `<div style="
+        position: absolute; top: -8px; right: -14px;
+        background: #d97706; color: white;
+        font-size: 9px; font-weight: 800;
+        padding: 2px 5px; border-radius: 999px;
+        border: 1.5px solid white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        white-space: nowrap;
+      ">통행료</div>`
+      : "";
+
   return `
     <div style="transform: translate(-50%, -50%); position: relative; cursor: pointer;">
       <div style="
@@ -343,7 +375,7 @@ function createRandomPointMarkerContent(points: number): string {
         font-size: 12px; font-weight: 800;
         box-shadow: 0 4px 12px rgba(245,158,11,0.5);
         border: 2.5px solid white;
-      ">${points}P</div>
+      ">${displayPoints}P${badge}</div>
     </div>
     <style>
       @keyframes bdj-pulse {
@@ -1091,7 +1123,7 @@ export default function MapView({
         position: new naverObj.maps.LatLng(point.lat, point.lng),
         map,
         icon: {
-          content: createRandomPointMarkerContent(point.points),
+          content: createRandomPointMarkerContent(point.points, point.territory),
           anchor: new naverObj.maps.Point(0, 0),
         },
       });

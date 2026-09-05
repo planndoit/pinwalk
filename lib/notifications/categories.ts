@@ -22,7 +22,7 @@ export const NOTIFICATION_CATEGORY_LABELS: Record<
   },
   game: {
     label: "게임",
-    description: "내 핀 점령, 방어 성공",
+    description: "내 핀 점령, 방어 성공, 통행료",
   },
   support: {
     label: "문의·지원",
