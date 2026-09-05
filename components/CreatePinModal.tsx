@@ -71,13 +71,13 @@ export default function CreatePinModal({
             현재 위치에 깃발을 꽂을까요?
           </h2>
           <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">
-            {PIN_CREATE_COST}P로 깃발을 꽂습니다. 나중에 현장에서{" "}
-            <span className="font-semibold text-gray-700">깃발 강화</span>로
-            키울 수 있어요.
+            아래 말이 지도 위 깃발에 표시됩니다.
           </p>
 
           <label className="block mt-5">
-            <span className="text-xs font-semibold text-gray-500">깃발 문구</span>
+            <span className="text-xs font-semibold text-gray-500">
+              깃발에 적을 말
+            </span>
             <div className="mt-1.5 flex items-center gap-2">
               <span className="shrink-0 text-blue-600">
                 <FlagIcon size={22} tier={100} color="#2563eb" />
@@ -89,7 +89,7 @@ export default function CreatePinModal({
                 }
                 maxLength={PIN_TEXT_MAX_LENGTH}
                 disabled={busy}
-                placeholder="짧은 문구를 적어주세요"
+                placeholder="예: 여기 내 땅!"
                 className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm bg-gray-50 disabled:opacity-60"
               />
             </div>
@@ -110,6 +110,9 @@ export default function CreatePinModal({
           >
             {busy ? "생성 중..." : `🚩 ${PIN_CREATE_COST}P로 깃발 꽂기`}
           </button>
+          <p className="mt-2.5 text-center text-xs text-gray-400">
+            같은 자리에 다시 오면 강화할 수 있어요.
+          </p>
         </div>
       </div>
     </OverlayPortal>
