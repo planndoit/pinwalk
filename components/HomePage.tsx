@@ -1033,13 +1033,21 @@ export default function HomePage({ active = true }: HomePageProps) {
           showToast("깃발을 삭제했어요.");
         }}
         onReinforced={(updated) => {
-          setSelectedPin(updated);
+          let reinforced = false;
+          setSelectedPin((prev) => {
+            reinforced = prev != null && updated.cost > prev.cost;
+            return prev ? { ...prev, ...updated } : updated;
+          });
           setPins((prev) =>
             prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p))
           );
           void refreshProfile();
           void fetchLandmarks();
-          showToast(`깃발을 ${updated.cost}P로 강화했어요!`);
+          showToast(
+            reinforced
+              ? `깃발을 ${updated.cost}P로 강화했어요!`
+              : "깃발 문구를 바꿨어요!"
+          );
         }}
         isOwner={selectedPin?.user_id === user?.id}
         disabled={actionLoading}

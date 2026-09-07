@@ -9,6 +9,8 @@ import {
   DEFAULT_NICKNAME,
   PIN_MAX_COST,
   PIN_REINFORCE_COST,
+  PIN_TEXT_CHANGE_COST,
+  PIN_TEXT_MAX_LENGTH,
   getNextPinCost,
 } from "@/lib/constants";
 import {
@@ -95,20 +97,32 @@ export default function PinBottomSheet({
     useState<TollSummary>(EMPTY_TOLL_SUMMARY);
   const [tollsLoading, setTollsLoading] = useState(false);
   const [cooldownMs, setCooldownMs] = useState(0);
-  const [reinforceError, setReinforceError] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
   const { locked: deleting, run, unlock } = useSubmitLock();
   const {
     locked: reinforcing,
     run: runReinforce,
     unlock: unlockReinforce,
   } = useSubmitLock();
+  const {
+    locked: updatingText,
+    run: runUpdateText,
+    unlock: unlockUpdateText,
+  } = useSubmitLock();
 
   useEffect(() => {
     if (!pin) {
       unlock();
       unlockReinforce();
+      unlockUpdateText();
+      setEditText("");
+      setActionError(null);
+      return;
     }
-  }, [pin, unlock, unlockReinforce]);
+    setEditText(pin.text);
+    setActionError(null);
+  }, [pin, unlock, unlockReinforce, unlockUpdateText]);
 
   useEffect(() => {
     if (!pin || !isOwner) {
@@ -212,7 +226,10 @@ export default function PinBottomSheet({
 
   const tier = getFlagTier(pin.cost);
   const nextCost = getNextPinCost(pin.cost);
-  const busy = disabled || deleting || reinforcing;
+  const isMaxCost = nextCost === null || pin.cost >= PIN_MAX_COST;
+  const busy = disabled || deleting || reinforcing || updatingText;
+  const trimmedEditText = editText.trim();
+  const textChanged = trimmedEditText !== pin.text.trim();
   const insideRadius =
     currentPosition != null &&
     getDistanceMeters(
@@ -223,10 +240,17 @@ export default function PinBottomSheet({
     ) <= pin.radius_meters;
   const canReinforce =
     isOwner &&
+    !isMaxCost &&
     nextCost !== null &&
-    pin.cost < PIN_MAX_COST &&
     cooldownMs <= 0 &&
-    insideRadius;
+    insideRadius &&
+    trimmedEditText.length > 0;
+  const canChangeText =
+    isOwner &&
+    isMaxCost &&
+    insideRadius &&
+    textChanged &&
+    trimmedEditText.length > 0;
 
   const handleDelete = () => {
     if (busy) return;
@@ -250,8 +274,8 @@ export default function PinBottomSheet({
   };
 
   const handleReinforce = () => {
-    if (busy || !currentPosition) return;
-    setReinforceError(null);
+    if (busy || !currentPosition || !canReinforce) return;
+    setActionError(null);
 
     void runReinforce(async () => {
       const res = await fetch(`/api/pins/${pin.id}/reinforce`, {
@@ -260,11 +284,38 @@ export default function PinBottomSheet({
         body: JSON.stringify({
           current_lat: currentPosition.lat,
           current_lng: currentPosition.lng,
+          text: trimmedEditText,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setReinforceError(data.error ?? "깃발 강화에 실패했습니다.");
+        setActionError(data.error ?? "깃발 강화에 실패했습니다.");
+        return "release";
+      }
+      if (data.pin) {
+        onReinforced?.(data.pin as Pin);
+      }
+      return "release";
+    });
+  };
+
+  const handleChangeText = () => {
+    if (busy || !currentPosition || !canChangeText) return;
+    setActionError(null);
+
+    void runUpdateText(async () => {
+      const res = await fetch(`/api/pins/${pin.id}/text`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_lat: currentPosition.lat,
+          current_lng: currentPosition.lng,
+          text: trimmedEditText,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionError(data.error ?? "깃발 문구 변경에 실패했습니다.");
         return "release";
       }
       if (data.pin) {
@@ -312,9 +363,29 @@ export default function PinBottomSheet({
               />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-lg font-bold text-gray-900 break-all leading-snug">
-                {pin.text}
-              </p>
+              {isOwner ? (
+                <label className="block">
+                  <span className="sr-only">깃발 문구</span>
+                  <input
+                    value={editText}
+                    onChange={(e) =>
+                      setEditText(
+                        e.target.value.slice(0, PIN_TEXT_MAX_LENGTH)
+                      )
+                    }
+                    maxLength={PIN_TEXT_MAX_LENGTH}
+                    disabled={busy}
+                    className="w-full text-lg font-bold text-gray-900 leading-snug px-0 py-0 border-0 border-b border-gray-200 focus:border-blue-500 focus:ring-0 bg-transparent disabled:opacity-60"
+                  />
+                  <span className="mt-1 block text-right text-[11px] text-gray-400 tabular-nums">
+                    {editText.length}/{PIN_TEXT_MAX_LENGTH}
+                  </span>
+                </label>
+              ) : (
+                <p className="text-lg font-bold text-gray-900 break-all leading-snug">
+                  {pin.text}
+                </p>
+              )}
               <p className="text-sm text-gray-500 mt-0.5">
                 {pin.nickname ?? DEFAULT_NICKNAME}
                 {isOwner && (
@@ -337,33 +408,49 @@ export default function PinBottomSheet({
 
           {isOwner && (
             <div className="mt-3 shrink-0 space-y-2">
-              {nextCost === null ? (
-                <p className="text-center text-sm font-semibold text-gray-500 bg-gray-50 rounded-xl py-3">
-                  최대 강화 ({PIN_MAX_COST}P)
-                </p>
+              {isMaxCost ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void handleChangeText()}
+                    disabled={busy || !canChangeText}
+                    className="w-full py-3.5 rounded-2xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20 active:scale-98 transition-transform disabled:opacity-40"
+                  >
+                    {updatingText
+                      ? "변경 중..."
+                      : `문구 변경 (${PIN_TEXT_CHANGE_COST}P)`}
+                  </button>
+                  <p className="text-center text-xs text-gray-500">
+                    {!insideRadius
+                      ? "깃발 영역 안에서만 문구를 바꿀 수 있어요"
+                      : !textChanged
+                        ? "문구를 수정한 뒤 변경할 수 있어요 · 쿨다운 없음"
+                        : "최대 강화 깃발 · 쿨다운 없이 문구만 변경"}
+                  </p>
+                </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => void handleReinforce()}
-                  disabled={busy || !canReinforce}
-                  className="w-full py-3.5 rounded-2xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20 active:scale-98 transition-transform disabled:opacity-40"
-                >
-                  {reinforcing
-                    ? "강화 중..."
-                    : `깃발 강화 (+${PIN_REINFORCE_COST}P → ${nextCost}P)`}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void handleReinforce()}
+                    disabled={busy || !canReinforce}
+                    className="w-full py-3.5 rounded-2xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/20 active:scale-98 transition-transform disabled:opacity-40"
+                  >
+                    {reinforcing
+                      ? "강화 중..."
+                      : `깃발 강화 (+${PIN_REINFORCE_COST}P → ${nextCost}P)`}
+                  </button>
+                  <p className="text-center text-xs text-gray-500">
+                    {!insideRadius
+                      ? "깃발 영역 안에서만 강화할 수 있어요"
+                      : cooldownMs > 0
+                        ? `다음 강화까지 ${formatCooldownRemaining(cooldownMs)}`
+                        : "강화할 때 문구도 함께 바꿀 수 있어요"}
+                  </p>
+                </>
               )}
-              {nextCost !== null && (
-                <p className="text-center text-xs text-gray-500">
-                  {!insideRadius
-                    ? "깃발 영역 안에서만 강화할 수 있어요"
-                    : cooldownMs > 0
-                      ? `다음 강화까지 ${formatCooldownRemaining(cooldownMs)}`
-                      : "지금 강화할 수 있어요"}
-                </p>
-              )}
-              {reinforceError ? (
-                <p className="text-center text-xs text-red-500">{reinforceError}</p>
+              {actionError ? (
+                <p className="text-center text-xs text-red-500">{actionError}</p>
               ) : null}
             </div>
           )}

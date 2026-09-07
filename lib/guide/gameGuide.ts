@@ -11,6 +11,7 @@ import {
   PIN_CREATE_COST,
   PIN_MAX_COST,
   PIN_REINFORCE_COST,
+  PIN_TEXT_CHANGE_COST,
   PIN_TOLL_RATE,
   SERVICE_NAME,
 } from "@/lib/constants";
@@ -112,15 +113,16 @@ export function getGameGuideSections(): GuideSection[] {
     },
     {
       id: "reinforce-pin",
-      title: "깃발 강화",
+      title: "깃발 강화 · 문구 변경",
       paragraphs: [
         "자주 다니는 길에 깃발이 가득해도, 같은 자리에 다시 와서 내 깃발을 키울 수 있어요.",
-        `내 깃발 영역 안으로 들어가 깃발을 고른 뒤 「깃발 강화」를 누르면 ${PIN_REINFORCE_COST}P가 들어가고, 투자 포인트가 ${PIN_REINFORCE_COST}P씩 올라가요. 최대 ${PIN_MAX_COST}P까지요.`,
+        `내 깃발 영역 안으로 들어가 깃발을 고른 뒤 「깃발 강화」를 누르면 ${PIN_REINFORCE_COST}P가 들어가고, 투자 포인트가 ${PIN_REINFORCE_COST}P씩 올라가요. 최대 ${PIN_MAX_COST}P까지요. 강화할 때 기존 문구를 미리 보여 주니, 그대로 두거나 바꿔서 올릴 수 있어요.`,
       ],
       bullets: [
         "꽂은 뒤, 또는 마지막 강화 후 24시간이 지나야 다시 강화할 수 있어요.",
         "강화해도 영역 크기(반경)는 그대로예요.",
         "투자 포인트가 높을수록 뺏기 어렵고, 지도에서 깃발 모습도 조금 더 돋보여요.",
+        `${PIN_MAX_COST}P까지 올린 뒤에는 영역 안에서 ${PIN_TEXT_CHANGE_COST}P로 문구만 바꿀 수 있고, 이때는 24시간 쿨다운이 없어요.`,
       ],
     },
     {

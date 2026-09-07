@@ -6,6 +6,9 @@ export const PIN_CREATE_COST = 100;
 /** 깃발 강화 1회 비용. */
 export const PIN_REINFORCE_COST = 100;
 
+/** 최대 강화(1000P) 깃발의 문구 변경 비용. 쿨다운 없음. */
+export const PIN_TEXT_CHANGE_COST = 50;
+
 /** 깃발 최대 투자 포인트. */
 export const PIN_MAX_COST = 1000;
 

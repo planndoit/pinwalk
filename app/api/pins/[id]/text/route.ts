@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
 import {
   PIN_MAX_COST,
-  PIN_REINFORCE_COST,
-  getNextPinCost,
+  PIN_TEXT_CHANGE_COST,
   normalizePinCost,
 } from "@/lib/constants";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addPoints, deductPoints } from "@/lib/pins";
 import { getDistanceMeters } from "@/lib/geo";
-import { getPinReinforceAvailableAt } from "@/lib/flagVisual";
-import { getPinLandmarkIds } from "@/lib/landmark/pinLandmarks";
-import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
-import { refreshCrewLandmarkScoresForUsers } from "@/lib/crew/scores";
 import { validatePinText } from "@/lib/validation";
 import { getFixedPinRadiusMeters } from "@/lib/env";
 
@@ -64,19 +59,24 @@ export async function POST(
   }
 
   if (pin.user_id !== user.id) {
-    return jsonError("내 깃발만 강화할 수 있습니다.", 403);
+    return jsonError("내 깃발만 문구를 변경할 수 있습니다.", 403);
   }
 
   if (pin.status !== "active") {
-    return jsonError("활성 깃발만 강화할 수 있습니다.");
+    return jsonError("활성 깃발만 문구를 변경할 수 있습니다.");
   }
 
   const currentCost = normalizePinCost(
     typeof pin.cost === "number" ? pin.cost : 100
   );
-  const nextCost = getNextPinCost(currentCost);
-  if (nextCost === null || currentCost >= PIN_MAX_COST) {
-    return jsonError("이미 최대까지 강화된 깃발입니다.");
+  if (currentCost < PIN_MAX_COST) {
+    return jsonError(
+      `투자 ${PIN_MAX_COST}P 깃발만 별도로 문구를 변경할 수 있습니다. 그 전에는 강화할 때 함께 바꿔 주세요.`
+    );
+  }
+
+  if ((pin.text as string).trim() === trimmedText) {
+    return jsonError("변경된 문구가 없습니다.");
   }
 
   const radiusMeters =
@@ -90,22 +90,14 @@ export async function POST(
     pin.lng as number
   );
   if (distance > radiusMeters) {
-    return jsonError("깃발 영역 안에서만 강화할 수 있습니다.");
-  }
-
-  const availableAt = getPinReinforceAvailableAt({
-    created_at: pin.created_at as string,
-    last_reinforced_at: (pin.last_reinforced_at as string | null) ?? null,
-  });
-  if (Date.now() < availableAt.getTime()) {
-    return jsonError("강화 쿨다운이 남아 있습니다. 나중에 다시 시도해주세요.");
+    return jsonError("깃발 영역 안에서만 문구를 변경할 수 있습니다.");
   }
 
   const deductResult = await deductPoints(
     user.id,
-    PIN_REINFORCE_COST,
-    "reinforce_pin",
-    `깃발 강화 (${currentCost}P → ${nextCost}P)`,
+    PIN_TEXT_CHANGE_COST,
+    "update_pin_text",
+    `깃발 문구 변경 (${PIN_TEXT_CHANGE_COST}P)`,
     pinId
   );
 
@@ -117,9 +109,7 @@ export async function POST(
   const { data: updated, error: updateError } = await admin
     .from("pins")
     .update({
-      cost: nextCost,
       text: trimmedText,
-      last_reinforced_at: now,
       updated_at: now,
     })
     .eq("id", pinId)
@@ -131,23 +121,17 @@ export async function POST(
   if (updateError || !updated) {
     await addPoints(
       user.id,
-      PIN_REINFORCE_COST,
+      PIN_TEXT_CHANGE_COST,
       "admin_adjust",
-      "깃발 강화 실패 환불",
+      "깃발 문구 변경 실패 환불",
       pinId
     );
-    return jsonError("깃발 강화에 실패했습니다.", 500);
-  }
-
-  const landmarkIds = await getPinLandmarkIds(pinId);
-  if (landmarkIds.length > 0) {
-    await refreshUsersLandmarkScores(landmarkIds, [user.id]);
-    await refreshCrewLandmarkScoresForUsers(landmarkIds, [user.id]);
+    return jsonError("깃발 문구 변경에 실패했습니다.", 500);
   }
 
   return NextResponse.json({
     pin: updated,
     points: deductResult.newPoints,
-    message: `깃발을 ${nextCost}P로 강화했어요.`,
+    message: "깃발 문구를 바꿨어요.",
   });
 }
