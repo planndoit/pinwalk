@@ -270,7 +270,7 @@ export default function PinBottomSheet({
       if (data.pin) {
         onReinforced?.(data.pin as Pin);
       }
-      return "keep";
+      return "release";
     });
   };
 
