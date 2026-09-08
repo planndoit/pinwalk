@@ -377,9 +377,22 @@ export default function PinBottomSheet({
                     disabled={busy}
                     className="w-full text-lg font-bold text-gray-900 leading-snug px-0 py-0 border-0 border-b border-gray-200 focus:border-blue-500 focus:ring-0 bg-transparent disabled:opacity-60"
                   />
-                  <span className="mt-1 block text-right text-[11px] text-gray-400 tabular-nums">
-                    {editText.length}/{PIN_TEXT_MAX_LENGTH}
-                  </span>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-gray-500">
+                      {isMaxCost
+                        ? insideRadius
+                          ? textChanged
+                            ? "아래 버튼으로 저장돼요"
+                            : "문구를 수정한 뒤 변경할 수 있어요"
+                          : "영역 안에서만 문구를 바꿀 수 있어요"
+                        : insideRadius && cooldownMs <= 0
+                          ? "강화할 때 함께 저장돼요"
+                          : "문구는 강화할 때만 저장돼요"}
+                    </span>
+                    <span className="text-[11px] text-gray-400 tabular-nums shrink-0">
+                      {editText.length}/{PIN_TEXT_MAX_LENGTH}
+                    </span>
+                  </div>
                 </label>
               ) : (
                 <p className="text-lg font-bold text-gray-900 break-all leading-snug">
