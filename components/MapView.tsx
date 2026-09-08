@@ -65,6 +65,7 @@ interface MapViewProps {
 }
 
 const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
+const EMPTY_CREW_HIGHLIGHT_USER_IDS: string[] = [];
 
 function createPinMarkerContent(
   text: string,
@@ -535,7 +536,7 @@ export default function MapView({
     crews: false,
     premium: true,
   },
-  crewHighlightUserIds = [],
+  crewHighlightUserIds = EMPTY_CREW_HIGHLIGHT_USER_IDS,
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<InstanceType<typeof naver.maps.Map> | null>(null);
@@ -559,8 +560,10 @@ export default function MapView({
   const premiumPlacesRef = useRef(premiumPlaces);
   const currentUserIdRef = useRef(currentUserId);
   const onPinClickRef = useRef(onPinClick);
+  const onRandomPointClickRef = useRef(onRandomPointClick);
   const onLandmarkClickRef = useRef(onLandmarkClick);
   const onPremiumPlaceClickRef = useRef(onPremiumPlaceClick);
+  const onCouponSpawnClickRef = useRef(onCouponSpawnClick);
   const layerVisibilityRef = useRef(layerVisibility);
   const crewHighlightUserIdsRef = useRef(crewHighlightUserIds);
   const renderRafRef = useRef<number | null>(null);
@@ -578,8 +581,10 @@ export default function MapView({
     premiumPlacesRef.current = premiumPlaces;
     currentUserIdRef.current = currentUserId;
     onPinClickRef.current = onPinClick;
+    onRandomPointClickRef.current = onRandomPointClick;
     onLandmarkClickRef.current = onLandmarkClick;
     onPremiumPlaceClickRef.current = onPremiumPlaceClick;
+    onCouponSpawnClickRef.current = onCouponSpawnClick;
     layerVisibilityRef.current = layerVisibility;
     crewHighlightUserIdsRef.current = crewHighlightUserIds;
   }, [
@@ -588,8 +593,10 @@ export default function MapView({
     premiumPlaces,
     currentUserId,
     onPinClick,
+    onRandomPointClick,
     onLandmarkClick,
     onPremiumPlaceClick,
+    onCouponSpawnClick,
     layerVisibility,
     crewHighlightUserIds,
   ]);
@@ -1129,11 +1136,11 @@ export default function MapView({
       });
 
       naverObj.maps.Event.addListener(marker, "click", () =>
-        onRandomPointClick(point)
+        onRandomPointClickRef.current(point)
       );
       randomMarkersRef.current.push(marker);
     });
-  }, [mapReady, randomPoints, onRandomPointClick]);
+  }, [mapReady, randomPoints]);
 
   // 프리미엄 쿠폰 스폰 마커
   useEffect(() => {
@@ -1158,11 +1165,11 @@ export default function MapView({
       });
 
       naverObj.maps.Event.addListener(marker, "click", () =>
-        onCouponSpawnClick(spawn)
+        onCouponSpawnClickRef.current(spawn)
       );
       couponMarkersRef.current.push(marker);
     });
-  }, [mapReady, couponSpawns, onCouponSpawnClick, layerVisibility.premium]);
+  }, [mapReady, couponSpawns, layerVisibility.premium]);
 
   // 홍보 요청 위치 선택 모드
   useEffect(() => {

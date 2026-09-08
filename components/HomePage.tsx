@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import MapView from "@/components/MapView";
@@ -43,6 +43,7 @@ import type {
 } from "@/types/premiumClient";
 
 const POSITION_UPDATE_THRESHOLD_METERS = 5;
+const EMPTY_CREW_HIGHLIGHT_USER_IDS: string[] = [];
 
 interface HomePageProps {
   active?: boolean;
@@ -322,7 +323,7 @@ export default function HomePage({ active = true }: HomePageProps) {
   const syncCouponSpawns = useCallback(
     async (lat: number, lng: number) => {
       if (!user) {
-        setCouponSpawns([]);
+        setCouponSpawns((prev) => (prev.length === 0 ? prev : []));
         return;
       }
 
@@ -334,7 +335,16 @@ export default function HomePage({ active = true }: HomePageProps) {
 
       if (res.ok) {
         const data = await res.json();
-        setCouponSpawns(data.spawns ?? []);
+        const next = (data.spawns ?? []) as SerializedCouponSpawn[];
+        setCouponSpawns((prev) => {
+          if (
+            prev.length === next.length &&
+            prev.every((spawn, index) => spawn.id === next[index]?.id)
+          ) {
+            return prev;
+          }
+          return next;
+        });
       }
     },
     [user]
@@ -780,16 +790,69 @@ export default function HomePage({ active = true }: HomePageProps) {
     }
   };
 
-  const handlePinClick = (pin: Pin) => {
+  const handlePinClick = useCallback((pin: Pin) => {
     setSelectedLandmark(null);
     setSelectedPin(pin);
-  };
+  }, []);
 
   const handleConquerClick = () => {
     requireAuth(() => {
       setShowConquerModal(true);
     });
   };
+
+  const handleMapPinClick = useCallback(
+    (pin: Pin) => {
+      if (promotionLocationPickMode) return;
+      handlePinClick(pin);
+    },
+    [promotionLocationPickMode, handlePinClick]
+  );
+
+  const handleMapRandomPointClick = useCallback(
+    (point: RandomPoint) => {
+      if (promotionLocationPickMode) return;
+      requireAuth(() => setSelectedRandomPoint(point));
+    },
+    [promotionLocationPickMode, requireAuth]
+  );
+
+  const handleMapLandmarkClick = useCallback(
+    (landmark: SerializedLandmark) => {
+      if (promotionLocationPickMode) return;
+      setSelectedPremiumPlace(null);
+      setSelectedLandmark(landmark);
+    },
+    [promotionLocationPickMode]
+  );
+
+  const handleMapPremiumPlaceClick = useCallback(
+    (place: SerializedPremiumPlace) => {
+      if (promotionLocationPickMode) return;
+      trackPremiumPlaceEvent(place.id, "marker_click");
+      trackPremiumPlaceEvent(place.id, "detail_open", { source: "map_marker" });
+      setSelectedLandmark(null);
+      setSelectedPremiumPlace(place);
+    },
+    [promotionLocationPickMode]
+  );
+
+  const handleMapCouponSpawnClick = useCallback(
+    (spawn: SerializedCouponSpawn) => {
+      if (promotionLocationPickMode) return;
+      trackPremiumPlaceEvent(spawn.premiumPlaceId, "coupon_spawn_click", {
+        spawnId: spawn.id,
+      });
+      requireAuth(() => setSelectedCouponSpawn(spawn));
+    },
+    [promotionLocationPickMode, requireAuth]
+  );
+
+  const crewHighlightUserIds = useMemo(() => {
+    if (myCrewOnly) return myCrewUserIds;
+    if (layerVisibility.crews) return allCrewUserIds;
+    return EMPTY_CREW_HIGHLIGHT_USER_IDS;
+  }, [myCrewOnly, myCrewUserIds, layerVisibility.crews, allCrewUserIds]);
 
   const handlePremiumPromotionClick = () => {
     if (authLoading) return;
@@ -929,35 +992,11 @@ export default function HomePage({ active = true }: HomePageProps) {
         currentPosition={position}
         currentUserId={user?.id ?? null}
         recenterRequest={recenterRequest}
-        onPinClick={(pin) => {
-          if (locationPickMode) return;
-          handlePinClick(pin);
-        }}
-        onRandomPointClick={(point) => {
-          if (locationPickMode) return;
-          requireAuth(() => setSelectedRandomPoint(point));
-        }}
-        onLandmarkClick={(landmark) => {
-          if (locationPickMode) return;
-          setSelectedPremiumPlace(null);
-          setSelectedLandmark(landmark);
-        }}
-        onPremiumPlaceClick={(place) => {
-          if (locationPickMode) return;
-          trackPremiumPlaceEvent(place.id, "marker_click");
-          trackPremiumPlaceEvent(place.id, "detail_open", { source: "map_marker" });
-          setSelectedLandmark(null);
-          setSelectedPremiumPlace(place);
-        }}
-        onCouponSpawnClick={(spawn) => {
-          if (locationPickMode) return;
-          trackPremiumPlaceEvent(
-            spawn.premiumPlaceId,
-            "coupon_spawn_click",
-            { spawnId: spawn.id }
-          );
-          requireAuth(() => setSelectedCouponSpawn(spawn));
-        }}
+        onPinClick={handleMapPinClick}
+        onRandomPointClick={handleMapRandomPointClick}
+        onLandmarkClick={handleMapLandmarkClick}
+        onPremiumPlaceClick={handleMapPremiumPlaceClick}
+        onCouponSpawnClick={handleMapCouponSpawnClick}
         locationPickMode={locationPickMode}
         pickedLocation={activePickedLocation}
         locationPickAnchor={null}
@@ -965,13 +1004,7 @@ export default function HomePage({ active = true }: HomePageProps) {
         locationPickMarkerKind="default"
         onMapClick={locationPickMode ? handleLocationMapClick : undefined}
         layerVisibility={layerVisibility}
-        crewHighlightUserIds={
-          myCrewOnly
-            ? myCrewUserIds
-            : layerVisibility.crews
-              ? allCrewUserIds
-              : []
-        }
+        crewHighlightUserIds={crewHighlightUserIds}
       />
 
       <PointBalance
