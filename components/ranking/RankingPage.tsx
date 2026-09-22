@@ -35,7 +35,8 @@ const TABS: RankTab[] = [
     type: "total_earned",
     label: "누적 포인트",
     unit: "P",
-    description: "지금까지 획득한 포인트의 총합입니다. 획득 횟수도 함께 표시됩니다.",
+    description:
+      "지금까지 활동으로 획득한 포인트의 총합입니다. 관리자 지급은 제외되며, 획득 횟수도 함께 표시됩니다.",
   },
   {
     kind: "user",
