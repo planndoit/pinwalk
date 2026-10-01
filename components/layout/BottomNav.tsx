@@ -6,6 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 
 const tabs = [
   { href: "/", label: "지도", icon: MapIcon },
+  { href: "/mission", label: "미션", icon: MissionIcon, auth: true },
   { href: "/ranking", label: "랭킹", icon: RankingIcon },
   { href: "/crew", label: "크루", icon: CrewIcon, auth: true },
   { href: "/my", label: "마이", icon: MyIcon, auth: true },
@@ -15,6 +16,23 @@ function MapIcon({ active }: { active: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className="w-6 h-6" fill={active ? "#2563eb" : "#9ca3af"}>
       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z" />
+    </svg>
+  );
+}
+
+function MissionIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="w-6 h-6"
+      fill="none"
+      stroke={active ? "#2563eb" : "#9ca3af"}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2" />
     </svg>
   );
 }
