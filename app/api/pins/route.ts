@@ -14,7 +14,9 @@ export async function GET(request: Request) {
 
   let query = admin
     .from("pins")
-    .select("*, profiles!pins_user_id_fkey(nickname)")
+    .select(
+      "*, profiles!pins_user_id_fkey(nickname, avatar_mime, updated_at)"
+    )
     .eq("status", "active");
 
   if (!all) {
@@ -47,6 +49,9 @@ export async function GET(request: Request) {
   const result = pinList.map((pin) => ({
     ...pin,
     nickname: pin.profiles?.nickname ?? "익명의 워커",
+    has_avatar: Boolean(pin.profiles?.avatar_mime),
+    avatar_updated_at:
+      (pin.profiles?.updated_at as string | null | undefined) ?? null,
     landmark_ids: landmarkIdsByPin.get(pin.id as string) ?? [],
     profiles: undefined,
   }));

@@ -15,6 +15,8 @@ export type NotificationType =
   | "crew_leader_transferred"
   | "pin_conquered"
   | "pin_defense_success"
+  | "pin_conquer_success"
+  | "pin_conquer_failed"
   | "pin_toll"
   | "inquiry_reply"
   | "admin_points";

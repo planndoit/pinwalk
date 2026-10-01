@@ -56,6 +56,8 @@ function resolveNotificationPath(notification: SerializedNotification): string {
     }
     case "pin_conquered":
     case "pin_defense_success":
+    case "pin_conquer_success":
+    case "pin_conquer_failed":
     case "pin_toll":
       return "/";
     case "admin_points":

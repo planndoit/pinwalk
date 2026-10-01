@@ -28,6 +28,7 @@ import {
   setPinLandmarks,
 } from "@/lib/landmark/pinLandmarks";
 import {
+  notifyConquerAttemptResult,
   notifyPinConquered,
   notifyPinDefenseSuccess,
 } from "@/lib/notifications/events";
@@ -152,20 +153,32 @@ export async function POST(request: Request) {
     });
 
     const defenseReward = calculateDefenseReward(probability, pinCost);
-    if (defenseReward > 0 && targetPin.user_id !== user.id) {
-      await addPoints(
-        targetPin.user_id,
-        defenseReward,
-        "defense_reward",
-        "공격을 막아냈어요",
-        target_pin_id
-      );
+    if (targetPin.user_id !== user.id) {
+      if (defenseReward > 0) {
+        await addPoints(
+          targetPin.user_id,
+          defenseReward,
+          "defense_reward",
+          "공격을 막아냈어요",
+          target_pin_id
+        );
+      }
       await notifyPinDefenseSuccess({
         ownerUserId: targetPin.user_id as string,
         pinId: target_pin_id,
         reward: defenseReward,
+        pinText: targetPin.text as string,
         lat: Number(targetPin.lat),
         lng: Number(targetPin.lng),
+      });
+      await notifyConquerAttemptResult({
+        attackerUserId: user.id,
+        ownerUserId: targetPin.user_id as string,
+        pinId: target_pin_id,
+        pinText: targetPin.text as string,
+        lat: Number(targetPin.lat),
+        lng: Number(targetPin.lng),
+        success: false,
       });
     }
 
@@ -244,6 +257,16 @@ export async function POST(request: Request) {
       user.id,
     ]);
   }
+
+  await notifyConquerAttemptResult({
+    attackerUserId: user.id,
+    ownerUserId: targetPin.user_id as string,
+    pinId: newPin.id as string,
+    pinText: targetPin.text as string,
+    lat: Number(newPin.lat),
+    lng: Number(newPin.lng),
+    success: true,
+  });
 
   try {
     await recordRegionVisit({

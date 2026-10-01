@@ -69,6 +69,15 @@ const EMPTY_TOLL_SUMMARY: TollSummary = {
 const attemptHistoryCache = new Map<string, AttemptHistory>();
 const tollHistoryCache = new Map<string, TollHistory>();
 
+function ownerAvatarUrl(pin: Pin): string | null {
+  if (!pin.has_avatar) return null;
+  const params = new URLSearchParams({ userId: pin.user_id });
+  if (pin.avatar_updated_at) {
+    params.set("t", pin.avatar_updated_at);
+  }
+  return `/api/profile/avatar?${params.toString()}`;
+}
+
 function formatAttemptText(attempt: PinAttempt): string {
   if (attempt.success && attempt.previous_owner_nickname) {
     return `${attempt.attacker_nickname ?? DEFAULT_NICKNAME} → ${attempt.previous_owner_nickname} 점령`;
@@ -99,6 +108,11 @@ export default function PinBottomSheet({
   const [cooldownMs, setCooldownMs] = useState(0);
   const [editText, setEditText] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [avatarUi, setAvatarUi] = useState({
+    pinId: "",
+    open: false,
+    failed: false,
+  });
   const { locked: deleting, run, unlock } = useSubmitLock();
   const {
     locked: reinforcing,
@@ -225,6 +239,10 @@ export default function PinBottomSheet({
   if (!pin) return null;
 
   const tier = getFlagTier(pin.cost);
+  const ownerName = pin.nickname ?? DEFAULT_NICKNAME;
+  const avatarForPin = avatarUi.pinId === pin.id ? avatarUi : null;
+  const avatarUrl = avatarForPin?.failed ? null : ownerAvatarUrl(pin);
+  const avatarOpen = Boolean(avatarForPin?.open && avatarUrl);
   const nextCost = getNextPinCost(pin.cost);
   const isMaxCost = nextCost === null || pin.cost >= PIN_MAX_COST;
   const busy = disabled || deleting || reinforcing || updatingText;
@@ -351,17 +369,30 @@ export default function PinBottomSheet({
           <div
             className={`flex items-start gap-3 shrink-0 ${isOwner ? "pr-14" : ""}`}
           >
-            <div
-              className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                isOwner ? "bg-blue-50" : "bg-red-50"
-              }`}
-            >
-              <FlagIcon
-                size={22}
-                tier={tier}
-                color={isOwner ? "#2563eb" : "#ef4444"}
-              />
-            </div>
+            {avatarUrl ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setAvatarUi({ pinId: pin.id, open: true, failed: false })
+                }
+                className="w-11 h-11 rounded-full overflow-hidden shrink-0 bg-gray-100"
+                aria-label={`${ownerName} 프로필 보기`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  onError={() =>
+                    setAvatarUi({ pinId: pin.id, open: false, failed: true })
+                  }
+                />
+              </button>
+            ) : (
+              <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-lg">
+                👤
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               {isOwner ? (
                 <label className="block">
@@ -400,7 +431,7 @@ export default function PinBottomSheet({
                 </p>
               )}
               <p className="text-sm text-gray-500 mt-0.5">
-                {pin.nickname ?? DEFAULT_NICKNAME}
+                {ownerName}
                 {isOwner && (
                   <span className="ml-1.5 text-[11px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">
                     내 깃발
@@ -515,7 +546,7 @@ export default function PinBottomSheet({
                         {formatAttemptText(a)}
                       </p>
                       <p className="text-gray-400 mt-0.5">
-                        {a.selected_probability}% 시도
+                        {formatActivityDate(a.created_at)} · {a.selected_probability}% 시도
                       </p>
                     </div>
                   </li>
@@ -564,6 +595,25 @@ export default function PinBottomSheet({
           )}
         </div>
       </div>
+      {avatarOpen && avatarUrl ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-6"
+          onClick={() =>
+            setAvatarUi({ pinId: pin.id, open: false, failed: false })
+          }
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${ownerName} 프로필`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={avatarUrl}
+            alt={ownerName}
+            className="max-h-[75dvh] max-w-[85vw] rounded-2xl object-contain shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
+      ) : null}
     </OverlayPortal>
   );
 }

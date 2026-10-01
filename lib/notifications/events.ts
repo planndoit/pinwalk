@@ -147,15 +147,24 @@ export async function notifyPinDefenseSuccess(input: {
   ownerUserId: string;
   pinId: string;
   reward: number;
+  pinText?: string;
   lat?: number;
   lng?: number;
 }): Promise<void> {
+  const defended =
+    input.pinText && input.pinText.length > 0
+      ? `"${input.pinText}" 깃발 점령 시도를 막았습니다.`
+      : "점령 시도를 막았습니다.";
+
   await createNotification({
     userId: input.ownerUserId,
     category: "game",
     type: "pin_defense_success",
     title: "방어 성공",
-    body: `공격을 막아 ${input.reward.toLocaleString()}P를 받았습니다.`,
+    body:
+      input.reward > 0
+        ? `공격을 막아 ${input.reward.toLocaleString()}P를 받았습니다.`
+        : defended,
     data: {
       path:
         typeof input.lat === "number" && typeof input.lng === "number"
@@ -164,6 +173,39 @@ export async function notifyPinDefenseSuccess(input: {
       pinId: input.pinId,
       ...(typeof input.lat === "number" ? { lat: input.lat } : {}),
       ...(typeof input.lng === "number" ? { lng: input.lng } : {}),
+    },
+  });
+}
+
+export async function notifyConquerAttemptResult(input: {
+  attackerUserId: string;
+  ownerUserId: string;
+  pinId: string;
+  pinText: string;
+  lat: number;
+  lng: number;
+  success: boolean;
+}): Promise<void> {
+  if (input.attackerUserId === input.ownerUserId) {
+    return;
+  }
+
+  const ownerNickname = await getProfileNickname(input.ownerUserId);
+  const ownerLabel = ownerNickname ?? "누군가";
+
+  await createNotification({
+    userId: input.attackerUserId,
+    category: "game",
+    type: input.success ? "pin_conquer_success" : "pin_conquer_failed",
+    title: input.success ? "점령 성공" : "점령 실패",
+    body: input.success
+      ? `${ownerLabel}의 "${input.pinText}" 깃발을 점령했습니다.`
+      : `${ownerLabel}의 "${input.pinText}" 깃발 점령에 실패했습니다.`,
+    data: {
+      path: buildPinFocusPath(input.pinId, input.lat, input.lng),
+      pinId: input.pinId,
+      lat: input.lat,
+      lng: input.lng,
     },
   });
 }

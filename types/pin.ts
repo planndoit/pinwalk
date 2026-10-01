@@ -17,6 +17,8 @@ export interface Pin {
   created_at: string;
   updated_at: string;
   nickname?: string;
+  has_avatar?: boolean;
+  avatar_updated_at?: string | null;
 }
 
 export interface PinAttempt {
