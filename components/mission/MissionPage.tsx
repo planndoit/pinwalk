@@ -202,7 +202,7 @@ export default function MissionPage() {
   );
 
   return (
-    <div className="h-dvh overflow-y-auto bg-gray-50 pb-[calc(6.5rem+var(--safe-bottom))]">
+    <div className="h-dvh overflow-y-auto bg-gray-50 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
       <div className="mx-auto max-w-lg">
         <MainTabHeader
           title="미션"
