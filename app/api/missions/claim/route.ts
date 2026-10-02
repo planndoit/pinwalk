@@ -72,6 +72,11 @@ export async function POST(request: Request) {
       message: `${mission.reward.toLocaleString()}P를 받았습니다.`,
       points: Number(result.new_points),
       missionId: mission.id,
+      missions: missions.map((item) =>
+        item.id === mission.id
+          ? { ...item, claimed: true, claimable: false }
+          : item
+      ),
     });
   } catch (error) {
     console.error("mission claim failed:", error);

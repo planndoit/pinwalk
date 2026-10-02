@@ -58,7 +58,7 @@ export default function ConquerModal({
             ? "점령 성공! 이 영역에 내 깃발을 꽂았어요."
             : "점령 실패! 기존 깃발이 버텼어요.",
         });
-        return "keep";
+        return "release";
       }
       setError(res.error ?? "점령 시도에 실패했습니다.");
       return "release";

@@ -175,8 +175,9 @@ export default function MissionPage() {
       if (!response.ok) {
         throw new Error(data.error ?? "보상을 받지 못했습니다.");
       }
-      await Promise.all([fetchMissions(), refreshProfile()]);
+      setMissions(data.missions ?? []);
       setMessage(data.message ?? "미션 보상을 받았습니다.");
+      void refreshProfile();
     })()
       .catch((claimError: unknown) => {
         setError(

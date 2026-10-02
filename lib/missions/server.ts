@@ -132,6 +132,12 @@ export async function getUserMissions(
       value.getTime() < earliest.getTime() ? value : earliest
     );
   const nowIso = now.toISOString();
+  const periodKeys = [
+    ranges.daily.key,
+    ranges.weekly.key,
+    ranges.monthly.key,
+    ranges.starter.key,
+  ];
 
   const [
     transactions,
@@ -144,6 +150,7 @@ export async function getUserMissions(
     startFindResult,
     startCrewResult,
     startConquerResult,
+    claimsResult,
   ] = await Promise.all([
     fetchTransactions(userId, activityStart.toISOString(), nowIso),
     fetchAttempts(userId, activityStart.toISOString(), nowIso),
@@ -185,10 +192,18 @@ export async function getUserMissions(
       .from("pin_attempts")
       .select("id", { count: "exact", head: true })
       .eq("attacker_id", userId),
+    admin
+      .from("mission_claims")
+      .select("mission_id, period_key")
+      .eq("user_id", userId)
+      .in("period_key", periodKeys),
   ]);
 
   if (randomPointsResult.error) {
     throw new Error(randomPointsResult.error.message);
+  }
+  if (claimsResult.error) {
+    throw new Error(claimsResult.error.message);
   }
   if (profileResult.error || !profileResult.data) {
     throw new Error(profileResult.error?.message ?? "Profile not found");
@@ -300,24 +315,8 @@ export async function getUserMissions(
     return progress[id] >= definition.target;
   }).length;
 
-  const periodKeys = [
-    ranges.daily.key,
-    ranges.weekly.key,
-    ranges.monthly.key,
-    ranges.starter.key,
-  ];
-  const { data: claimRows, error: claimsError } = await admin
-    .from("mission_claims")
-    .select("mission_id, period_key")
-    .eq("user_id", userId)
-    .in("period_key", periodKeys);
-
-  if (claimsError) {
-    throw new Error(claimsError.message);
-  }
-
   const claimedKeys = new Set(
-    (claimRows ?? []).map(
+    (claimsResult.data ?? []).map(
       (row) => `${row.mission_id as string}:${row.period_key as string}`
     )
   );
