@@ -24,7 +24,9 @@ import {
   getFlagBorderColor,
   getFlagMarkerScale,
   getFlagTier,
+  type FlagTier,
 } from "@/lib/flagVisual";
+import { getPinOwnerAvatarUrl } from "@/lib/pinAvatar";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
 import type { SerializedLandmark } from "@/types/landmark";
@@ -67,11 +69,44 @@ interface MapViewProps {
 const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
 const EMPTY_CREW_HIGHLIGHT_USER_IDS: string[] = [];
 
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function createPinLeadingIcon(
+  tier: FlagTier,
+  flagSize: number,
+  avatarUrl: string | null
+): string {
+  const flagIcon = createFlagIconSvg(tier, flagSize);
+  if (!avatarUrl) return flagIcon;
+  const size = flagSize + 6;
+  return `<span style="
+      position: relative;
+      width: ${size}px; height: ${size}px;
+      margin: -3px 0 -3px -4px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      box-shadow: 0 0 0 1.5px rgba(255,255,255,0.9);
+    ">${flagIcon}<span style="
+      position: absolute; inset: 0;
+      background: url('${escapeHtmlAttribute(avatarUrl)}') center / cover no-repeat;
+    "></span></span>`;
+}
+
 function createPinMarkerContent(
   text: string,
   isMine: boolean,
   cost: number,
-  crewHighlight = false
+  crewHighlight = false,
+  avatarUrl: string | null = null
 ): string {
   const tier = getFlagTier(cost);
   const display = text.length > 8 ? text.slice(0, 8) + "…" : text;
@@ -101,7 +136,7 @@ function createPinMarkerContent(
         display: flex;
         align-items: center;
         gap: 5px;
-      ">${createFlagIconSvg(tier, scale.flagSize)}<span>${display}</span></div>
+      ">${createPinLeadingIcon(tier, scale.flagSize, avatarUrl)}<span>${display}</span></div>
       <div style="
         width: 0; height: 0;
         border-left: 6px solid transparent;
@@ -718,7 +753,13 @@ export default function MapView({
           Math.floor(getFlagTier(pin.cost) / 100),
         icon: {
           content: showText
-            ? createPinMarkerContent(pin.text, isMine, pin.cost, crewHighlight)
+            ? createPinMarkerContent(
+                pin.text,
+                isMine,
+                pin.cost,
+                crewHighlight,
+                getPinOwnerAvatarUrl(pin)
+              )
             : createEmojiPinMarkerContent(isMine, pin.cost, crewHighlight),
           anchor: new naverObj.maps.Point(0, 0),
         },

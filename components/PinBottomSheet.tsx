@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type UIEvent } from "react";
 import FlagIcon from "@/components/icons/FlagIcon";
 import OverlayPortal from "@/components/layout/OverlayPortal";
 import type { Pin, PinAttempt } from "@/types/pin";
@@ -21,6 +21,8 @@ import {
 } from "@/lib/flagVisual";
 import { formatActivityDate } from "@/lib/formatDate";
 import { getDistanceMeters } from "@/lib/geo";
+import { getPinOwnerAvatarUrl } from "@/lib/pinAvatar";
+import { useClock } from "@/lib/useClock";
 import { useSubmitLock } from "@/lib/useSubmitLock";
 
 interface PinBottomSheetProps {
@@ -40,9 +42,15 @@ type AttemptSummary = {
   total: number;
 };
 
+type AttemptCursor = {
+  before: string;
+  beforeId: string;
+};
+
 type AttemptHistory = {
   attempts: PinAttempt[];
   summary: AttemptSummary;
+  nextCursor: AttemptCursor | null;
 };
 
 type TollSummary = {
@@ -66,17 +74,11 @@ const EMPTY_TOLL_SUMMARY: TollSummary = {
   totalTollPoints: 0,
 };
 
+const ATTEMPTS_PAGE_SIZE = 20;
+const ATTEMPTS_LOAD_MORE_THRESHOLD_PX = 48;
+
 const attemptHistoryCache = new Map<string, AttemptHistory>();
 const tollHistoryCache = new Map<string, TollHistory>();
-
-function ownerAvatarUrl(pin: Pin): string | null {
-  if (!pin.has_avatar) return null;
-  const params = new URLSearchParams({ userId: pin.user_id });
-  if (pin.avatar_updated_at) {
-    params.set("t", pin.avatar_updated_at);
-  }
-  return `/api/profile/avatar?${params.toString()}`;
-}
 
 function formatAttemptText(attempt: PinAttempt): string {
   if (attempt.success && attempt.previous_owner_nickname) {
@@ -101,11 +103,16 @@ export default function PinBottomSheet({
   const [attempts, setAttempts] = useState<PinAttempt[]>([]);
   const [summary, setSummary] = useState<AttemptSummary>(EMPTY_SUMMARY);
   const [attemptsLoading, setAttemptsLoading] = useState(false);
+  const [attemptsCursor, setAttemptsCursor] = useState<AttemptCursor | null>(
+    null
+  );
+  const [attemptsLoadingMore, setAttemptsLoadingMore] = useState(false);
+  const attemptsLoadingMoreRef = useRef(false);
+  const activePinIdRef = useRef<string | null>(null);
   const [tolls, setTolls] = useState<PinToll[]>([]);
   const [tollSummary, setTollSummary] =
     useState<TollSummary>(EMPTY_TOLL_SUMMARY);
   const [tollsLoading, setTollsLoading] = useState(false);
-  const [cooldownMs, setCooldownMs] = useState(0);
   const [editText, setEditText] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [avatarUi, setAvatarUi] = useState({
@@ -125,65 +132,63 @@ export default function PinBottomSheet({
     unlock: unlockUpdateText,
   } = useSubmitLock();
 
-  useEffect(() => {
-    if (!pin) {
-      unlock();
-      unlockReinforce();
-      unlockUpdateText();
-      setEditText("");
-      setActionError(null);
-      return;
-    }
-    setEditText(pin.text);
+  const [prevPin, setPrevPin] = useState<Pin | null>(null);
+  const nowMs = useClock(Boolean(pin && isOwner));
+
+  if (pin !== prevPin) {
+    setPrevPin(pin);
+    setEditText(pin?.text ?? "");
     setActionError(null);
+    if (pin) {
+      const cachedAttempts = attemptHistoryCache.get(pin.id);
+      setAttempts(cachedAttempts?.attempts ?? []);
+      setSummary(cachedAttempts?.summary ?? EMPTY_SUMMARY);
+      setAttemptsCursor(cachedAttempts?.nextCursor ?? null);
+      setAttemptsLoading(!cachedAttempts);
+      setAttemptsLoadingMore(false);
+      const cachedTolls = tollHistoryCache.get(pin.id);
+      setTolls(cachedTolls?.tolls ?? []);
+      setTollSummary(cachedTolls?.summary ?? EMPTY_TOLL_SUMMARY);
+      setTollsLoading(!cachedTolls);
+    }
+  }
+
+  useEffect(() => {
+    if (pin) return;
+    unlock();
+    unlockReinforce();
+    unlockUpdateText();
   }, [pin, unlock, unlockReinforce, unlockUpdateText]);
 
   useEffect(() => {
-    if (!pin || !isOwner) {
-      setCooldownMs(0);
-      return;
-    }
-
-    const tick = () => {
-      setCooldownMs(getPinReinforceCooldownMsRemaining(pin));
-    };
-    tick();
-    const id = window.setInterval(tick, 30_000);
-    return () => window.clearInterval(id);
-  }, [pin, isOwner]);
+    activePinIdRef.current = pin?.id ?? null;
+  }, [pin]);
 
   useEffect(() => {
     if (!pin) return;
 
     const pinId = pin.id;
     const cached = attemptHistoryCache.get(pinId);
-    if (cached) {
-      setAttempts(cached.attempts);
-      setSummary(cached.summary);
-      setAttemptsLoading(false);
-    } else {
-      setAttempts([]);
-      setSummary(EMPTY_SUMMARY);
-      setAttemptsLoading(true);
-    }
-
     let cancelled = false;
-    fetch(`/api/pins/${pinId}/attempts`)
+    fetch(`/api/pins/${pinId}/attempts?limit=${ATTEMPTS_PAGE_SIZE}`)
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;
         const next: AttemptHistory = {
           attempts: data.attempts ?? [],
           summary: data.summary ?? EMPTY_SUMMARY,
+          nextCursor: data.nextCursor ?? null,
         };
         attemptHistoryCache.set(pinId, next);
         setAttempts(next.attempts);
         setSummary(next.summary);
+        setAttemptsCursor(next.nextCursor);
       })
       .catch(() => {
         if (cancelled || cached) return;
         setAttempts([]);
         setSummary(EMPTY_SUMMARY);
+        setAttemptsCursor(null);
       })
       .finally(() => {
         if (!cancelled) setAttemptsLoading(false);
@@ -199,16 +204,6 @@ export default function PinBottomSheet({
 
     const pinId = pin.id;
     const cached = tollHistoryCache.get(pinId);
-    if (cached) {
-      setTolls(cached.tolls);
-      setTollSummary(cached.summary);
-      setTollsLoading(false);
-    } else {
-      setTolls([]);
-      setTollSummary(EMPTY_TOLL_SUMMARY);
-      setTollsLoading(true);
-    }
-
     let cancelled = false;
     fetch(`/api/pins/${pinId}/tolls`)
       .then((res) => res.json())
@@ -239,9 +234,12 @@ export default function PinBottomSheet({
   if (!pin) return null;
 
   const tier = getFlagTier(pin.cost);
+  const cooldownMs = isOwner
+    ? getPinReinforceCooldownMsRemaining(pin, nowMs)
+    : 0;
   const ownerName = pin.nickname ?? DEFAULT_NICKNAME;
   const avatarForPin = avatarUi.pinId === pin.id ? avatarUi : null;
-  const avatarUrl = avatarForPin?.failed ? null : ownerAvatarUrl(pin);
+  const avatarUrl = avatarForPin?.failed ? null : getPinOwnerAvatarUrl(pin);
   const avatarOpen = Boolean(avatarForPin?.open && avatarUrl);
   const nextCost = getNextPinCost(pin.cost);
   const isMaxCost = nextCost === null || pin.cost >= PIN_MAX_COST;
@@ -269,6 +267,58 @@ export default function PinBottomSheet({
     insideRadius &&
     textChanged &&
     trimmedEditText.length > 0;
+
+  const loadMoreAttempts = () => {
+    if (!attemptsCursor || attemptsLoadingMoreRef.current) return;
+
+    const pinId = pin.id;
+    const query = new URLSearchParams({
+      limit: String(ATTEMPTS_PAGE_SIZE),
+      before: attemptsCursor.before,
+      beforeId: attemptsCursor.beforeId,
+    });
+    attemptsLoadingMoreRef.current = true;
+    setAttemptsLoadingMore(true);
+
+    fetch(`/api/pins/${pinId}/attempts?${query.toString()}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("load more failed");
+        return res.json();
+      })
+      .then((data) => {
+        const cached = attemptHistoryCache.get(pinId);
+        if (!cached) return;
+        const seen = new Set(cached.attempts.map((attempt) => attempt.id));
+        const page = ((data.attempts ?? []) as PinAttempt[]).filter(
+          (attempt) => !seen.has(attempt.id)
+        );
+        const next: AttemptHistory = {
+          ...cached,
+          attempts: [...cached.attempts, ...page],
+          nextCursor: data.nextCursor ?? null,
+        };
+        attemptHistoryCache.set(pinId, next);
+        if (activePinIdRef.current !== pinId) return;
+        setAttempts(next.attempts);
+        setAttemptsCursor(next.nextCursor);
+      })
+      .catch(() => {})
+      .finally(() => {
+        attemptsLoadingMoreRef.current = false;
+        if (activePinIdRef.current === pinId) setAttemptsLoadingMore(false);
+      });
+  };
+
+  const handleAttemptsScroll = (event: UIEvent<HTMLUListElement>) => {
+    const el = event.currentTarget;
+    if (
+      el.scrollHeight - el.scrollTop - el.clientHeight >
+      ATTEMPTS_LOAD_MORE_THRESHOLD_PX
+    ) {
+      return;
+    }
+    loadMoreAttempts();
+  };
 
   const handleDelete = () => {
     if (busy) return;
@@ -350,7 +400,7 @@ export default function PinBottomSheet({
           className="absolute inset-0 bg-black/30"
           onClick={busy ? undefined : onClose}
         />
-        <div className="relative w-full max-w-lg bg-white rounded-t-3xl px-6 pt-3 pb-8 animate-slide-up shadow-2xl max-h-[85dvh] flex flex-col">
+        <div className="relative w-full max-w-lg bg-white rounded-t-3xl px-6 pt-3 pb-8 animate-slide-up shadow-2xl max-h-[85dvh] flex flex-col overflow-y-auto overscroll-contain">
           <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 shrink-0" />
 
           {isOwner && (
@@ -517,7 +567,7 @@ export default function PinBottomSheet({
           )}
 
           {!attemptsLoading && summary.total > 0 && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-2xl flex flex-col min-h-0 shrink">
+            <div className="mt-4 p-4 bg-gray-50 rounded-2xl flex flex-col shrink-0">
               <div className="flex items-center justify-between shrink-0">
                 <p className="text-xs font-semibold text-gray-600">점령 기록</p>
                 <p className="text-xs text-gray-500">
@@ -530,7 +580,10 @@ export default function PinBottomSheet({
                   </span>
                 </p>
               </div>
-              <ul className="mt-2.5 space-y-2 overflow-y-auto max-h-48 pr-1">
+              <ul
+                className="mt-2.5 space-y-2 overflow-y-auto max-h-48 pr-1 overscroll-contain"
+                onScroll={handleAttemptsScroll}
+              >
                 {attempts.map((a) => (
                   <li
                     key={a.id}
@@ -551,6 +604,11 @@ export default function PinBottomSheet({
                     </div>
                   </li>
                 ))}
+                {attemptsLoadingMore && (
+                  <li className="text-xs text-gray-400 text-center py-1">
+                    불러오는 중...
+                  </li>
+                )}
               </ul>
             </div>
           )}
@@ -563,7 +621,7 @@ export default function PinBottomSheet({
           )}
 
           {!tollsLoading && tollSummary.total > 0 && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-2xl flex flex-col min-h-0 shrink">
+            <div className="mt-4 p-4 bg-gray-50 rounded-2xl flex flex-col shrink-0">
               <div className="flex items-center justify-between shrink-0">
                 <p className="text-xs font-semibold text-gray-600">통행료 기록</p>
                 <p className="text-xs text-emerald-600 font-semibold">
