@@ -199,15 +199,6 @@ export async function POST(request: Request) {
     })
     .eq("id", target_pin_id);
 
-  await notifyPinConquered({
-    ownerUserId: targetPin.user_id as string,
-    attackerUserId: user.id,
-    pinId: target_pin_id,
-    pinText: targetPin.text as string,
-    lat: targetPin.lat as number,
-    lng: targetPin.lng as number,
-  });
-
   const newRadius = inLandmarkZone
     ? LANDMARK_PIN_RADIUS_METERS
     : getPinRadiusMeters();
@@ -239,6 +230,15 @@ export async function POST(request: Request) {
     selected_probability: probability,
     cost,
     success: true,
+  });
+
+  await notifyPinConquered({
+    ownerUserId: targetPin.user_id as string,
+    attackerUserId: user.id,
+    pinId: newPin.id as string,
+    pinText: targetPin.text as string,
+    lat: Number(newPin.lat),
+    lng: Number(newPin.lng),
   });
 
   let appliedLandmarkIds = landmarkIds;

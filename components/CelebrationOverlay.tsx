@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import OverlayPortal from "@/components/layout/OverlayPortal";
 
 export type CelebrationType = "plant" | "conquer";
@@ -21,6 +21,40 @@ const CONFETTI_COLORS = [
 
 const CONFETTI_COUNT = 80;
 
+function createConfetti() {
+  return Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    delay: Math.random() * 0.4,
+    duration: 1 + Math.random() * 0.9,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    size: 6 + Math.random() * 8,
+  }));
+}
+
+function ConfettiBurst() {
+  const [confetti] = useState(createConfetti);
+
+  return (
+    <>
+      {confetti.map((c) => (
+        <span
+          key={c.id}
+          className="absolute top-0 block"
+          style={{
+            left: `${c.left}%`,
+            width: c.size,
+            height: c.size,
+            background: c.color,
+            borderRadius: 2,
+            animation: `confetti-fall ${c.duration}s linear ${c.delay}s forwards`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 export default function CelebrationOverlay({
   type,
   onDone,
@@ -30,18 +64,6 @@ export default function CelebrationOverlay({
     const timer = window.setTimeout(onDone, duration);
     return () => window.clearTimeout(timer);
   }, [type, onDone]);
-
-  const confetti = useMemo(() => {
-    if (type !== "conquer") return [];
-    return Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      delay: Math.random() * 0.4,
-      duration: 1 + Math.random() * 0.9,
-      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-      size: 6 + Math.random() * 8,
-    }));
-  }, [type]);
 
   return (
     <OverlayPortal>
@@ -67,20 +89,7 @@ export default function CelebrationOverlay({
         </div>
       ) : (
         <>
-          {confetti.map((c) => (
-            <span
-              key={c.id}
-              className="absolute top-0 block"
-              style={{
-                left: `${c.left}%`,
-                width: c.size,
-                height: c.size,
-                background: c.color,
-                borderRadius: 2,
-                animation: `confetti-fall ${c.duration}s linear ${c.delay}s forwards`,
-              }}
-            />
-          ))}
+          <ConfettiBurst />
           <div
             className="relative flex flex-col items-center"
             style={{

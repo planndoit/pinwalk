@@ -98,17 +98,44 @@ function buildFilterQueryParams(filters: SearchFilters): URLSearchParams {
   return params;
 }
 
+type LandmarkPageResult =
+  | { ok: true; landmarks: SerializedLandmark[]; total: number }
+  | { ok: false; error: string };
+
+async function requestLandmarkPage(
+  filters: SearchFilters,
+  pageNo: number
+): Promise<LandmarkPageResult> {
+  const res = await fetch(
+    `/api/admin/landmarks?${buildListParams(filters, pageNo)}`
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    return { ok: false, error: data.error ?? "조회에 실패했습니다." };
+  }
+  return {
+    ok: true,
+    landmarks: (data.landmarks ?? []) as SerializedLandmark[],
+    total: data.total ?? 0,
+  };
+}
+
 export default function AdminLandmarksPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [draft, setDraft] = useState<SearchFilters>(EMPTY_FILTERS);
+  const listQueryString = searchParams.toString();
+  const [draft, setDraft] = useState<SearchFilters>(() =>
+    parseFiltersFromParams(new URLSearchParams(listQueryString))
+  );
+  const [prevListQueryString, setPrevListQueryString] =
+    useState(listQueryString);
   const [landmarks, setLandmarks] = useState<SerializedLandmark[]>([]);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<string | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
@@ -119,19 +146,14 @@ export default function AdminLandmarksPage() {
   const totalRef = useRef(0);
   const loadedCountRef = useRef(0);
 
-  const fetchPage = useCallback(
-    async (filters: SearchFilters, pageNo: number, append: boolean) => {
-      const res = await fetch(
-        `/api/admin/landmarks?${buildListParams(filters, pageNo)}`
-      );
-      if (!res.ok) {
-        const data = await res.json();
-        setMessage(data.error ?? "조회에 실패했습니다.");
+  const applyPage = useCallback(
+    (result: LandmarkPageResult, pageNo: number, append: boolean) => {
+      if (!result.ok) {
+        setMessage(result.error);
         return;
       }
-      const data = await res.json();
-      const next = (data.landmarks ?? []) as SerializedLandmark[];
-      const nextTotal = data.total ?? 0;
+      const next = result.landmarks;
+      const nextTotal = result.total;
       setTotal(nextTotal);
       totalRef.current = nextTotal;
       pageRef.current = pageNo;
@@ -164,15 +186,26 @@ export default function AdminLandmarksPage() {
     []
   );
 
+  const fetchPage = useCallback(
+    async (filters: SearchFilters, pageNo: number, append: boolean) => {
+      applyPage(await requestLandmarkPage(filters, pageNo), pageNo, append);
+    },
+    [applyPage]
+  );
+
+  if (listQueryString !== prevListQueryString) {
+    setPrevListQueryString(listQueryString);
+    setDraft(parseFiltersFromParams(new URLSearchParams(listQueryString)));
+    setLoading(true);
+  }
+
   useEffect(() => {
-    const parsed = parseFiltersFromParams(new URLSearchParams(searchParams.toString()));
-    setDraft(parsed);
-    queueMicrotask(() => {
-      setLoading(true);
-      appliedRef.current = parsed;
-      void fetchPage(parsed, 1, false).finally(() => setLoading(false));
-    });
-  }, [fetchPage, searchParams]);
+    const parsed = parseFiltersFromParams(new URLSearchParams(listQueryString));
+    appliedRef.current = parsed;
+    void requestLandmarkPage(parsed, 1)
+      .then((result) => applyPage(result, 1, false))
+      .finally(() => setLoading(false));
+  }, [applyPage, listQueryString]);
 
   const handleSearch = () => {
     const params = buildFilterQueryParams(draft);
@@ -217,8 +250,6 @@ export default function AdminLandmarksPage() {
 
   const allSelected =
     landmarks.length > 0 && landmarks.every((row) => selected.has(row.id));
-  const listQueryString = searchParams.toString();
-
   const toDetailHref = useCallback(
     (id: string) =>
       listQueryString

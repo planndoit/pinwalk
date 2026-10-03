@@ -23,11 +23,9 @@ export default function AuthModal({
 }: AuthModalProps) {
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!open) {
-      setLoading(false);
-    }
-  }, [open]);
+  if (!open && loading) {
+    setLoading(false);
+  }
 
   useEffect(() => {
     if (!open) return;

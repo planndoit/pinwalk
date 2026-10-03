@@ -53,9 +53,16 @@ export default function PremiumPlaceAnalyticsPanel({
   const [days, setDays] = useState("30");
   const [data, setData] = useState<AnalyticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [prevDays, setPrevDays] = useState(days);
+  const [prevPlaceId, setPrevPlaceId] = useState(placeId);
+
+  if (days !== prevDays || placeId !== prevPlaceId) {
+    setPrevDays(days);
+    setPrevPlaceId(placeId);
+    setLoading(true);
+  }
 
   useEffect(() => {
-    setLoading(true);
     void (async () => {
       const params = new URLSearchParams({ days });
       if (placeId) params.set("placeId", placeId);

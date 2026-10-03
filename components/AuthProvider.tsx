@@ -208,11 +208,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [supabase, loadProfileWithRetry]
   );
 
-  useEffect(() => {
-    if (authModalOpen && user && profile) {
-      setAuthModalOpen(false);
-    }
-  }, [authModalOpen, user, profile]);
+  if (authModalOpen && user && profile) {
+    setAuthModalOpen(false);
+  }
 
   useEffect(() => {
     if (!shouldAuthenticate || !supabase) return;

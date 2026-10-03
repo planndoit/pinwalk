@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { establishSession } from "@/lib/auth/establishSession";
 import { hasActiveSupabaseSession } from "@/lib/auth/hasActiveSupabaseSession";
 import { createClient } from "@/lib/supabase/client";
@@ -19,18 +19,14 @@ export default function LoginForm({
   setLoading,
   onSuccess,
 }: LoginFormProps) {
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(
+    () => localStorage.getItem(REMEMBERED_USERNAME_KEY) || ""
+  );
   const [password, setPassword] = useState("");
-  const [rememberUsername, setRememberUsername] = useState(false);
+  const [rememberUsername, setRememberUsername] = useState(() =>
+    Boolean(localStorage.getItem(REMEMBERED_USERNAME_KEY))
+  );
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    const saved = localStorage.getItem(REMEMBERED_USERNAME_KEY);
-    if (saved) {
-      setUsername(saved);
-      setRememberUsername(true);
-    }
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

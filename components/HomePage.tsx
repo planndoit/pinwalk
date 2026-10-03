@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import MapView from "@/components/MapView";
@@ -16,11 +23,7 @@ import PremiumPromotionLocationPicker from "@/components/PremiumPromotionLocatio
 import PremiumPlaceBottomSheet from "@/components/PremiumPlaceBottomSheet";
 import PremiumCouponBottomSheet from "@/components/PremiumCouponBottomSheet";
 import LandmarkBottomSheet from "@/components/LandmarkBottomSheet";
-import {
-  DEFAULT_MAP_LAYER_VISIBILITY,
-  type MapLayerKey,
-  type MapLayerVisibility,
-} from "@/components/MapLayerToggle";
+import type { MapLayerKey } from "@/components/MapLayerToggle";
 import CelebrationOverlay, {
   type CelebrationType,
 } from "@/components/CelebrationOverlay";
@@ -32,7 +35,21 @@ import {
   RANDOM_POINT_CLAIM_RADIUS_METERS,
   type ConquerProbability,
 } from "@/lib/constants";
-import { consumeFocusPremiumPlace } from "@/lib/premium/focusPlace";
+import {
+  getLayerVisibilityServerSnapshot,
+  getLayerVisibilitySnapshot,
+  getMyCrewOnlyServerSnapshot,
+  getMyCrewOnlySnapshot,
+  saveLayerVisible,
+  saveMyCrewOnly,
+  subscribeMapLayerPreferences,
+} from "@/lib/mapLayerPreferences";
+import {
+  clearFocusPremiumPlace,
+  getFocusPremiumPlaceServerSnapshot,
+  getFocusPremiumPlaceSnapshot,
+  subscribeFocusPremiumPlace,
+} from "@/lib/premium/focusPlace";
 import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
@@ -62,10 +79,16 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [randomPoints, setRandomPoints] = useState<RandomPoint[]>([]);
   const [premiumPlaces, setPremiumPlaces] = useState<SerializedPremiumPlace[]>([]);
   const [landmarks, setLandmarks] = useState<SerializedLandmark[]>([]);
-  const [layerVisibility, setLayerVisibility] = useState<MapLayerVisibility>(
-    DEFAULT_MAP_LAYER_VISIBILITY
+  const layerVisibility = useSyncExternalStore(
+    subscribeMapLayerPreferences,
+    getLayerVisibilitySnapshot,
+    getLayerVisibilityServerSnapshot
   );
-  const [myCrewOnly, setMyCrewOnly] = useState(false);
+  const myCrewOnly = useSyncExternalStore(
+    subscribeMapLayerPreferences,
+    getMyCrewOnlySnapshot,
+    getMyCrewOnlyServerSnapshot
+  );
   const [allCrewUserIds, setAllCrewUserIds] = useState<string[]>([]);
   const [myCrewUserIds, setMyCrewUserIds] = useState<string[]>([]);
   const [myCrewAvailable, setMyCrewAvailable] = useState(false);
@@ -104,13 +127,67 @@ export default function HomePage({ active = true }: HomePageProps) {
     nonce: number;
   } | null>(null);
   const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null);
-  const recenterNonceRef = useRef(0);
   const dailyBonusUserRef = useRef<string | null>(null);
+  const pendingFocusPlace = useSyncExternalStore(
+    subscribeFocusPremiumPlace,
+    getFocusPremiumPlaceSnapshot,
+    getFocusPremiumPlaceServerSnapshot
+  );
+  const [appliedFocusPlace, setAppliedFocusPlace] =
+    useState<SerializedPremiumPlace | null>(null);
+  const [wasActive, setWasActive] = useState(active);
+
+  if (wasActive !== active) {
+    setWasActive(active);
+    if (!active) {
+      setSelectedPin(null);
+      setSelectedRandomPoint(null);
+      setSelectedPremiumPlace(null);
+      setSelectedLandmark(null);
+      setSelectedCouponSpawn(null);
+      setShowCreateModal(false);
+      setShowConquerModal(false);
+      setShowPremiumPromotionModal(false);
+      setPromotionLocationPickMode(false);
+      setPromotionPickedLocation(null);
+      setCelebration(null);
+      setToast(null);
+    }
+  }
+
+  if (active && pendingFocusPlace && pendingFocusPlace !== appliedFocusPlace) {
+    setAppliedFocusPlace(pendingFocusPlace);
+    setSelectedPin(null);
+    setSelectedRandomPoint(null);
+    setSelectedCouponSpawn(null);
+    setSelectedPremiumPlace(pendingFocusPlace);
+    setRecenterRequest((prev) => ({
+      lat: pendingFocusPlace.lat,
+      lng: pendingFocusPlace.lng,
+      nonce: (prev?.nonce ?? 0) + 1,
+    }));
+    if (!pendingFocusPlace.isActive) {
+      setToast("비활성 장소입니다. 정보는 확인할 수 있어요.");
+    }
+  }
+
+  const requestRecenter = useCallback((lat: number, lng: number) => {
+    setRecenterRequest((prev) => ({
+      lat,
+      lng,
+      nonce: (prev?.nonce ?? 0) + 1,
+    }));
+  }, []);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
-    setTimeout(() => setToast(null), 3000);
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   const focusPinRequestRef = useRef<string | null>(null);
 
@@ -151,12 +228,7 @@ export default function HomePage({ active = true }: HomePageProps) {
 
     void (async () => {
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        recenterNonceRef.current += 1;
-        setRecenterRequest({
-          lat,
-          lng,
-          nonce: recenterNonceRef.current,
-        });
+        requestRecenter(lat, lng);
       }
 
       const res = await fetch(`/api/pins/${pinId}`, { cache: "no-store" });
@@ -183,9 +255,13 @@ export default function HomePage({ active = true }: HomePageProps) {
       setSelectedPin(pin);
 
       if (pin.status === "active") {
-        setPins((prev) =>
-          prev.some((item) => item.id === pin.id) ? prev : [...prev, pin]
-        );
+        setPins((prev) => {
+          const withoutStale =
+            pin.id === pinId ? prev : prev.filter((item) => item.id !== pinId);
+          return withoutStale.some((item) => item.id === pin.id)
+            ? withoutStale
+            : [...withoutStale, pin];
+        });
       }
 
       router.replace("/", { scroll: false });
@@ -194,7 +270,7 @@ export default function HomePage({ active = true }: HomePageProps) {
     return () => {
       cancelled = true;
     };
-  }, [active, searchParams, router, showToast]);
+  }, [active, searchParams, router, showToast, requestRecenter]);
 
   const fetchPremiumPlaces = useCallback(async () => {
     const res = await fetch("/api/premium-places", { cache: "no-store" });
@@ -209,51 +285,6 @@ export default function HomePage({ active = true }: HomePageProps) {
     if (res.ok) {
       const data = await res.json();
       setLandmarks(data.landmarks ?? []);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem("map-layer-visibility");
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<MapLayerVisibility>;
-        setLayerVisibility({
-          landmarks:
-            typeof parsed.landmarks === "boolean"
-              ? parsed.landmarks
-              : DEFAULT_MAP_LAYER_VISIBILITY.landmarks,
-          pins:
-            typeof parsed.pins === "boolean"
-              ? parsed.pins
-              : DEFAULT_MAP_LAYER_VISIBILITY.pins,
-          crews:
-            typeof parsed.crews === "boolean"
-              ? parsed.crews
-              : DEFAULT_MAP_LAYER_VISIBILITY.crews,
-          premium:
-            typeof parsed.premium === "boolean"
-              ? parsed.premium
-              : DEFAULT_MAP_LAYER_VISIBILITY.premium,
-        });
-      }
-    } catch {
-      // ignore invalid storage
-    }
-
-    try {
-      const myCrewRaw = window.localStorage.getItem("map-my-crew-only");
-      if (myCrewRaw === "1") setMyCrewOnly(true);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const handleMyCrewOnlyChange = useCallback((next: boolean) => {
-    setMyCrewOnly(next);
-    try {
-      window.localStorage.setItem("map-my-crew-only", next ? "1" : "0");
-    } catch {
-      // ignore
     }
   }, []);
 
@@ -284,29 +315,13 @@ export default function HomePage({ active = true }: HomePageProps) {
     setMyCrewUserIds(mine?.userIds ?? []);
     setMyCrewAvailable(Boolean(mine));
     if (!mine) {
-      setMyCrewOnly(false);
-      try {
-        window.localStorage.setItem("map-my-crew-only", "0");
-      } catch {
-        // ignore
-      }
+      saveMyCrewOnly(false);
     }
   }, [user]);
 
   const handleLayerVisibilityChange = useCallback(
     (key: MapLayerKey, next: boolean) => {
-      setLayerVisibility((prev) => {
-        const updated = { ...prev, [key]: next };
-        try {
-          window.localStorage.setItem(
-            "map-layer-visibility",
-            JSON.stringify(updated)
-          );
-        } catch {
-          // ignore quota / private mode
-        }
-        return updated;
-      });
+      saveLayerVisible(key, next);
 
       if (!next) {
         if (key === "landmarks") setSelectedLandmark(null);
@@ -388,7 +403,7 @@ export default function HomePage({ active = true }: HomePageProps) {
     setPosition(coords);
     await fetchPins();
     return coords;
-  }, [requestPosition, fetchPins, showToast]);
+  }, [locationLoading, requestPosition, fetchPins, showToast]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -441,22 +456,6 @@ export default function HomePage({ active = true }: HomePageProps) {
   ]);
 
   useEffect(() => {
-    if (active) return;
-    setSelectedPin(null);
-    setSelectedRandomPoint(null);
-    setSelectedPremiumPlace(null);
-    setSelectedLandmark(null);
-    setSelectedCouponSpawn(null);
-    setShowCreateModal(false);
-    setShowConquerModal(false);
-    setShowPremiumPromotionModal(false);
-    setPromotionLocationPickMode(false);
-    setPromotionPickedLocation(null);
-    setCelebration(null);
-    setToast(null);
-  }, [active]);
-
-  useEffect(() => {
     if (!active || !navigator.geolocation) return;
 
     const watchId = navigator.geolocation.watchPosition(
@@ -482,27 +481,14 @@ export default function HomePage({ active = true }: HomePageProps) {
   }, [active, user, syncCouponSpawns]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!appliedFocusPlace) return;
+    if (getFocusPremiumPlaceSnapshot() !== appliedFocusPlace) return;
 
-    const focused = consumeFocusPremiumPlace();
-    if (!focused) return;
-
-    setSelectedPin(null);
-    setSelectedRandomPoint(null);
-    setSelectedCouponSpawn(null);
-    setSelectedPremiumPlace(focused);
-    trackPremiumPlaceEvent(focused.id, "detail_open", { source: "coupons_focus" });
-    recenterNonceRef.current += 1;
-    setRecenterRequest({
-      lat: focused.lat,
-      lng: focused.lng,
-      nonce: recenterNonceRef.current,
+    clearFocusPremiumPlace();
+    trackPremiumPlaceEvent(appliedFocusPlace.id, "detail_open", {
+      source: "coupons_focus",
     });
-
-    if (!focused.isActive) {
-      showToast("비활성 장소입니다. 정보는 확인할 수 있어요.");
-    }
-  }, [active, showToast]);
+  }, [appliedFocusPlace]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -541,8 +527,7 @@ export default function HomePage({ active = true }: HomePageProps) {
     void (async () => {
       const coords = await getCurrentPosition();
       if (!coords) return;
-      recenterNonceRef.current += 1;
-      setRecenterRequest({ ...coords, nonce: recenterNonceRef.current });
+      requestRecenter(coords.lat, coords.lng);
     })();
   };
 
@@ -697,12 +682,7 @@ export default function HomePage({ active = true }: HomePageProps) {
       await refreshProfile();
       await fetchPins();
       await fetchLandmarks();
-      recenterNonceRef.current += 1;
-      setRecenterRequest({
-        lat: plantedLat,
-        lng: plantedLng,
-        nonce: recenterNonceRef.current,
-      });
+      requestRecenter(plantedLat, plantedLng);
       setCelebration("plant");
       showToast("깃발을 꽂았어요!");
       return { success: true };
@@ -1026,7 +1006,7 @@ export default function HomePage({ active = true }: HomePageProps) {
         layerVisibility={layerVisibility}
         onLayerVisibilityChange={handleLayerVisibilityChange}
         myCrewOnly={myCrewOnly}
-        onMyCrewOnlyChange={handleMyCrewOnlyChange}
+        onMyCrewOnlyChange={saveMyCrewOnly}
         myCrewAvailable={myCrewAvailable}
       />
 

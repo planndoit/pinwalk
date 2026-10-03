@@ -51,7 +51,7 @@ export function getPinRadiusByCost(): Record<PinCost, number> {
   ) as Record<PinCost, number>;
 }
 
-export function getPinRadiusMeters(_cost?: number): number {
+export function getPinRadiusMeters(): number {
   return getFixedPinRadiusMeters();
 }
 

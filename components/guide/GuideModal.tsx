@@ -17,7 +17,15 @@ export default function GuideModal({
   onClose: () => void;
 }) {
   const [sections, setSections] = useState<GuideSection[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(open);
+  const [prevOpen, setPrevOpen] = useState(open);
+  const [prevScope, setPrevScope] = useState(scope);
+
+  if (open !== prevOpen || scope !== prevScope) {
+    setPrevOpen(open);
+    setPrevScope(scope);
+    if (open) setLoading(true);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -32,7 +40,6 @@ export default function GuideModal({
     if (!open) return;
 
     let cancelled = false;
-    setLoading(true);
 
     void fetch(`/api/guide?scope=${scope}`, { cache: "no-store" })
       .then((res) => res.json())

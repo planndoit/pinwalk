@@ -5,6 +5,8 @@ import { getPinLandmarkIds } from "@/lib/landmark/pinLandmarks";
 import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
 import { refreshCrewLandmarkScoresForUsers } from "@/lib/crew/scores";
 
+const MAX_CONQUEST_HOPS = 20;
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -12,19 +14,43 @@ export async function GET(
   const { id } = await params;
   const admin = createAdminClient();
 
+  let currentId = id;
+  for (let hop = 0; hop < MAX_CONQUEST_HOPS; hop += 1) {
+    const { data: current } = await admin
+      .from("pins")
+      .select("status")
+      .eq("id", currentId)
+      .maybeSingle();
+
+    if (!current || current.status !== "conquered") break;
+
+    const { data: conquest } = await admin
+      .from("pin_attempts")
+      .select("new_pin_id")
+      .eq("target_pin_id", currentId)
+      .eq("success", true)
+      .not("new_pin_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!conquest?.new_pin_id) break;
+    currentId = conquest.new_pin_id as string;
+  }
+
   const { data: pin, error } = await admin
     .from("pins")
     .select(
       "*, profiles!pins_user_id_fkey(nickname, avatar_mime, updated_at)"
     )
-    .eq("id", id)
+    .eq("id", currentId)
     .maybeSingle();
 
   if (error || !pin) {
     return jsonError("깃발을 찾을 수 없습니다.", 404);
   }
 
-  const landmarkIds = await getPinLandmarkIds(id);
+  const landmarkIds = await getPinLandmarkIds(currentId);
 
   return NextResponse.json({
     pin: {

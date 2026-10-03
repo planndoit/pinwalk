@@ -18,16 +18,22 @@ export default function LandmarkBottomSheet({
   onClose,
 }: LandmarkBottomSheetProps) {
   const [ranking, setRanking] = useState<LandmarkRankingEntry[]>([]);
-  const [rankingLoading, setRankingLoading] = useState(false);
+  const [rankingLoading, setRankingLoading] = useState(landmark !== null);
+  const [prevLandmark, setPrevLandmark] = useState(landmark);
+
+  if (landmark !== prevLandmark) {
+    setPrevLandmark(landmark);
+    if (landmark) {
+      setRankingLoading(true);
+    } else {
+      setRanking([]);
+    }
+  }
 
   useEffect(() => {
-    if (!landmark) {
-      setRanking([]);
-      return;
-    }
+    if (!landmark) return;
 
     let cancelled = false;
-    setRankingLoading(true);
 
     void (async () => {
       try {

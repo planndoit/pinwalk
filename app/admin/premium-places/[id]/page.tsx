@@ -421,13 +421,14 @@ function CouponListItem({
   onToggleActive: (isActive: boolean) => void;
   onSaveIssueLimit: (issueLimit: number) => void;
 }) {
-  const [issueLimitDraft, setIssueLimitDraft] = useState(
-    String(coupon.issueLimit ?? 0)
-  );
+  const issueLimit = String(coupon.issueLimit ?? 0);
+  const [issueLimitDraft, setIssueLimitDraft] = useState(issueLimit);
+  const [prevIssueLimit, setPrevIssueLimit] = useState(issueLimit);
 
-  useEffect(() => {
-    setIssueLimitDraft(String(coupon.issueLimit ?? 0));
-  }, [coupon.issueLimit]);
+  if (issueLimit !== prevIssueLimit) {
+    setPrevIssueLimit(issueLimit);
+    setIssueLimitDraft(issueLimit);
+  }
 
   const expiresAt =
     typeof coupon.expiresAt === "string" && coupon.expiresAt
