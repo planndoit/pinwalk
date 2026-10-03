@@ -1105,9 +1105,9 @@ export default function MapView({
           anchor: new naverObj.maps.Point(0, 0),
         },
       });
-      map.panTo(pos);
+      if (!recenterRequest) map.panTo(pos);
     }
-  }, [mapReady, currentPosition]);
+  }, [mapReady, currentPosition, recenterRequest]);
 
   // 현재 위치 버튼 클릭 시 지도를 해당 좌표로 이동
   useEffect(() => {
@@ -1323,7 +1323,7 @@ export default function MapView({
 
   return (
     <>
-      <div ref={mapRef} className="w-full h-full" />
+      <div ref={mapRef} className="w-full h-full isolate" />
       {loadError && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 p-4">
           <div className="max-w-sm bg-white rounded-2xl shadow-lg border border-red-100 p-5 text-center">
