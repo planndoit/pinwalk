@@ -18,3 +18,10 @@
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
+
+# Capacitor reads these annotations via reflection (PluginHandle, Bridge.getPermissionStates).
+# Without keeping the annotation types, R8 full mode assumes they are never instantiated
+# and strips PluginHandle.pluginAnnotation, which crashes Plugin.checkPermissions.
+-keep @interface com.getcapacitor.annotation.** { *; }
+-keep @interface com.getcapacitor.NativePlugin { *; }
+-keep @interface com.getcapacitor.PluginMethod { *; }
