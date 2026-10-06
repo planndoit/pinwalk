@@ -1,7 +1,11 @@
 import { App } from "@capacitor/app";
-import { CapacitorCookies } from "@capacitor/core";
+import {
+  CapacitorCookies,
+  SystemBarType,
+  SystemBars,
+  SystemBarsStyle,
+} from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
-import { StatusBar, Style } from "@capacitor/status-bar";
 import { isCapacitorNative } from "@/lib/capacitor/platform";
 
 async function touchCookiePersistence(): Promise<void> {
@@ -27,10 +31,12 @@ export async function initCapacitorNative(): Promise<void> {
   document.documentElement.classList.add("cap-native");
 
   try {
-    await StatusBar.setStyle({ style: Style.Dark });
-    await StatusBar.setBackgroundColor({ color: "#f9fafb" });
+    await SystemBars.setStyle({
+      style: SystemBarsStyle.Light,
+      bar: SystemBarType.StatusBar,
+    });
   } catch {
-    // StatusBar may be unavailable on some WebView builds.
+    // SystemBars may be unavailable on some WebView builds.
   }
 
   try {

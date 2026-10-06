@@ -182,7 +182,7 @@ export default function MyPage() {
   }
 
   return (
-    <div className="h-dvh overflow-y-auto bg-gray-50 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
+    <div className="h-dvh overflow-y-auto bg-gray-50 pb-[calc(6.5rem+var(--safe-bottom))]">
       <div className="max-w-lg mx-auto">
         <MainTabHeader
           title="마이페이지"

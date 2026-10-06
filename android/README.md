@@ -73,7 +73,7 @@ npm run cap:sync:android
 
 > HTTP 로컬 테스트 시 `capacitor.config.ts`에서 `cleartext: true` 필요. 출시 빌드는 HTTPS 프로덕션 URL만 사용.
 
-## 5. 릴리스 서명 (Play Store)
+## 5. 릴리스 서명·번들 (Play Store)
 
 1. keystore 생성 (1회, 안전한 곳에 보관):
 
@@ -81,15 +81,26 @@ npm run cap:sync:android
 keytool -genkey -v -keystore pinwalk-release.keystore -alias pinwalk -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-2. `android/keystore.properties` 생성 (`keystore.properties.example` 참고)
+2. `android/keystore.properties` 생성 (`keystore.properties.example` 참고).  
+   `storeFile`은 `android/app` 기준 상대경로이므로 예시는 `../pinwalk-release.keystore`.
 
-3. `android/app/build.gradle`에 signingConfigs.release 연결 (Play 업로드 전)
+3. CLI로 서명된 AAB 생성 (JDK 21 권장):
 
-4. Android Studio: **Build → Generate Signed Bundle / APK** → **AAB** 선택
+```bash
+cd android
+./gradlew :app:bundleRelease
+```
+
+산출물:
+- AAB: `android/app/build/outputs/bundle/release/app-release.aab`
+- R8 mapping: `android/app/build/outputs/mapping/release/mapping.txt`  
+  (AAB `BUNDLE-METADATA`에도 포함됨 — Play가 자동 수집)
+
+또는 Android Studio: **Build → Generate Signed Bundle / APK** → **AAB**.
 
 ## 6. Play Console 제출
 
-1. 내부 테스트 트랙에 AAB 업로드
+1. 새 버전(`versionCode`/`versionName`)으로 AAB 업로드
 2. 데이터 안전 설문: 위치, 계정 정보 기재
 3. 개인정보처리방침 URL, 위치 약관 URL 등록  
    - `/legal/location-terms`  

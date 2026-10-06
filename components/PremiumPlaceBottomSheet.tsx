@@ -31,7 +31,7 @@ export default function PremiumPlaceBottomSheet({
         aria-label="닫기"
         onClick={onClose}
       />
-      <div className="absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] px-4 pointer-events-none">
+      <div className="absolute inset-x-0 bottom-[calc(5.75rem+var(--safe-bottom))] px-4 pointer-events-none">
         <div className="max-w-lg mx-auto pointer-events-auto">
           <div
             className="bg-gradient-to-br from-amber-50 to-white border-2 border-amber-300 rounded-2xl shadow-xl p-5"

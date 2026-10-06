@@ -28,7 +28,7 @@ export default function MapActionButtons({
 }: MapActionButtonsProps) {
   return (
     <>
-      <div className="fixed top-[calc(3.75rem+env(safe-area-inset-top))] left-0 right-0 z-20 pointer-events-none">
+      <div className="fixed top-[calc(3.75rem+var(--safe-top))] left-0 right-0 z-20 pointer-events-none">
         <div className="max-w-lg mx-auto px-4 flex justify-end pointer-events-auto">
           <div className="flex items-center gap-1.5">
             <button
@@ -58,7 +58,7 @@ export default function MapActionButtons({
         </div>
       </div>
 
-      <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 pointer-events-none">
+      <div className="fixed bottom-[calc(5.75rem+var(--safe-bottom))] left-0 right-0 z-20 pointer-events-none">
         <div className="max-w-lg mx-auto px-4 pointer-events-auto">
           <div className="flex items-center gap-2">
             <button

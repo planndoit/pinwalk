@@ -73,7 +73,7 @@ export default function LandmarkBottomSheet({
         aria-label="닫기"
         onClick={onClose}
       />
-      <div className="absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] px-4 pointer-events-none">
+      <div className="absolute inset-x-0 bottom-[calc(5.75rem+var(--safe-bottom))] px-4 pointer-events-none">
         <div className="max-w-lg mx-auto pointer-events-auto">
           <div
             className="bg-white border border-teal-200 rounded-2xl shadow-xl overflow-hidden"

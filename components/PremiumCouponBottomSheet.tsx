@@ -24,7 +24,7 @@ export default function PremiumCouponBottomSheet({
   const canClaim = distance !== null && distance <= claimRadius;
 
   return (
-    <div className="fixed inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 px-4 pointer-events-none">
+    <div className="fixed inset-x-0 bottom-[calc(5.75rem+var(--safe-bottom))] z-40 px-4 pointer-events-none">
       <div className="max-w-lg mx-auto pointer-events-auto">
         <div className="bg-white border-2 border-violet-300 rounded-2xl shadow-xl p-5">
           <div className="flex items-start justify-between gap-3">

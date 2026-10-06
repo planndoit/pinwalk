@@ -18,7 +18,7 @@ export default function LegalPageShell({ children }: { children: ReactNode }) {
             뒤로
           </button>
         </header>
-        <div className="px-5 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+        <div className="px-5 py-6 pb-[calc(2rem+var(--safe-bottom))]">
           {children}
         </div>
       </div>
