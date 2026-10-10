@@ -3,7 +3,7 @@ import { jsonError } from "@/lib/api/auth";
 import { usernameToAuthEmail, normalizeUsername } from "@/lib/auth/constants";
 import { createClient } from "@/lib/supabase/server";
 import { validatePassword, validateUsername } from "@/lib/validation/auth";
-import { serializeProfile } from "@/lib/profile";
+import { PROFILE_COLUMNS, serializeProfile } from "@/lib/profile";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -38,9 +38,7 @@ export async function POST(request: Request) {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select(
-      "id, username, nickname, points, avatar_data, avatar_mime, last_random_point_spawn_at, created_at, updated_at"
-    )
+    .select(PROFILE_COLUMNS)
     .eq("id", signInData.user.id)
     .single();
 

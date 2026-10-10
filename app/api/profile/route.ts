@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { AVATAR_MAX_BYTES } from "@/lib/auth/constants";
 import { encodeBytea } from "@/lib/bytea";
-import { serializeProfile } from "@/lib/profile";
+import { PROFILE_COLUMNS, serializeProfile } from "@/lib/profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { validateNickname } from "@/lib/validation/auth";
@@ -13,22 +13,27 @@ export async function GET() {
     return jsonError("로그인이 필요합니다.", 401);
   }
 
-  const supabase = await createClient();
   const admin = createAdminClient();
   const now = new Date().toISOString();
 
-  const { error: seenError } = await admin
+  const { data: seenProfile, error: seenError } = await admin
     .from("profiles")
     .update({ last_seen_at: now, updated_at: now })
-    .eq("id", user.id);
+    .eq("id", user.id)
+    .select(PROFILE_COLUMNS)
+    .maybeSingle();
+
+  if (seenProfile) {
+    return NextResponse.json({ profile: serializeProfile(seenProfile) });
+  }
 
   if (seenError) {
     console.warn("last_seen_at update skipped:", seenError.message);
   }
 
-  const { data: profile, error } = await supabase
+  const { data: profile, error } = await admin
     .from("profiles")
-    .select("*")
+    .select(PROFILE_COLUMNS)
     .eq("id", user.id)
     .single();
 
@@ -59,8 +64,9 @@ export async function PATCH(request: Request) {
     remove_avatar?: boolean;
   };
 
+  const now = new Date().toISOString();
   const updates: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
+    updated_at: now,
   };
 
   if (typeof nickname === "string") {
@@ -89,6 +95,7 @@ export async function PATCH(request: Request) {
   if (remove_avatar) {
     updates.avatar_data = null;
     updates.avatar_mime = null;
+    updates.avatar_updated_at = null;
   } else if (typeof avatar_base64 === "string" && avatar_base64) {
     if (
       typeof avatar_mime !== "string" ||
@@ -104,6 +111,7 @@ export async function PATCH(request: Request) {
 
     updates.avatar_data = encodeBytea(buffer);
     updates.avatar_mime = avatar_mime;
+    updates.avatar_updated_at = now;
   }
 
   if (Object.keys(updates).length === 1) {
@@ -114,7 +122,7 @@ export async function PATCH(request: Request) {
     .from("profiles")
     .update(updates)
     .eq("id", user.id)
-    .select("*")
+    .select(PROFILE_COLUMNS)
     .single();
 
   if (error || !profile) {

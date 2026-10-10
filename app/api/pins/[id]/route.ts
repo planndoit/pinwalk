@@ -41,7 +41,7 @@ export async function GET(
   const { data: pin, error } = await admin
     .from("pins")
     .select(
-      "*, profiles!pins_user_id_fkey(nickname, avatar_mime, updated_at)"
+      "*, profiles!pins_user_id_fkey(nickname, avatar_mime, avatar_updated_at)"
     )
     .eq("id", currentId)
     .maybeSingle();
@@ -58,7 +58,7 @@ export async function GET(
       nickname: pin.profiles?.nickname ?? "익명의 워커",
       has_avatar: Boolean(pin.profiles?.avatar_mime),
       avatar_updated_at:
-        (pin.profiles?.updated_at as string | null | undefined) ?? null,
+        (pin.profiles?.avatar_updated_at as string | null | undefined) ?? null,
       landmark_ids: landmarkIds,
       profiles: undefined,
     },

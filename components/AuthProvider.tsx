@@ -30,6 +30,7 @@ interface AuthContextValue {
   profile: Profile | null;
   loading: boolean;
   refreshProfile: () => Promise<void>;
+  setProfilePoints: (points: number) => void;
   logout: () => Promise<void>;
   requireAuth: (onAuthed?: () => void) => boolean;
   openAuthModal: (mode?: "login" | "signup") => void;
@@ -164,6 +165,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fetchProfile();
   }, [fetchProfile]);
 
+  const setProfilePoints = useCallback((points: number) => {
+    setProfile((prev) => (prev ? { ...prev, points } : prev));
+  }, []);
+
   const openAuthModal = useCallback((mode: "login" | "signup" = "login") => {
     setAuthModalMode(mode);
     setAuthModalOpen(true);
@@ -255,6 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile,
         loading,
         refreshProfile,
+        setProfilePoints,
         logout,
         requireAuth,
         openAuthModal,

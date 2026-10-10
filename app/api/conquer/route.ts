@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import {
   CONQUER_PROBABILITIES,
+  DEFAULT_NICKNAME,
   DEFAULT_PIN_COST,
   LANDMARK_PIN_RADIUS_METERS,
   normalizePinCost,
@@ -23,9 +24,8 @@ import {
 import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
 import { refreshCrewLandmarkScoresForUsers } from "@/lib/crew/scores";
 import {
-  copyPinLandmarks,
+  addPinLandmarks,
   getPinLandmarkIds,
-  setPinLandmarks,
 } from "@/lib/landmark/pinLandmarks";
 import {
   notifyConquerAttemptResult,
@@ -33,6 +33,17 @@ import {
   notifyPinDefenseSuccess,
 } from "@/lib/notifications/events";
 import { recordRegionVisit } from "@/lib/visits/recordVisit";
+
+async function resolvePinLandmarkIds(pin: {
+  id: string;
+  lat: number;
+  lng: number;
+}): Promise<string[]> {
+  const linked = await getPinLandmarkIds(pin.id);
+  if (linked.length > 0) return linked;
+  const containing = await findContainingLandmarks(pin.lat, pin.lng);
+  return containing.map((landmark) => landmark.id);
+}
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
@@ -84,11 +95,15 @@ export async function POST(request: Request) {
   const probability = selected_probability as ConquerProbability;
   const admin = createAdminClient();
 
-  const { data: targetPin, error: pinError } = await admin
-    .from("pins")
-    .select("*")
-    .eq("id", target_pin_id)
-    .single();
+  const [{ data: targetPin, error: pinError }, { data: attackerProfile }] =
+    await Promise.all([
+      admin.from("pins").select("*").eq("id", target_pin_id).single(),
+      admin
+        .from("profiles")
+        .select("nickname, avatar_mime, avatar_updated_at")
+        .eq("id", user.id)
+        .single(),
+    ]);
 
   if (pinError || !targetPin) {
     return jsonError("대상 핀을 찾을 수 없습니다.", 404);
@@ -133,52 +148,54 @@ export async function POST(request: Request) {
 
   const success = rollConquerSuccess(probability);
   const now = new Date().toISOString();
-  let landmarkIds = await getPinLandmarkIds(target_pin_id);
-  if (landmarkIds.length === 0) {
-    const containing = await findContainingLandmarks(
-      targetPin.lat,
-      targetPin.lng
-    );
-    landmarkIds = containing.map((landmark) => landmark.id);
-  }
-  const inLandmarkZone = landmarkIds.length > 0;
+  const ownerUserId = targetPin.user_id as string;
+  const targetPinText = targetPin.text as string;
 
   if (!success) {
-    await admin.from("pin_attempts").insert({
-      attacker_id: user.id,
-      target_pin_id,
-      selected_probability: probability,
-      cost,
-      success: false,
-    });
-
     const defenseReward = calculateDefenseReward(probability, pinCost);
-    if (targetPin.user_id !== user.id) {
-      if (defenseReward > 0) {
-        await addPoints(
-          targetPin.user_id,
-          defenseReward,
-          "defense_reward",
-          "공격을 막아냈어요",
-          target_pin_id
-        );
-      }
-      await notifyPinDefenseSuccess({
-        ownerUserId: targetPin.user_id as string,
-        pinId: target_pin_id,
-        reward: defenseReward,
-        pinText: targetPin.text as string,
-        lat: Number(targetPin.lat),
-        lng: Number(targetPin.lng),
-      });
-      await notifyConquerAttemptResult({
-        attackerUserId: user.id,
-        ownerUserId: targetPin.user_id as string,
-        pinId: target_pin_id,
-        pinText: targetPin.text as string,
-        lat: Number(targetPin.lat),
-        lng: Number(targetPin.lng),
+    const rewardOwner =
+      ownerUserId !== user.id && defenseReward > 0
+        ? addPoints(
+            ownerUserId,
+            defenseReward,
+            "defense_reward",
+            "공격을 막아냈어요",
+            target_pin_id
+          )
+        : null;
+
+    await Promise.all([
+      admin.from("pin_attempts").insert({
+        attacker_id: user.id,
+        target_pin_id,
+        selected_probability: probability,
+        cost,
         success: false,
+      }),
+      rewardOwner,
+    ]);
+
+    if (ownerUserId !== user.id) {
+      after(async () => {
+        await Promise.all([
+          notifyPinDefenseSuccess({
+            ownerUserId,
+            pinId: target_pin_id,
+            reward: defenseReward,
+            pinText: targetPinText,
+            lat: Number(targetPin.lat),
+            lng: Number(targetPin.lng),
+          }),
+          notifyConquerAttemptResult({
+            attackerUserId: user.id,
+            ownerUserId,
+            pinId: target_pin_id,
+            pinText: targetPinText,
+            lat: Number(targetPin.lat),
+            lng: Number(targetPin.lng),
+            success: false,
+          }),
+        ]);
       });
     }
 
@@ -189,15 +206,23 @@ export async function POST(request: Request) {
     });
   }
 
-  await admin
-    .from("pins")
-    .update({
-      status: "conquered",
-      conquered_by: user.id,
-      conquered_at: now,
-      updated_at: now,
-    })
-    .eq("id", target_pin_id);
+  const [, landmarkIds] = await Promise.all([
+    admin
+      .from("pins")
+      .update({
+        status: "conquered",
+        conquered_by: user.id,
+        conquered_at: now,
+        updated_at: now,
+      })
+      .eq("id", target_pin_id),
+    resolvePinLandmarkIds({
+      id: target_pin_id,
+      lat: targetPin.lat,
+      lng: targetPin.lng,
+    }),
+  ]);
+  const inLandmarkZone = landmarkIds.length > 0;
 
   const newRadius = inLandmarkZone
     ? LANDMARK_PIN_RADIUS_METERS
@@ -223,69 +248,78 @@ export async function POST(request: Request) {
     return jsonError("새 깃발 생성에 실패했습니다.", 500);
   }
 
-  await admin.from("pin_attempts").insert({
-    attacker_id: user.id,
-    target_pin_id,
-    new_pin_id: newPin.id,
-    selected_probability: probability,
-    cost,
-    success: true,
+  const applyLandmarks = async () => {
+    if (!inLandmarkZone) return;
+    await addPinLandmarks(newPin.id, landmarkIds);
+    await Promise.all([
+      refreshUsersLandmarkScores(landmarkIds, [ownerUserId, user.id]),
+      refreshCrewLandmarkScoresForUsers(landmarkIds, [ownerUserId, user.id]),
+    ]);
+  };
+
+  await Promise.all([
+    admin.from("pin_attempts").insert({
+      attacker_id: user.id,
+      target_pin_id,
+      new_pin_id: newPin.id,
+      selected_probability: probability,
+      cost,
+      success: true,
+    }),
+    applyLandmarks(),
+  ]);
+
+  after(async () => {
+    await Promise.all([
+      notifyPinConquered({
+        ownerUserId,
+        attackerUserId: user.id,
+        pinId: newPin.id as string,
+        pinText: targetPinText,
+        lat: Number(newPin.lat),
+        lng: Number(newPin.lng),
+      }),
+      notifyConquerAttemptResult({
+        attackerUserId: user.id,
+        ownerUserId,
+        pinId: newPin.id as string,
+        pinText: targetPinText,
+        lat: Number(newPin.lat),
+        lng: Number(newPin.lng),
+        success: true,
+      }),
+    ]);
   });
 
-  await notifyPinConquered({
-    ownerUserId: targetPin.user_id as string,
-    attackerUserId: user.id,
-    pinId: newPin.id as string,
-    pinText: targetPin.text as string,
-    lat: Number(newPin.lat),
-    lng: Number(newPin.lng),
-  });
-
-  let appliedLandmarkIds = landmarkIds;
-  if (landmarkIds.length > 0) {
-    appliedLandmarkIds = await copyPinLandmarks(target_pin_id, newPin.id);
-    if (appliedLandmarkIds.length === 0) {
-      await setPinLandmarks(newPin.id, landmarkIds);
-      appliedLandmarkIds = landmarkIds;
+  after(async () => {
+    try {
+      await recordRegionVisit({
+        userId: user.id,
+        lat: Number(newPin.lat),
+        lng: Number(newPin.lng),
+        visitedAt:
+          typeof newPin.created_at === "string"
+            ? newPin.created_at
+            : new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("recordRegionVisit failed:", error);
     }
-    await refreshUsersLandmarkScores(appliedLandmarkIds, [
-      targetPin.user_id,
-      user.id,
-    ]);
-    await refreshCrewLandmarkScoresForUsers(appliedLandmarkIds, [
-      targetPin.user_id,
-      user.id,
-    ]);
-  }
-
-  await notifyConquerAttemptResult({
-    attackerUserId: user.id,
-    ownerUserId: targetPin.user_id as string,
-    pinId: newPin.id as string,
-    pinText: targetPin.text as string,
-    lat: Number(newPin.lat),
-    lng: Number(newPin.lng),
-    success: true,
   });
-
-  try {
-    await recordRegionVisit({
-      userId: user.id,
-      lat: Number(newPin.lat),
-      lng: Number(newPin.lng),
-      visitedAt:
-        typeof newPin.created_at === "string"
-          ? newPin.created_at
-          : new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("recordRegionVisit failed:", error);
-  }
 
   return NextResponse.json({
     success: true,
     message: "점령 성공! 이 영역에 내 깃발을 꽂았어요.",
-    pin: { ...newPin, landmark_ids: appliedLandmarkIds },
+    pin: {
+      ...newPin,
+      nickname:
+        (attackerProfile?.nickname as string | null | undefined) ??
+        DEFAULT_NICKNAME,
+      has_avatar: Boolean(attackerProfile?.avatar_mime),
+      avatar_updated_at:
+        (attackerProfile?.avatar_updated_at as string | null | undefined) ?? null,
+      landmark_ids: landmarkIds,
+    },
     points: deductResult.newPoints,
   });
 }

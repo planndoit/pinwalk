@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { getRandomPointClaimRadiusMeters } from "@/lib/env";
 import { getDistanceMeters } from "@/lib/geo";
@@ -9,6 +9,7 @@ import {
   calculateClaimPoints,
   calculateTollPoints,
   findContainingActivePins,
+  type ContainingPin,
 } from "@/lib/randomPoints/territory";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -73,10 +74,27 @@ export async function POST(request: Request) {
     );
   }
 
-  const containingPins = await findContainingActivePins(
-    randomPoint.lat,
-    randomPoint.lng
-  );
+  const now = new Date().toISOString();
+
+  const [containingPins, { data: claimed, error: claimError }] =
+    await Promise.all([
+      findContainingActivePins(randomPoint.lat, randomPoint.lng),
+      admin
+        .from("random_points")
+        .update({
+          status: "claimed",
+          claimed_by: user.id,
+          claimed_at: now,
+        })
+        .eq("id", random_point_id)
+        .eq("status", "active")
+        .select(),
+    ]);
+
+  if (claimError || !claimed || claimed.length === 0) {
+    return jsonError("이미 획득했거나 만료된 포인트입니다.");
+  }
+
   const territory = buildTerritoryInfo(
     randomPoint.points,
     containingPins,
@@ -90,23 +108,6 @@ export async function POST(request: Request) {
   const tollPoints = otherPins.length > 0
     ? calculateTollPoints(randomPoint.points)
     : 0;
-
-  const now = new Date().toISOString();
-
-  const { data: claimed, error: claimError } = await admin
-    .from("random_points")
-    .update({
-      status: "claimed",
-      claimed_by: user.id,
-      claimed_at: now,
-    })
-    .eq("id", random_point_id)
-    .eq("status", "active")
-    .select();
-
-  if (claimError || !claimed || claimed.length === 0) {
-    return jsonError("이미 획득했거나 만료된 포인트입니다.");
-  }
 
   const claimDescription = territory.inOwnTerritory
     ? `랜덤 포인트 획득 (내 영역 ${earned}P)`
@@ -124,15 +125,7 @@ export async function POST(request: Request) {
     return jsonError(addResult.error!, 500);
   }
 
-  const tollResults: Array<{
-    pinId: string;
-    ownerId: string;
-    tollPoints: number;
-  }> = [];
-
-  for (const pin of otherPins) {
-    if (tollPoints <= 0) continue;
-
+  const payToll = async (pin: ContainingPin): Promise<ContainingPin | null> => {
     const { data: tollRow, error: tollInsertError } = await admin
       .from("pin_tolls")
       .insert({
@@ -149,7 +142,7 @@ export async function POST(request: Request) {
       .single();
 
     if (tollInsertError || !tollRow) {
-      continue;
+      return null;
     }
 
     const tollAdd = await addPoints(
@@ -160,27 +153,39 @@ export async function POST(request: Request) {
       tollRow.id as string
     );
 
-    if (!tollAdd.success) {
-      continue;
-    }
+    return tollAdd.success ? pin : null;
+  };
 
-    tollResults.push({
-      pinId: pin.id,
-      ownerId: pin.user_id,
-      tollPoints,
-    });
+  const tollOutcomes =
+    tollPoints > 0 ? await Promise.all(otherPins.map(payToll)) : [];
+  const paidTollPins = tollOutcomes.filter(
+    (pin): pin is ContainingPin => pin !== null
+  );
 
-    await notifyPinToll({
-      ownerUserId: pin.user_id,
-      collectorUserId: user.id,
-      pinId: pin.id,
-      pinText: pin.text,
-      lat: pin.lat,
-      lng: pin.lng,
-      pointLat: randomPoint.lat,
-      pointLng: randomPoint.lng,
-      tollPoints,
-      basePoints: randomPoint.points,
+  const tollResults = paidTollPins.map((pin) => ({
+    pinId: pin.id,
+    ownerId: pin.user_id,
+    tollPoints,
+  }));
+
+  if (paidTollPins.length > 0) {
+    after(async () => {
+      await Promise.all(
+        paidTollPins.map((pin) =>
+          notifyPinToll({
+            ownerUserId: pin.user_id,
+            collectorUserId: user.id,
+            pinId: pin.id,
+            pinText: pin.text,
+            lat: pin.lat,
+            lng: pin.lng,
+            pointLat: randomPoint.lat,
+            pointLng: randomPoint.lng,
+            tollPoints,
+            basePoints: randomPoint.points,
+          })
+        )
+      );
     });
   }
 

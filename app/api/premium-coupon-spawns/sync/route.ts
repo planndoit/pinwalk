@@ -25,76 +25,80 @@ export async function POST(request: Request) {
   const now = new Date();
   const nowIso = now.toISOString();
 
-  await admin
-    .from("premium_coupon_spawns")
-    .update({ status: "expired" })
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .lt("expires_at", nowIso);
-
-  const { data: activeSpawns } = await admin
-    .from("premium_coupon_spawns")
-    .select(
-      "*, premium_coupons(title, is_active), premium_places(store_name, lat, lng, is_active)"
-    )
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .gt("expires_at", nowIso);
+  const [, { data: activeSpawns }] = await Promise.all([
+    admin
+      .from("premium_coupon_spawns")
+      .update({ status: "expired" })
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .lt("expires_at", nowIso),
+    admin
+      .from("premium_coupon_spawns")
+      .select(
+        "*, premium_coupons(title, is_active), premium_places(store_name, lat, lng, is_active)"
+      )
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .gt("expires_at", nowIso),
+  ]);
 
   const spawnDistance = getPremiumCouponSpawnDistanceMeters();
-  const spawns = [];
 
-  for (const spawn of activeSpawns ?? []) {
-    const coupon = spawn.premium_coupons as {
-      title?: string;
-      is_active?: boolean;
-    } | null;
+  const results = await Promise.all(
+    (activeSpawns ?? []).map(async (spawn) => {
+      const coupon = spawn.premium_coupons as {
+        title?: string;
+        is_active?: boolean;
+      } | null;
 
-    const place = spawn.premium_places as {
-      store_name?: string;
-      lat?: number;
-      lng?: number;
-      is_active?: boolean;
-    } | null;
+      const place = spawn.premium_places as {
+        store_name?: string;
+        lat?: number;
+        lng?: number;
+        is_active?: boolean;
+      } | null;
 
-    if (!coupon?.is_active || !place?.is_active) {
+      if (!coupon?.is_active || !place?.is_active) {
+        await admin
+          .from("premium_coupon_spawns")
+          .update({ status: "expired" })
+          .eq("id", spawn.id);
+        return null;
+      }
+
+      const offset =
+        place &&
+        typeof place.lat === "number" &&
+        typeof place.lng === "number"
+          ? offsetPointMeters(
+              current_lat,
+              current_lng,
+              place.lat,
+              place.lng,
+              spawnDistance
+            )
+          : { lat: spawn.lat, lng: spawn.lng };
+
       await admin
         .from("premium_coupon_spawns")
-        .update({ status: "expired" })
+        .update({ lat: offset.lat, lng: offset.lng })
         .eq("id", spawn.id);
-      continue;
-    }
 
-    const offset =
-      place &&
-      typeof place.lat === "number" &&
-      typeof place.lng === "number"
-        ? offsetPointMeters(
-            current_lat,
-            current_lng,
-            place.lat,
-            place.lng,
-            spawnDistance
-          )
-        : { lat: spawn.lat, lng: spawn.lng };
+      return {
+        id: spawn.id,
+        couponId: spawn.coupon_id,
+        premiumPlaceId: spawn.premium_place_id,
+        lat: offset.lat,
+        lng: offset.lng,
+        status: spawn.status,
+        expiresAt: spawn.expires_at,
+        couponTitle: coupon.title ?? "",
+        storeName: place?.store_name ?? "",
+      };
+    })
+  );
 
-    await admin
-      .from("premium_coupon_spawns")
-      .update({ lat: offset.lat, lng: offset.lng })
-      .eq("id", spawn.id);
-
-    spawns.push({
-      id: spawn.id,
-      couponId: spawn.coupon_id,
-      premiumPlaceId: spawn.premium_place_id,
-      lat: offset.lat,
-      lng: offset.lng,
-      status: spawn.status,
-      expiresAt: spawn.expires_at,
-      couponTitle: coupon.title ?? "",
-      storeName: place?.store_name ?? "",
-    });
-  }
+  const spawns = results.filter((spawn) => spawn !== null);
 
   return NextResponse.json({ spawns });
 }

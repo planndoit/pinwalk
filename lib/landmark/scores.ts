@@ -81,11 +81,11 @@ export async function refreshUsersLandmarkScores(
 ): Promise<void> {
   const uniqueLandmarks = [...new Set(landmarkIds.filter(Boolean))];
   const uniqueUsers = [...new Set(userIds.filter(Boolean))];
-  for (const landmarkId of uniqueLandmarks) {
-    for (const userId of uniqueUsers) {
-      await refreshUserLandmarkScore(landmarkId, userId);
-    }
-  }
+  await Promise.all(
+    uniqueLandmarks.flatMap((landmarkId) =>
+      uniqueUsers.map((userId) => refreshUserLandmarkScore(landmarkId, userId))
+    )
+  );
 }
 
 /** 랜드마크 전체 점수를 pin_landmarks 기준으로 재동기화. */

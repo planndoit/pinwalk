@@ -30,7 +30,6 @@ import CelebrationOverlay, {
 import GuideModal from "@/components/guide/GuideModal";
 import { getDistanceMeters } from "@/lib/geo";
 import {
-  DEFAULT_PIN_RADIUS_BY_COST,
   LANDMARK_PIN_RADIUS_METERS,
   RANDOM_POINT_CLAIM_RADIUS_METERS,
   type ConquerProbability,
@@ -69,8 +68,14 @@ interface HomePageProps {
 export default function HomePage({ active = true }: HomePageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, profile, loading: authLoading, refreshProfile, requireAuth } =
-    useAuth();
+  const {
+    user,
+    profile,
+    loading: authLoading,
+    refreshProfile,
+    setProfilePoints,
+    requireAuth,
+  } = useAuth();
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(
     null
   );
@@ -109,9 +114,6 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [couponClaimRadius, setCouponClaimRadius] = useState(15);
   const [randomPointClaimRadius, setRandomPointClaimRadius] = useState(
     RANDOM_POINT_CLAIM_RADIUS_METERS
-  );
-  const [maxPinRadiusMeters, setMaxPinRadiusMeters] = useState(
-    Math.max(...Object.values(DEFAULT_PIN_RADIUS_BY_COST))
   );
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
   const [selectedRandomPoint, setSelectedRandomPoint] =
@@ -416,21 +418,10 @@ export default function HomePage({ active = true }: HomePageProps) {
 
   useEffect(() => {
     void (async () => {
-      const [premiumConfigRes, pinConfigRes] = await Promise.all([
-        fetch("/api/premium-places/config"),
-        fetch("/api/pins/config"),
-      ]);
-
+      const premiumConfigRes = await fetch("/api/premium-places/config");
       if (premiumConfigRes.ok) {
         const data = await premiumConfigRes.json();
         setCouponClaimRadius(data.couponClaimRadiusMeters ?? 15);
-      }
-
-      if (pinConfigRes.ok) {
-        const data = await pinConfigRes.json();
-        if (typeof data.maxRadiusMeters === "number") {
-          setMaxPinRadiusMeters(data.maxRadiusMeters);
-        }
       }
     })();
   }, []);
@@ -542,67 +533,50 @@ export default function HomePage({ active = true }: HomePageProps) {
       const plantLat = position.lat;
       const plantLng = position.lng;
 
-      void (async () => {
-        setActionLoading(true);
-        try {
-          const res = await fetch(
-            `/api/pins?lat=${plantLat}&lng=${plantLng}&radius=${maxPinRadiusMeters}`
-          );
-          if (res.ok) {
-            const data = await res.json();
+      const containingLandmarks = landmarks.filter((landmark) => {
+        const d = getDistanceMeters(
+          plantLat,
+          plantLng,
+          landmark.lat,
+          landmark.lng
+        );
+        return d <= landmark.radiusMeters;
+      });
+      const containingIds = new Set(
+        containingLandmarks.map((landmark) => landmark.id)
+      );
 
-            const containingLandmarks = landmarks.filter((landmark) => {
-              const d = getDistanceMeters(
-                plantLat,
-                plantLng,
-                landmark.lat,
-                landmark.lng
-              );
-              return d <= landmark.radiusMeters;
-            });
-            const containingIds = new Set(
-              containingLandmarks.map((landmark) => landmark.id)
+      const nearby = pins.filter((p) => {
+        const distance = getDistanceMeters(plantLat, plantLng, p.lat, p.lng);
+        const pinLandmarkIds = p.landmark_ids ?? [];
+
+        if (containingIds.size > 0) {
+          const sharesLandmark =
+            pinLandmarkIds.some((id) => containingIds.has(id)) ||
+            containingLandmarks.some(
+              (landmark) =>
+                getDistanceMeters(
+                  p.lat,
+                  p.lng,
+                  landmark.lat,
+                  landmark.lng
+                ) <= landmark.radiusMeters
             );
-
-            const nearby = (data.pins ?? []).filter((p: Pin) => {
-              const distance = getDistanceMeters(plantLat, plantLng, p.lat, p.lng);
-              const pinLandmarkIds = p.landmark_ids ?? [];
-
-              if (containingIds.size > 0) {
-                const sharesLandmark =
-                  pinLandmarkIds.some((id) => containingIds.has(id)) ||
-                  containingLandmarks.some(
-                    (landmark) =>
-                      getDistanceMeters(
-                        p.lat,
-                        p.lng,
-                        landmark.lat,
-                        landmark.lng
-                      ) <= landmark.radiusMeters
-                  );
-                if (!sharesLandmark) return false;
-                return (
-                  distance <=
-                  Math.max(p.radius_meters, LANDMARK_PIN_RADIUS_METERS)
-                );
-              }
-
-              if (pinLandmarkIds.length > 0) {
-                return distance <= p.radius_meters;
-              }
-              return distance <= p.radius_meters;
-            });
-            if (nearby.length > 0) {
-              showToast("이미 점령된 영역입니다. 점령에 도전해보세요.");
-              return;
-            }
-          }
-
-          setShowCreateModal(true);
-        } finally {
-          setActionLoading(false);
+          if (!sharesLandmark) return false;
+          return (
+            distance <=
+            Math.max(p.radius_meters, LANDMARK_PIN_RADIUS_METERS)
+          );
         }
-      })();
+
+        return distance <= p.radius_meters;
+      });
+      if (nearby.length > 0) {
+        showToast("이미 점령된 영역입니다. 점령에 도전해보세요.");
+        return;
+      }
+
+      setShowCreateModal(true);
     });
   };
 
@@ -674,15 +648,20 @@ export default function HomePage({ active = true }: HomePageProps) {
         return { success: false, error: data.error };
       }
 
-      const plantedLat =
-        typeof data.pin?.lat === "number" ? data.pin.lat : position.lat;
-      const plantedLng =
-        typeof data.pin?.lng === "number" ? data.pin.lng : position.lng;
+      const createdPin = data.pin as Pin;
+      setPins((prev) => [
+        ...prev.filter((p) => p.id !== createdPin.id),
+        createdPin,
+      ]);
+      if (typeof data.points === "number") {
+        setProfilePoints(data.points);
+      }
+      if ((createdPin.landmark_ids ?? []).length > 0) {
+        void fetchPins();
+        void fetchLandmarks();
+      }
 
-      await refreshProfile();
-      await fetchPins();
-      await fetchLandmarks();
-      requestRecenter(plantedLat, plantedLng);
+      requestRecenter(createdPin.lat, createdPin.lng);
       setCelebration("plant");
       showToast("깃발을 꽂았어요!");
       return { success: true };
@@ -722,9 +701,23 @@ export default function HomePage({ active = true }: HomePageProps) {
         return { success: false, error: data.error };
       }
 
-      await refreshProfile();
-      await fetchPins();
-      await fetchLandmarks();
+      if (typeof data.points === "number") {
+        setProfilePoints(data.points);
+      }
+
+      if (data.success && data.pin) {
+        const conqueredPinId = selectedPin.id;
+        const newPin = data.pin as Pin;
+        setPins((prev) => [
+          ...prev.filter(
+            (p) => p.id !== conqueredPinId && p.id !== newPin.id
+          ),
+          newPin,
+        ]);
+        if ((newPin.landmark_ids ?? []).length > 0) {
+          void fetchLandmarks();
+        }
+      }
       setSelectedPin(null);
 
       if (data.success) {
@@ -761,8 +754,11 @@ export default function HomePage({ active = true }: HomePageProps) {
         return;
       }
 
-      await refreshProfile();
-      await fetchRandomPoints();
+      const claimedId = selectedRandomPoint.id;
+      setRandomPoints((prev) => prev.filter((point) => point.id !== claimedId));
+      if (typeof data.points === "number") {
+        setProfilePoints(data.points);
+      }
       setSelectedRandomPoint(null);
       showToast(data.message);
     } finally {

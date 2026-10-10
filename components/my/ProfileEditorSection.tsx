@@ -23,7 +23,7 @@ export default function ProfileEditorSection({
   const [nickname, setNickname] = useState(profile.nickname);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     profile.has_avatar
-      ? `/api/profile/avatar?userId=${profile.id}&t=${profile.updated_at}`
+      ? `/api/profile/avatar?userId=${profile.id}&t=${profile.avatar_updated_at ?? ""}`
       : null
   );
   const [pendingAvatar, setPendingAvatar] = useState<{

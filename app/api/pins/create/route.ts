@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import {
+  DEFAULT_NICKNAME,
   LANDMARK_PIN_RADIUS_METERS,
   PIN_CREATE_COST,
 } from "@/lib/constants";
@@ -12,7 +13,7 @@ import {
   absorbPinsIntoLandmark,
   findContainingLandmarks,
 } from "@/lib/landmark/zone";
-import { setPinLandmarks } from "@/lib/landmark/pinLandmarks";
+import { addPinLandmarks } from "@/lib/landmark/pinLandmarks";
 import { refreshUsersLandmarkScores } from "@/lib/landmark/scores";
 import { refreshCrewLandmarkScoresForUsers } from "@/lib/crew/scores";
 import { recordRegionVisit } from "@/lib/visits/recordVisit";
@@ -49,22 +50,22 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("points")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }, containingLandmarks] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("points, nickname, avatar_mime, avatar_updated_at")
+      .eq("id", user.id)
+      .single(),
+    findContainingLandmarks(lat, lng),
+  ]);
 
   if (!profile || profile.points < cost) {
     return jsonError("포인트가 부족합니다.");
   }
 
-  const containingLandmarks = await findContainingLandmarks(lat, lng);
   const landmarkIds = containingLandmarks.map((landmark) => landmark.id);
 
-  for (const landmark of containingLandmarks) {
-    await absorbPinsIntoLandmark(landmark);
-  }
+  await Promise.all(containingLandmarks.map(absorbPinsIntoLandmark));
 
   const radiusMeters =
     landmarkIds.length > 0
@@ -130,27 +131,37 @@ export async function POST(request: Request) {
   }
 
   if (landmarkIds.length > 0) {
-    await setPinLandmarks(pin.id, landmarkIds);
-    await refreshUsersLandmarkScores(landmarkIds, [user.id]);
-    await refreshCrewLandmarkScoresForUsers(landmarkIds, [user.id]);
+    await addPinLandmarks(pin.id, landmarkIds);
+    await Promise.all([
+      refreshUsersLandmarkScores(landmarkIds, [user.id]),
+      refreshCrewLandmarkScoresForUsers(landmarkIds, [user.id]),
+    ]);
   }
 
-  try {
-    await recordRegionVisit({
-      userId: user.id,
-      lat,
-      lng,
-      visitedAt:
-        typeof pin.created_at === "string"
-          ? pin.created_at
-          : new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("recordRegionVisit failed:", error);
-  }
+  after(async () => {
+    try {
+      await recordRegionVisit({
+        userId: user.id,
+        lat,
+        lng,
+        visitedAt:
+          typeof pin.created_at === "string"
+            ? pin.created_at
+            : new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("recordRegionVisit failed:", error);
+    }
+  });
 
   return NextResponse.json({
-    pin: { ...pin, landmark_ids: landmarkIds },
+    pin: {
+      ...pin,
+      nickname: (profile.nickname as string | null) ?? DEFAULT_NICKNAME,
+      has_avatar: Boolean(profile.avatar_mime),
+      avatar_updated_at: (profile.avatar_updated_at as string | null) ?? null,
+      landmark_ids: landmarkIds,
+    },
     points: deductResult.newPoints,
   });
 }

@@ -4,6 +4,7 @@ export interface Profile {
   nickname: string;
   points: number;
   has_avatar: boolean;
+  avatar_updated_at: string | null;
   last_random_point_spawn_at: string | null;
   last_daily_bonus_at: string | null;
   last_seen_at: string | null;

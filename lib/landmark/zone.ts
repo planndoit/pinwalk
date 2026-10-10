@@ -1,7 +1,7 @@
 import { LANDMARK_PIN_RADIUS_METERS } from "@/lib/constants";
 import { getBoundingBoxDelta, getDistanceMeters } from "@/lib/geo";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { addPinLandmarks } from "@/lib/landmark/pinLandmarks";
+import { linkPinsToLandmark } from "@/lib/landmark/pinLandmarks";
 import type { Landmark } from "@/types/landmark";
 
 export type LandmarkZone = Pick<
@@ -69,33 +69,36 @@ export async function absorbPinsIntoLandmark(
     return [];
   }
 
-  const affectedUserIds = new Set<string>();
-  const now = new Date().toISOString();
-
-  for (const pin of data) {
-    const distance = getDistanceMeters(
-      landmark.lat,
-      landmark.lng,
-      pin.lat,
-      pin.lng
-    );
-    if (distance > landmark.radius_meters) continue;
-
-    if (pin.radius_meters !== LANDMARK_PIN_RADIUS_METERS) {
-      await admin
-        .from("pins")
-        .update({
-          radius_meters: LANDMARK_PIN_RADIUS_METERS,
-          updated_at: now,
-        })
-        .eq("id", pin.id);
-    }
-
-    await addPinLandmarks(pin.id, [landmark.id]);
-    affectedUserIds.add(pin.user_id);
+  const insidePins = data.filter(
+    (pin) =>
+      getDistanceMeters(landmark.lat, landmark.lng, pin.lat, pin.lng) <=
+      landmark.radius_meters
+  );
+  if (insidePins.length === 0) {
+    return [];
   }
 
-  return [...affectedUserIds];
+  const resizePinIds = insidePins
+    .filter((pin) => pin.radius_meters !== LANDMARK_PIN_RADIUS_METERS)
+    .map((pin) => pin.id as string);
+
+  await Promise.all([
+    resizePinIds.length > 0
+      ? admin
+          .from("pins")
+          .update({
+            radius_meters: LANDMARK_PIN_RADIUS_METERS,
+            updated_at: new Date().toISOString(),
+          })
+          .in("id", resizePinIds)
+      : null,
+    linkPinsToLandmark(
+      insidePins.map((pin) => pin.id as string),
+      landmark.id
+    ),
+  ]);
+
+  return [...new Set(insidePins.map((pin) => pin.user_id as string))];
 }
 
 /** map_visible false → true 전환 시 편입. */

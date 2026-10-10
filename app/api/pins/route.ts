@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBoundingBoxDelta } from "@/lib/geo";
-import { getLandmarkIdsByPinIds } from "@/lib/landmark/pinLandmarks";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -15,7 +14,7 @@ export async function GET(request: Request) {
   let query = admin
     .from("pins")
     .select(
-      "*, profiles!pins_user_id_fkey(nickname, avatar_mime, updated_at)"
+      "*, profiles!pins_user_id_fkey(nickname, avatar_mime, avatar_updated_at), pin_landmarks(landmark_id)"
     )
     .eq("status", "active");
 
@@ -41,20 +40,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "핀 조회에 실패했습니다." }, { status: 500 });
   }
 
-  const pinList = pins ?? [];
-  const landmarkIdsByPin = await getLandmarkIdsByPinIds(
-    pinList.map((pin) => pin.id as string)
-  );
-
-  const result = pinList.map((pin) => ({
-    ...pin,
-    nickname: pin.profiles?.nickname ?? "익명의 워커",
-    has_avatar: Boolean(pin.profiles?.avatar_mime),
-    avatar_updated_at:
-      (pin.profiles?.updated_at as string | null | undefined) ?? null,
-    landmark_ids: landmarkIdsByPin.get(pin.id as string) ?? [],
-    profiles: undefined,
-  }));
+  const result = (pins ?? []).map((pin) => {
+    const links = (pin.pin_landmarks ?? []) as { landmark_id: string }[];
+    return {
+      ...pin,
+      nickname: pin.profiles?.nickname ?? "익명의 워커",
+      has_avatar: Boolean(pin.profiles?.avatar_mime),
+      avatar_updated_at:
+        (pin.profiles?.avatar_updated_at as string | null | undefined) ?? null,
+      landmark_ids: links.map((link) => link.landmark_id),
+      profiles: undefined,
+      pin_landmarks: undefined,
+    };
+  });
 
   return NextResponse.json({ pins: result });
 }

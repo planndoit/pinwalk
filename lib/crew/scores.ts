@@ -144,11 +144,11 @@ export async function refreshCrewLandmarkScoresForUsers(
   ];
   if (crewIds.length === 0) return;
 
-  for (const landmarkId of uniqueLandmarks) {
-    for (const crewId of crewIds) {
-      await recomputeLandmarkCrewScore(landmarkId, crewId);
-    }
-  }
+  await Promise.all(
+    uniqueLandmarks.flatMap((landmarkId) =>
+      crewIds.map((crewId) => recomputeLandmarkCrewScore(landmarkId, crewId))
+    )
+  );
 }
 
 /** 멤버십 변경 후 해당 크루의 관련 랜드마크 점수 전체 재동기화. */
