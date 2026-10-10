@@ -10,7 +10,11 @@ import {
   AdminPageHeader,
   AdminTextarea,
 } from "@/components/admin/AdminUi";
-import { LANDMARK_SOURCE_ATTRIBUTION, TOUR_CONTENT_TYPE_LABELS } from "@/lib/constants";
+import {
+  LANDMARK_SOURCE_ATTRIBUTION,
+  PARK_SOURCE_ATTRIBUTION,
+  TOUR_CONTENT_TYPE_LABELS,
+} from "@/lib/constants";
 import { useSubmitLock } from "@/lib/useSubmitLock";
 
 const MAP_HEIGHT = Math.round(320 * 1.5);
@@ -39,6 +43,8 @@ export default function AdminLandmarkDetailPage() {
     source: "manual",
     tourContentId: null as string | null,
     tourContentTypeId: null as string | null,
+    parkManageNo: null as string | null,
+    parkType: null as string | null,
   });
   const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -68,6 +74,8 @@ export default function AdminLandmarkDetailPage() {
       source: p.source ?? "manual",
       tourContentId: p.tourContentId ?? null,
       tourContentTypeId: p.tourContentTypeId ?? null,
+      parkManageNo: p.parkManageNo ?? null,
+      parkType: p.parkType ?? null,
     });
     setLoaded(true);
     setMessage(null);
@@ -290,11 +298,18 @@ export default function AdminLandmarkDetailPage() {
         ) : null}
 
         <p className="text-xs text-gray-500">
-          출처: {form.source === "tourapi" ? LANDMARK_SOURCE_ATTRIBUTION : "수동"}
+          출처:{" "}
+          {form.source === "tourapi"
+            ? LANDMARK_SOURCE_ATTRIBUTION
+            : form.source === "park"
+              ? PARK_SOURCE_ATTRIBUTION
+              : "수동"}
           {form.tourContentId ? ` · contentId ${form.tourContentId}` : ""}
           {form.tourContentTypeId
             ? ` · ${TOUR_CONTENT_TYPE_LABELS[form.tourContentTypeId] ?? form.tourContentTypeId}`
             : ""}
+          {form.parkManageNo ? ` · 관리번호 ${form.parkManageNo}` : ""}
+          {form.parkType ? ` · ${form.parkType}` : ""}
         </p>
 
         {message ? <p className="text-sm text-gray-700">{message}</p> : null}

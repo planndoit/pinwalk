@@ -131,6 +131,29 @@ export const TOUR_AREA_OPTIONS = [
 
 export const LANDMARK_SOURCE_ATTRIBUTION = "한국관광공사";
 
+export const PARK_SOURCE_ATTRIBUTION = "전국도시공원정보표준데이터(공공데이터포털)";
+
+export const LANDMARK_SOURCE_LABELS: Record<string, string> = {
+  tourapi: "TourAPI",
+  park: "공원",
+  manual: "수동",
+};
+
+/** 전국도시공원정보표준데이터 PARK_SE 값 (완전 일치 검색). */
+export const PARK_TYPE_OPTIONS = [
+  "근린공원",
+  "어린이공원",
+  "소공원",
+  "문화공원",
+  "역사공원",
+  "수변공원",
+  "체육공원",
+  "묘지공원",
+  "도시농업공원",
+  "가로공원",
+  "기타",
+] as const;
+
 /** 크루 생성 비용 (P). */
 export const CREW_CREATE_COST = 1000;
 

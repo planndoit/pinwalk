@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LANDMARK_SOURCE_ATTRIBUTION } from "@/lib/constants";
+import {
+  LANDMARK_SOURCE_ATTRIBUTION,
+  PARK_SOURCE_ATTRIBUTION,
+} from "@/lib/constants";
 import OverlayPortal from "@/components/layout/OverlayPortal";
 import type {
   LandmarkRankingEntry,
@@ -94,6 +97,11 @@ export default function LandmarkBottomSheet({
                     <span className="inline-block px-2 py-0.5 rounded bg-teal-700 text-white text-[10px] font-bold tracking-wide">
                       랜드마크
                     </span>
+                    {landmark.parkType ? (
+                      <span className="inline-block px-2 py-0.5 rounded bg-green-600 text-white text-[10px] font-bold">
+                        {landmark.parkType}
+                      </span>
+                    ) : null}
                     {landmark.isClosed ? (
                       <span className="inline-block px-2 py-0.5 rounded bg-gray-500 text-white text-[10px] font-bold">
                         미운영
@@ -183,7 +191,10 @@ export default function LandmarkBottomSheet({
               ) : null}
 
               <p className="mt-3 text-[11px] text-gray-400">
-                자료 제공: {LANDMARK_SOURCE_ATTRIBUTION}
+                자료 제공:{" "}
+                {landmark.source === "park"
+                  ? PARK_SOURCE_ATTRIBUTION
+                  : LANDMARK_SOURCE_ATTRIBUTION}
                 {landmark.source === "manual" ? " · 수동 등록" : ""}
               </p>
             </div>

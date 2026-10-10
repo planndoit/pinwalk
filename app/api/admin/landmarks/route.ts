@@ -25,6 +25,8 @@ export async function GET(request: Request) {
   const closedValues = splitCsv(searchParams.get("closed"));
   const areaCodes = splitCsv(searchParams.get("areaCode"));
   const contentTypeIds = splitCsv(searchParams.get("contentTypeId"));
+  const sources = splitCsv(searchParams.get("source"));
+  const sortByArea = searchParams.get("sort") === "area";
   const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10));
   const limit = Math.min(
     100,
@@ -33,10 +35,11 @@ export async function GET(request: Request) {
   const offset = (page - 1) * limit;
 
   const admin = createAdminClient();
-  let query = admin
-    .from("landmarks")
-    .select("*", { count: "exact" })
-    .order("updated_at", { ascending: false })
+  let query = admin.from("landmarks").select("*", { count: "exact" });
+  query = sortByArea
+    ? query.order("park_area_sqm", { ascending: false, nullsFirst: false })
+    : query.order("updated_at", { ascending: false });
+  query = query
     .order("id", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -58,6 +61,12 @@ export async function GET(request: Request) {
     query = query.eq("tour_content_type_id", contentTypeIds[0]);
   } else if (contentTypeIds.length > 1) {
     query = query.in("tour_content_type_id", contentTypeIds);
+  }
+
+  if (sources.length === 1) {
+    query = query.eq("source", sources[0]);
+  } else if (sources.length > 1) {
+    query = query.in("source", sources);
   }
 
   const wantsVisible = visibleValues.includes("true");

@@ -66,12 +66,16 @@ const ROUTE_META: { test: (pathname: string) => boolean; meta: AdminPageMeta }[]
       test: (p) => p === "/admin/landmarks",
       meta: {
         title: "랜드마크 관리",
-        description: "TourAPI 후보를 가져와 지도 노출을 큐레이션합니다.",
+        description: "TourAPI·공원 후보를 가져와 지도 노출을 큐레이션합니다.",
       },
     },
     {
       test: (p) => p === "/admin/landmarks/import",
       meta: { title: "TourAPI에서 가져오기" },
+    },
+    {
+      test: (p) => p === "/admin/landmarks/import-parks",
+      meta: { title: "공원 가져오기" },
     },
     {
       test: (p) => p === "/admin/landmarks/new",

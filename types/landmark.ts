@@ -1,10 +1,14 @@
-export type LandmarkSource = "tourapi" | "manual";
+export type LandmarkSource = "tourapi" | "manual" | "park";
 
 export interface Landmark {
   id: string;
   source: LandmarkSource;
   tour_content_id: string | null;
   tour_content_type_id: string | null;
+  park_manage_no: string | null;
+  park_source_name: string | null;
+  park_type: string | null;
+  park_area_sqm: number | null;
   name: string;
   lat: number;
   lng: number;
@@ -28,6 +32,9 @@ export interface SerializedLandmark {
   source: LandmarkSource;
   tourContentId: string | null;
   tourContentTypeId: string | null;
+  parkManageNo: string | null;
+  parkType: string | null;
+  parkAreaSqm: number | null;
   name: string;
   lat: number;
   lng: number;
@@ -70,4 +77,27 @@ export interface TourApiLandmarkCandidate {
   areaCode: string | null;
   sigunguCode: string | null;
   modifiedTime: string | null;
+}
+
+export interface ParkFacilities {
+  sports: string | null;
+  play: string | null;
+  convenience: string | null;
+  culture: string | null;
+  etc: string | null;
+}
+
+export interface ParkLandmarkCandidate {
+  /** manageNo + 원본 공원명. 관리번호만으로는 중복된다. */
+  key: string;
+  manageNo: string;
+  name: string;
+  parkType: string | null;
+  lat: number;
+  lng: number;
+  address: string | null;
+  areaSquareMeters: number | null;
+  facilities: ParkFacilities;
+  providerName: string | null;
+  referenceDate: string | null;
 }

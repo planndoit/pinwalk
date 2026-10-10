@@ -35,6 +35,7 @@ cp .env.local.example .env.local
 1. [공공데이터포털](https://www.data.go.kr/data/15101578/openapi.do)에서 국문 관광정보 서비스 활용신청
 2. 발급 키를 `TOUR_API_SERVICE_KEY`에 설정 (서버 전용, `NEXT_PUBLIC_` 금지)
 3. 관리자 → 랜드마크 관리 → TourAPI에서 가져오기 → 지도 노출 ON
+4. 공원 랜드마크: 같은 계정에서 [전국도시공원정보표준데이터](https://www.data.go.kr/data/15012890/standard.do) 활용신청 → `040_landmark_parks.sql`·`041_landmark_park_area.sql` 실행 → 관리자 → 랜드마크 관리 → 공원 가져오기 (인증키는 `TOUR_API_SERVICE_KEY` 공용)
 
 ### 5. 개발 서버 실행
 

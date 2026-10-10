@@ -8,9 +8,11 @@ import {
   AdminCard,
   AdminInput,
   AdminPageHeader,
+  AdminSelect,
   AdminTable,
 } from "@/components/admin/AdminUi";
 import {
+  LANDMARK_SOURCE_LABELS,
   TOUR_AREA_OPTIONS,
   TOUR_CONTENT_TYPE_LABELS,
   TOUR_LANDMARK_CONTENT_TYPE_IDS,
@@ -25,6 +27,8 @@ interface SearchFilters {
   closed: string[];
   areaCodes: string[];
   contentTypeIds: string[];
+  sources: string[];
+  sort: string;
 }
 
 const EMPTY_FILTERS: SearchFilters = {
@@ -34,7 +38,19 @@ const EMPTY_FILTERS: SearchFilters = {
   closed: [],
   areaCodes: [],
   contentTypeIds: [],
+  sources: [],
+  sort: "",
 };
+
+const SORT_OPTIONS = [
+  { value: "", label: "최근 갱신순" },
+  { value: "area", label: "공원 면적 큰 순" },
+] as const;
+
+function formatAreaSqm(value: number | null): string {
+  if (value == null) return "-";
+  return `${Math.round(value).toLocaleString("ko-KR")}㎡`;
+}
 
 const PAGE_SIZE = 50;
 
@@ -63,6 +79,10 @@ function buildListParams(filters: SearchFilters, page: number) {
   if (filters.contentTypeIds.length > 0) {
     params.set("contentTypeId", filters.contentTypeIds.join(","));
   }
+  if (filters.sources.length > 0) {
+    params.set("source", filters.sources.join(","));
+  }
+  if (filters.sort) params.set("sort", filters.sort);
   return params;
 }
 
@@ -82,6 +102,8 @@ function parseFiltersFromParams(params: URLSearchParams): SearchFilters {
     closed: parseCsvValues(params.get("closed")),
     areaCodes: parseCsvValues(params.get("areaCode")),
     contentTypeIds: parseCsvValues(params.get("contentTypeId")),
+    sources: parseCsvValues(params.get("source")),
+    sort: params.get("sort") ?? "",
   };
 }
 
@@ -95,6 +117,8 @@ function buildFilterQueryParams(filters: SearchFilters): URLSearchParams {
   if (filters.contentTypeIds.length > 0) {
     params.set("contentTypeId", filters.contentTypeIds.join(","));
   }
+  if (filters.sources.length > 0) params.set("source", filters.sources.join(","));
+  if (filters.sort) params.set("sort", filters.sort);
   return params;
 }
 
@@ -319,6 +343,9 @@ export default function AdminLandmarksPage() {
             <Link href="/admin/landmarks/import">
               <AdminButton type="button">TourAPI에서 가져오기</AdminButton>
             </Link>
+            <Link href="/admin/landmarks/import-parks">
+              <AdminButton type="button">공원 가져오기</AdminButton>
+            </Link>
             <Link href="/admin/landmarks/new">
               <AdminButton type="button" variant="secondary">
                 수동 추가
@@ -402,6 +429,30 @@ export default function AdminLandmarksPage() {
           </div>
         </div>
 
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-2">출처</p>
+          <div className="flex flex-wrap gap-3">
+            {Object.entries(LANDMARK_SOURCE_LABELS).map(([value, label]) => (
+              <label
+                key={value}
+                className="inline-flex items-center gap-1.5 text-sm text-gray-700"
+              >
+                <input
+                  type="checkbox"
+                  checked={draft.sources.includes(value)}
+                  onChange={() =>
+                    setDraft({
+                      ...draft,
+                      sources: toggleValue(draft.sources, value),
+                    })
+                  }
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
+
         <div className="flex flex-wrap gap-x-8 gap-y-4">
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">지도 노출</p>
@@ -457,6 +508,18 @@ export default function AdminLandmarksPage() {
             </div>
           </div>
         </div>
+
+        <AdminSelect
+          label="정렬"
+          value={draft.sort}
+          onChange={(e) => setDraft({ ...draft, sort: e.target.value })}
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </AdminSelect>
 
         <div className="flex gap-2">
           <AdminButton type="button" onClick={handleSearch} disabled={loading}>
@@ -514,6 +577,7 @@ export default function AdminLandmarksPage() {
               "유형",
               "노출",
               "운영 여부",
+              "면적",
               "반경",
               "출처",
               "갱신",
@@ -555,7 +619,7 @@ export default function AdminLandmarksPage() {
                   {row.tourContentTypeId
                     ? (TOUR_CONTENT_TYPE_LABELS[row.tourContentTypeId] ??
                       row.tourContentTypeId)
-                    : "-"}
+                    : (row.parkType ?? "-")}
                 </td>
                 <td className="px-4 py-3">
                   {row.mapVisible ? "노출" : "미노출"}
@@ -563,9 +627,12 @@ export default function AdminLandmarksPage() {
                 <td className="px-4 py-3">
                   {row.isClosed ? "미운영" : "운영"}
                 </td>
+                <td className="px-4 py-3 tabular-nums">
+                  {formatAreaSqm(row.parkAreaSqm)}
+                </td>
                 <td className="px-4 py-3">{row.radiusMeters}m</td>
                 <td className="px-4 py-3">
-                  {row.source === "tourapi" ? "TourAPI" : "수동"}
+                  {LANDMARK_SOURCE_LABELS[row.source] ?? row.source}
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-500">
                   {formatActivityDate(row.updatedAt)}
