@@ -18,6 +18,7 @@ export async function POST(request: Request) {
   const provider = optionalText(body.provider);
   const name = optionalText(body.name);
   const parkType = optionalText(body.parkType);
+  const region = optionalText(body.region);
 
   try {
     let inserted = 0;
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
         provider,
         name,
         parkType,
+        region,
         pageNo,
         numOfRows: PAGE_SIZE,
       });

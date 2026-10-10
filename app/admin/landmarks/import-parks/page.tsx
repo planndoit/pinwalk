@@ -10,10 +10,15 @@ import {
   AdminSelect,
   AdminTable,
 } from "@/components/admin/AdminUi";
-import { PARK_TYPE_OPTIONS } from "@/lib/constants";
+import {
+  PARK_REGION_OPTIONS,
+  PARK_TYPE_AREA_STATS_DATE,
+  PARK_TYPE_OPTIONS,
+} from "@/lib/constants";
 import type { ParkLandmarkCandidate } from "@/types/landmark";
 
 interface ParkFilters {
+  region: string;
   provider: string;
   name: string;
   parkType: string;
@@ -26,10 +31,16 @@ function buildSearchParams(filters: ParkFilters, pageNo: number) {
     limit: String(PAGE_SIZE),
     page: String(pageNo),
   });
+  if (filters.region) params.set("region", filters.region);
   if (filters.provider.trim()) params.set("provider", filters.provider.trim());
   if (filters.name.trim()) params.set("name", filters.name.trim());
   if (filters.parkType) params.set("parkType", filters.parkType);
   return params;
+}
+
+function formatAreaSqm(value: number | null): string {
+  if (value == null) return "-";
+  return `${Math.round(value).toLocaleString("ko-KR")}㎡`;
 }
 
 function mergeCandidates(
@@ -45,6 +56,7 @@ function mergeCandidates(
 
 export default function AdminParkImportPage() {
   const [draft, setDraft] = useState<ParkFilters>({
+    region: "",
     provider: "",
     name: "",
     parkType: "",
@@ -241,6 +253,18 @@ export default function AdminParkImportPage() {
       />
 
       <AdminCard className="p-4 mb-4 space-y-4">
+        <AdminSelect
+          label="지역"
+          value={draft.region}
+          onChange={(e) => setDraft({ ...draft, region: e.target.value })}
+        >
+          <option value="">전국</option>
+          {PARK_REGION_OPTIONS.map((region) => (
+            <option key={region.value} value={region.value}>
+              {region.label}
+            </option>
+          ))}
+        </AdminSelect>
         <AdminInput
           label="제공기관명"
           value={draft.provider}
@@ -260,13 +284,16 @@ export default function AdminParkImportPage() {
         >
           <option value="">전체</option>
           {PARK_TYPE_OPTIONS.map((type) => (
-            <option key={type} value={type}>
-              {type}
+            <option key={type.value} value={type.value}>
+              {`${type.value} (평균 ${type.averageAreaSqm.toLocaleString("ko-KR")}㎡)`}
             </option>
           ))}
         </AdminSelect>
         <p className="text-xs text-gray-500">
-          제공기관명과 공원명은 정확히 일치해야 검색됩니다.
+          제공기관명과 공원명은 정확히 일치해야 검색됩니다. 공원구분은 평균
+          면적이 큰 순이며, 평균 면적은 {PARK_TYPE_AREA_STATS_DATE} 전국 데이터
+          기준입니다. 지역을 고르면 전국 데이터를 조회해 주소로 거르므로 검색에
+          시간이 걸리고, 결과는 면적 큰 순으로 한 번에 표시됩니다.
         </p>
 
         <AdminButton
@@ -315,7 +342,7 @@ export default function AdminParkImportPage() {
       <AdminCard className="overflow-hidden">
         <div ref={scrollRef} className="max-h-[28rem] overflow-auto">
           <AdminTable
-            headers={["", "이름", "구분", "주소", "제공기관", "관리번호"]}
+            headers={["", "이름", "구분", "면적", "주소", "제공기관", "관리번호"]}
           >
             {candidates.map((row) => (
               <tr
@@ -333,6 +360,9 @@ export default function AdminParkImportPage() {
                   {row.name}
                 </td>
                 <td className="px-4 py-3">{row.parkType ?? "-"}</td>
+                <td className="px-4 py-3 tabular-nums">
+                  {formatAreaSqm(row.areaSquareMeters)}
+                </td>
                 <td className="px-4 py-3 text-sm text-gray-600 max-w-[240px] truncate">
                   {row.address ?? "-"}
                 </td>

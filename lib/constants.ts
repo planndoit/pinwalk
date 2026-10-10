@@ -139,19 +139,53 @@ export const LANDMARK_SOURCE_LABELS: Record<string, string> = {
   manual: "수동",
 };
 
-/** 전국도시공원정보표준데이터 PARK_SE 값 (완전 일치 검색). */
+/**
+ * 공원 주소 첫 단어(시·도) 기준 지역. 전국도시공원정보표준데이터에 실제로 쓰인 표기만 포함.
+ * 광주·전남은 통합특별시 표기와 기존 표기가 섞여 있어 하나로 묶는다.
+ */
+export const PARK_REGION_OPTIONS = [
+  { value: "seoul", label: "서울", addressPrefixes: ["서울특별시"] },
+  { value: "gyeonggi", label: "경기", addressPrefixes: ["경기도"] },
+  { value: "incheon", label: "인천", addressPrefixes: ["인천광역시"] },
+  { value: "busan", label: "부산", addressPrefixes: ["부산광역시"] },
+  { value: "daegu", label: "대구", addressPrefixes: ["대구광역시"] },
+  {
+    value: "gwangju-jeonnam",
+    label: "광주·전남",
+    addressPrefixes: ["전남광주통합특별시", "광주광역시", "전라남도"],
+  },
+  { value: "daejeon", label: "대전", addressPrefixes: ["대전광역시"] },
+  { value: "ulsan", label: "울산", addressPrefixes: ["울산광역시"] },
+  { value: "sejong", label: "세종", addressPrefixes: ["세종특별자치시"] },
+  {
+    value: "gangwon",
+    label: "강원",
+    addressPrefixes: ["강원특별자치도", "강원도"],
+  },
+  { value: "chungbuk", label: "충북", addressPrefixes: ["충청북도"] },
+  { value: "chungnam", label: "충남", addressPrefixes: ["충청남도"] },
+  { value: "jeonbuk", label: "전북", addressPrefixes: ["전북특별자치도"] },
+  { value: "gyeongbuk", label: "경북", addressPrefixes: ["경상북도"] },
+  { value: "gyeongnam", label: "경남", addressPrefixes: ["경상남도"] },
+  { value: "jeju", label: "제주", addressPrefixes: ["제주특별자치도"] },
+] as const;
+
+/** 아래 평균 면적을 집계한 전국도시공원정보표준데이터 조회일. */
+export const PARK_TYPE_AREA_STATS_DATE = "2026-10-10";
+
+/** 전국도시공원정보표준데이터 PARK_SE 값 (완전 일치 검색). 평균 면적 큰 순. */
 export const PARK_TYPE_OPTIONS = [
-  "근린공원",
-  "어린이공원",
-  "소공원",
-  "문화공원",
-  "역사공원",
-  "수변공원",
-  "체육공원",
-  "묘지공원",
-  "도시농업공원",
-  "가로공원",
-  "기타",
+  { value: "묘지공원", averageAreaSqm: 499512 },
+  { value: "도시농업공원", averageAreaSqm: 401050 },
+  { value: "체육공원", averageAreaSqm: 137341 },
+  { value: "근린공원", averageAreaSqm: 97668 },
+  { value: "역사공원", averageAreaSqm: 56182 },
+  { value: "문화공원", averageAreaSqm: 45973 },
+  { value: "기타", averageAreaSqm: 45609 },
+  { value: "수변공원", averageAreaSqm: 36324 },
+  { value: "가로공원", averageAreaSqm: 3990 },
+  { value: "어린이공원", averageAreaSqm: 3389 },
+  { value: "소공원", averageAreaSqm: 2995 },
 ] as const;
 
 /** 크루 생성 비용 (P). */

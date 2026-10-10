@@ -18,6 +18,7 @@ export async function GET(request: Request) {
       provider: searchParams.get("provider") ?? undefined,
       name: searchParams.get("name") ?? undefined,
       parkType: searchParams.get("parkType") ?? undefined,
+      region: searchParams.get("region") ?? undefined,
       pageNo,
       numOfRows,
     });

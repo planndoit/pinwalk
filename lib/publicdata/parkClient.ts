@@ -1,3 +1,4 @@
+import { PARK_REGION_OPTIONS } from "@/lib/constants";
 import { getTourApiServiceKey } from "@/lib/env";
 import type { ParkLandmarkCandidate } from "@/types/landmark";
 
@@ -6,6 +7,7 @@ const PARK_API_URL =
 
 const PARK_API_MAX_ROWS = 1000;
 const PARK_API_NODATA_CODE = "03";
+const PARK_SCAN_MAX_PAGES = 30;
 
 type ParkApiItem = Record<string, unknown>;
 
@@ -20,6 +22,8 @@ export interface ParkSearchParams {
   provider?: string;
   name?: string;
   parkType?: string;
+  /** PARK_REGION_OPTIONS value. 지정 시 전체를 조회해 주소로 거르고 페이지 없이 반환한다. */
+  region?: string;
   pageNo?: number;
   numOfRows?: number;
 }
@@ -88,6 +92,14 @@ function mapCandidate(item: ParkApiItem): ParkLandmarkCandidate | null {
   };
 }
 
+function mapCandidates(items: ParkApiItem[]): ParkLandmarkCandidate[] {
+  return dedupeParkCandidates(
+    items
+      .map(mapCandidate)
+      .filter((c): c is ParkLandmarkCandidate => c !== null)
+  );
+}
+
 /** 같은 공원이 여러 제공기관으로 중복 등록되므로 기준일자가 최신인 것만 남긴다. */
 export function dedupeParkCandidates(
   candidates: ParkLandmarkCandidate[]
@@ -105,16 +117,12 @@ export function dedupeParkCandidates(
   return [...byKey.values()];
 }
 
-export async function searchParks(
-  params: ParkSearchParams
-): Promise<ParkSearchResult> {
+async function fetchParkPage(
+  params: Omit<ParkSearchParams, "region">,
+  pageNo: number,
+  numOfRows: number
+): Promise<{ items: ParkApiItem[]; totalCount: number }> {
   const serviceKey = requireServiceKey();
-  const pageNo = Math.max(1, params.pageNo ?? 1);
-  const numOfRows = Math.min(
-    PARK_API_MAX_ROWS,
-    Math.max(1, params.numOfRows ?? 50)
-  );
-
   const search = new URLSearchParams({
     type: "json",
     pageNo: String(pageNo),
@@ -158,7 +166,7 @@ export async function searchParks(
     | undefined;
   const resultCode = header?.resultCode;
   if (resultCode === PARK_API_NODATA_CODE) {
-    return { candidates: [], totalCount: 0, pageNo, numOfRows, hasMore: false };
+    return { items: [], totalCount: 0 };
   }
   if (resultCode !== "00") {
     throw new ParkApiError(
@@ -178,16 +186,74 @@ export async function searchParks(
     : rawItems && typeof rawItems === "object"
       ? [rawItems as ParkApiItem]
       : [];
-  const totalCount = Number(body?.totalCount ?? items.length) || 0;
+  return { items, totalCount: Number(body?.totalCount ?? items.length) || 0 };
+}
 
-  const candidates = dedupeParkCandidates(
-    items
-      .map(mapCandidate)
-      .filter((c): c is ParkLandmarkCandidate => c !== null)
+function matchesRegion(
+  item: ParkApiItem,
+  addressPrefixes: readonly string[]
+): boolean {
+  const addresses = [str(item.rdnmadr), str(item.lnmadr)].filter(
+    (address): address is string => address !== null
+  );
+  return addresses.some((address) =>
+    addressPrefixes.some(
+      (prefix) => address === prefix || address.startsWith(`${prefix} `)
+    )
+  );
+}
+
+async function scanParksByRegion(
+  params: ParkSearchParams,
+  addressPrefixes: readonly string[]
+): Promise<ParkSearchResult> {
+  const matched: ParkApiItem[] = [];
+  for (let pageNo = 1; pageNo <= PARK_SCAN_MAX_PAGES; pageNo += 1) {
+    const { items, totalCount } = await fetchParkPage(
+      params,
+      pageNo,
+      PARK_API_MAX_ROWS
+    );
+    matched.push(...items.filter((item) => matchesRegion(item, addressPrefixes)));
+    if (items.length === 0 || pageNo * PARK_API_MAX_ROWS >= totalCount) break;
+  }
+
+  const candidates = mapCandidates(matched).sort(
+    (a, b) => (b.areaSquareMeters ?? -1) - (a.areaSquareMeters ?? -1)
   );
 
   return {
     candidates,
+    totalCount: candidates.length,
+    pageNo: 1,
+    numOfRows: candidates.length,
+    hasMore: false,
+  };
+}
+
+export async function searchParks(
+  params: ParkSearchParams
+): Promise<ParkSearchResult> {
+  const regionValue = params.region?.trim();
+  if (regionValue) {
+    const region = PARK_REGION_OPTIONS.find(
+      (option) => option.value === regionValue
+    );
+    if (!region) {
+      throw new ParkApiError("지원하지 않는 지역입니다.");
+    }
+    return scanParksByRegion(params, region.addressPrefixes);
+  }
+
+  const pageNo = Math.max(1, params.pageNo ?? 1);
+  const numOfRows = Math.min(
+    PARK_API_MAX_ROWS,
+    Math.max(1, params.numOfRows ?? 50)
+  );
+  const { items, totalCount } = await fetchParkPage(params, pageNo, numOfRows);
+
+  return {
+    candidates: mapCandidates(items),
     totalCount,
     pageNo,
     numOfRows,

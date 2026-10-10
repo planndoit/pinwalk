@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { ParkLandmarkCandidate } from "@/types/landmark";
 
 const LOOKUP_CHUNK = 200;
+const INSERT_CHUNK = 500;
 
 function buildParkOverview(candidate: ParkLandmarkCandidate): string | null {
   const lines: string[] = [];
@@ -108,15 +109,15 @@ export async function upsertParkCandidates(
     }));
 
   let inserted = 0;
-  if (inserts.length > 0) {
+  for (let i = 0; i < inserts.length; i += INSERT_CHUNK) {
     const { data, error } = await admin
       .from("landmarks")
-      .insert(inserts)
+      .insert(inserts.slice(i, i + INSERT_CHUNK))
       .select("id");
     if (error) {
       throw new Error("공원 랜드마크 등록에 실패했습니다.");
     }
-    inserted = data?.length ?? 0;
+    inserted += data?.length ?? 0;
   }
 
   let updated = 0;
