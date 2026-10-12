@@ -76,10 +76,10 @@ export default function LandmarkBottomSheet({
         aria-label="닫기"
         onClick={onClose}
       />
-      <div className="absolute inset-x-0 bottom-[calc(5.75rem+var(--safe-bottom))] px-4 pointer-events-none">
-        <div className="max-w-lg mx-auto pointer-events-auto">
+      <div className="absolute inset-x-0 top-[calc(1rem+var(--safe-top))] bottom-[calc(5.75rem+var(--safe-bottom))] px-4 pointer-events-none flex flex-col justify-end">
+        <div className="w-full max-w-lg mx-auto min-h-0 flex flex-col pointer-events-auto">
           <div
-            className="bg-white border border-teal-200 rounded-2xl shadow-xl overflow-hidden"
+            className="min-h-0 bg-white border border-teal-200 rounded-2xl shadow-xl overflow-y-auto overscroll-contain"
             onClick={(e) => e.stopPropagation()}
           >
             {landmark.imageUrl ? (

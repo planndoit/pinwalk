@@ -1008,7 +1008,7 @@ export default function CrewPage() {
       {showCreate ? (
         <OverlayPortal>
         <div className="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl p-4 space-y-3">
+          <div className="w-full max-w-md bg-white rounded-2xl p-4 space-y-3 max-h-[80dvh] overflow-y-auto">
             <h2 className="text-base font-extrabold text-gray-900">
               크루 만들기
             </h2>

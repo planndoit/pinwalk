@@ -123,7 +123,7 @@ export default function CouponsPage() {
               <div className="flex items-center justify-between gap-2">
                 <p className="font-bold text-gray-900">{coupon.title}</p>
                 <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
                     coupon.status === "available"
                       ? "bg-violet-100 text-violet-700"
                       : "bg-gray-100 text-gray-500"
