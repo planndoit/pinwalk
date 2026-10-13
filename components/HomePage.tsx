@@ -27,7 +27,6 @@ import type { MapLayerKey } from "@/components/MapLayerToggle";
 import CelebrationOverlay, {
   type CelebrationType,
 } from "@/components/CelebrationOverlay";
-import GuideModal from "@/components/guide/GuideModal";
 import OverlayPortal from "@/components/layout/OverlayPortal";
 import {
   getAnnouncementPopupServerSnapshot,
@@ -125,7 +124,6 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [selectedCouponSpawn, setSelectedCouponSpawn] =
     useState<SerializedCouponSpawn | null>(null);
   const [showPremiumPromotionModal, setShowPremiumPromotionModal] = useState(false);
-  const [showGuideModal, setShowGuideModal] = useState(false);
   const [promotionLocationPickMode, setPromotionLocationPickMode] = useState(false);
   const [promotionPickedLocation, setPromotionPickedLocation] = useState<{
     lat: number;
@@ -1073,7 +1071,6 @@ export default function HomePage({ active = true }: HomePageProps) {
         points={user && profile ? profile.points : null}
         onPremiumPromotion={handlePremiumPromotionClick}
         premiumPromotionDisabled={actionLoading || locationPickMode}
-        onOpenGuide={() => setShowGuideModal(true)}
       />
 
       <CurrentLocationButton
@@ -1236,13 +1233,6 @@ export default function HomePage({ active = true }: HomePageProps) {
           </div>
         </OverlayPortal>
       )}
-
-      <GuideModal
-        open={showGuideModal}
-        title="이용 가이드"
-        scope="game"
-        onClose={() => setShowGuideModal(false)}
-      />
     </div>
   );
 }

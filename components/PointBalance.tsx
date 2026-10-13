@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
-import GuideHelpButton from "@/components/guide/GuideHelpButton";
 import NotificationBell from "@/components/notifications/NotificationBell";
 
 interface PointBalanceProps {
   points?: number | null;
   onPremiumPromotion?: () => void;
   premiumPromotionDisabled?: boolean;
-  onOpenGuide?: () => void;
 }
 
 const chipClassName =
@@ -19,7 +17,6 @@ export default function PointBalance({
   points,
   onPremiumPromotion,
   premiumPromotionDisabled,
-  onOpenGuide,
 }: PointBalanceProps) {
   const { openAuthModal, loading: authLoading } = useAuth();
   const showPoints = typeof points === "number";
@@ -29,9 +26,6 @@ export default function PointBalance({
       <div className="px-safe pt-safe">
         <div className="mt-2 flex items-center gap-1.5 pointer-events-auto max-w-lg mx-auto min-w-0">
           <div className="ml-auto flex items-center gap-1 min-w-0 justify-end">
-            {onOpenGuide ? (
-              <GuideHelpButton onClick={onOpenGuide} />
-            ) : null}
             {onPremiumPromotion && (
               <button
                 type="button"

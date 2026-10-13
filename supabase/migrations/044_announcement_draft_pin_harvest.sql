@@ -13,7 +13,7 @@ SELECT
 • 깃발이 점령당하면 쌓인 포인트도 새 주인에게 넘어가요.
 • 랭킹에 수확 랭킹이 새로 생겼어요.
 
-자세한 내용은 지도 화면 ? 버튼의 이용 가이드에서 볼 수 있어요.$body$,
+자세한 내용은 고객센터의 이용 가이드에서 볼 수 있어요.$body$,
   FALSE
 WHERE NOT EXISTS (
   SELECT 1 FROM public.announcements WHERE title = '새 기능: 깃발 수확이 열렸어요'
