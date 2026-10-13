@@ -9,12 +9,16 @@ import {
   FIXED_PIN_RADIUS_METERS,
   OWN_TERRITORY_POINT_MULTIPLIER,
   PIN_CREATE_COST,
+  PIN_HARVEST_HOURLY_PERCENT,
+  PIN_HARVEST_MAX_HOURS,
+  PIN_HARVEST_REMOTE_PERCENT,
   PIN_MAX_COST,
   PIN_REINFORCE_COST,
   PIN_TEXT_CHANGE_COST,
   PIN_TOLL_RATE,
   SERVICE_NAME,
 } from "@/lib/constants";
+import { getPinHarvestLimit } from "@/lib/harvest";
 import {
   getRandomPointClaimRadiusMeters,
   getRandomPointCount,
@@ -59,6 +63,11 @@ export function getGameGuideSections(): GuideSection[] {
   const tollExampleBase = 50;
   const tollExample = calculateTollPoints(tollExampleBase);
   const tollPercent = Math.round(PIN_TOLL_RATE * 100);
+  const harvestLimitExamples = [PIN_CREATE_COST, 500, PIN_MAX_COST]
+    .map((cost) => `${cost}P 깃발 ${getPinHarvestLimit(cost)}P`)
+    .join(" · ");
+  const harvestReinforceFrom = 500;
+  const harvestReinforceTo = harvestReinforceFrom + PIN_REINFORCE_COST;
 
   return [
     {
@@ -81,6 +90,7 @@ export function getGameGuideSections(): GuideSection[] {
         `내 깃발 영역 안에 생긴 포인트는 ${OWN_TERRITORY_POINT_MULTIPLIER}배로 가져가요.`,
         `다른 사람 깃발 영역에서 주우면, 그 깃발 주인에게 기본 포인트의 ${tollPercent}%가 통행료로 가요. 예: ${tollExampleBase}P면 통행료 ${tollExample}P. 깃발이 여러 개 겹치면 각 주인에게 모두 지급돼요.`,
         `매일 출석 보너스 ${DAILY_BONUS_AMOUNT}P — 오전 ${DAILY_BONUS_RESET_HOUR_KST}시 이후 하루 1회`,
+        `🌾 깃발 수확: 내 깃발에 매시 정각마다 투자 포인트의 ${PIN_HARVEST_HOURLY_PERCENT}%가 하루치까지 쌓여요. 영역 안에서 직접 수확하면 전부, 멀리서 원격 수확하면 ${PIN_HARVEST_REMOTE_PERCENT}%만 받아요.`,
         "남의 깃발 점령에 성공하면 그 땅이 내 깃발이 되고, 누군가의 점령을 막아 내면 방어 보상을 받아요.",
       ],
     },
@@ -95,6 +105,25 @@ export function getGameGuideSections(): GuideSection[] {
         `통행료는 주운 포인트 기본값의 ${tollPercent}%예요. (반올림)`,
         "내 영역에서 내가 주우면 2배만 받고, 내게 통행료는 안 나와요.",
         "영역이 겹친 깃발이 여러 개면, 겹친 모든 깃발 주인에게 각각 통행료가 가요.",
+      ],
+    },
+    {
+      id: "harvest",
+      title: "깃발 수확",
+      paragraphs: [
+        `깃발은 꽂아 두기만 해도 포인트를 키워요. 매시 정각마다 그 깃발 투자 포인트의 ${PIN_HARVEST_HOURLY_PERCENT}%가 쌓여요.`,
+        `깃발에는 하루치(${PIN_HARVEST_MAX_HOURS}시간치)까지만 쌓이고, 가득 차면 수확할 때까지 멈춰요. 하루에 한 번 직접 수확하면 손해 없이 모두 받을 수 있어요.`,
+        "깃발을 눌러 지금 쌓인 수확 포인트와 몇 시간 안에 가득 차는지 볼 수 있어요.",
+      ],
+      bullets: [
+        `가득 차는 양: ${harvestLimitExamples}`,
+        "직접 수확: 내 깃발 영역 안에서 깃발을 누르고 「직접 수확」을 누르면 쌓인 포인트를 모두 받아요.",
+        `원격 수확: 영역 밖에서 깃발을 누르면 「원격 수확」이 보여요. 쌓인 포인트의 ${PIN_HARVEST_REMOTE_PERCENT}%만 받고 나머지는 사라져요. 현재 위치를 확인하지 못했을 때도 원격 수확이 보여요.`,
+        "전체 원격 수확: 마이 화면에서 모든 깃발을 한 번에 원격 수확할 수 있어요. 출석할 때 쌓인 양을 알려 드려요.",
+        `강화하면 다음 정각부터 늘어난 투자 포인트 기준으로 쌓이고, 하루치 한도도 함께 커져요. (${harvestReinforceFrom}P → ${harvestReinforceTo}P로 강화하면 한도 ${getPinHarvestLimit(harvestReinforceFrom)}P → ${getPinHarvestLimit(harvestReinforceTo)}P)`,
+        "깃발이 점령당하면 쌓여 있던 수확 포인트는 새 주인에게 넘어가요.",
+        "깃발을 삭제하면 쌓여 있던 수확 포인트도 함께 사라져요.",
+        "수확으로 받은 포인트는 수확 랭킹에 집계돼요.",
       ],
     },
     {
@@ -131,6 +160,7 @@ export function getGameGuideSections(): GuideSection[] {
       paragraphs: [
         "다른 사람 깃발을 누르고, 그 영역 안에 있으면 점령에 도전할 수 있어요. 확률을 고를수록 성공 가능성은 높아지지만 비용도 커져요.",
         `최대 성공 확률은 ${maxProbability}%예요. 예시로 ${DEFAULT_PIN_COST}P 깃발을 상대할 때는 이렇게 돼요.`,
+        "점령에 성공하면 그 깃발에 쌓여 있던 수확 포인트도 함께 넘어와요. 점령한 깃발을 눌러 수확하세요.",
       ],
       bullets: conquerExamples,
     },

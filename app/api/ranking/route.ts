@@ -6,6 +6,7 @@ const VALID_TYPES: RankingType[] = [
   "combat_power",
   "active_pins",
   "total_earned",
+  "harvest_earned",
   "conquers",
 ];
 

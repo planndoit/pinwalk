@@ -39,6 +39,11 @@ export const DEFAULT_PIN_RADIUS_BY_COST: Record<PinCost, number> = {
   1000: FIXED_PIN_RADIUS_METERS,
 };
 
+/** 깃발 수확: 매 정각 cost 대비 적립 비율(%), 적립 한도(시간), 원격 수확 지급 비율(%). */
+export const PIN_HARVEST_HOURLY_PERCENT = 1;
+export const PIN_HARVEST_MAX_HOURS = 24;
+export const PIN_HARVEST_REMOTE_PERCENT = 10;
+
 /** 깃발 강화 쿨다운 (생성·강화 후). */
 export const PIN_REINFORCE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
@@ -220,6 +225,11 @@ export function getCrewAreaLabel(areaCode: string): string {
 export const INQUIRY_TITLE_MAX_LENGTH = 40;
 export const INQUIRY_CONTENT_MAX_LENGTH = 2000;
 export const INQUIRY_REPLY_MAX_LENGTH = 2000;
+
+export const ANNOUNCEMENT_TITLE_MAX_LENGTH = 60;
+export const ANNOUNCEMENT_BODY_MAX_LENGTH = 2000;
+/** 처음 공개할 때 팝업 종료 일시가 비어 있으면 공개 시각에 더하는 기간(일). */
+export const ANNOUNCEMENT_POPUP_DEFAULT_DAYS = 7;
 
 export const INQUIRY_STATUSES = ["pending", "answered", "closed"] as const;
 export type InquiryStatus = (typeof INQUIRY_STATUSES)[number];

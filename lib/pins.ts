@@ -90,12 +90,14 @@ type PointTransactionResult = {
   success: boolean;
   error?: string;
   newPoints?: number;
+  transactionId?: string;
 };
 
 type ApplyPointTransactionRow = {
   success: boolean;
   new_points: number | null;
   error_code: string | null;
+  transaction_id: string | null;
 };
 
 async function applyPointTransaction(
@@ -135,7 +137,11 @@ async function applyPointTransaction(
     return { success: false, error: failureMessage };
   }
 
-  return { success: true, newPoints: Number(row.new_points) };
+  return {
+    success: true,
+    newPoints: Number(row.new_points),
+    transactionId: row.transaction_id ?? undefined,
+  };
 }
 
 export async function deductPoints(

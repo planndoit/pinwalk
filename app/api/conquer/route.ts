@@ -4,9 +4,12 @@ import {
   DEFAULT_NICKNAME,
   DEFAULT_PIN_COST,
   LANDMARK_PIN_RADIUS_METERS,
+  PIN_HARVEST_HOURLY_PERCENT,
+  PIN_HARVEST_MAX_HOURS,
   normalizePinCost,
   type ConquerProbability,
 } from "@/lib/constants";
+import type { Pin } from "@/types/pin";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addPoints, deductPoints } from "@/lib/pins";
@@ -33,6 +36,13 @@ import {
   notifyPinDefenseSuccess,
 } from "@/lib/notifications/events";
 import { recordRegionVisit } from "@/lib/visits/recordVisit";
+
+type ConquerPinWithHarvestRow = {
+  success: boolean;
+  error_code: string | null;
+  harvest_transferred: number | null;
+  new_pin: Pin | null;
+};
 
 async function resolvePinLandmarkIds(pin: {
   id: string;
@@ -147,7 +157,6 @@ export async function POST(request: Request) {
   }
 
   const success = rollConquerSuccess(probability);
-  const now = new Date().toISOString();
   const ownerUserId = targetPin.user_id as string;
   const targetPinText = targetPin.text as string;
 
@@ -206,47 +215,47 @@ export async function POST(request: Request) {
     });
   }
 
-  const [, landmarkIds] = await Promise.all([
-    admin
-      .from("pins")
-      .update({
-        status: "conquered",
-        conquered_by: user.id,
-        conquered_at: now,
-        updated_at: now,
-      })
-      .eq("id", target_pin_id),
-    resolvePinLandmarkIds({
-      id: target_pin_id,
-      lat: targetPin.lat,
-      lng: targetPin.lng,
-    }),
-  ]);
+  const landmarkIds = await resolvePinLandmarkIds({
+    id: target_pin_id,
+    lat: targetPin.lat,
+    lng: targetPin.lng,
+  });
   const inLandmarkZone = landmarkIds.length > 0;
 
   const newRadius = inLandmarkZone
     ? LANDMARK_PIN_RADIUS_METERS
     : getPinRadiusMeters();
 
-  const { data: newPin, error: createError } = await admin
-    .from("pins")
-    .insert({
-      user_id: user.id,
-      text: new_text.trim(),
-      lat: targetPin.lat,
-      lng: targetPin.lng,
-      radius_meters: newRadius,
-      status: "active",
-      cost: pinCost,
-      expires_at: null,
-      last_reinforced_at: null,
+  const { data: conquerRow, error: conquerError } = await admin
+    .rpc("conquer_pin_with_harvest", {
+      p_target_pin_id: target_pin_id,
+      p_attacker_id: user.id,
+      p_text: new_text.trim(),
+      p_radius_meters: newRadius,
+      p_hourly_percent: PIN_HARVEST_HOURLY_PERCENT,
+      p_max_hours: PIN_HARVEST_MAX_HOURS,
     })
-    .select()
-    .single();
+    .single<ConquerPinWithHarvestRow>();
 
-  if (createError || !newPin) {
-    return jsonError("새 깃발 생성에 실패했습니다.", 500);
+  if (conquerError || !conquerRow || !conquerRow.success || !conquerRow.new_pin) {
+    if (conquerError) {
+      console.error("conquer_pin_with_harvest failed:", conquerError);
+    }
+    await addPoints(
+      user.id,
+      cost,
+      "conquer_refund",
+      `확률 점령 시도 (${probability}%) 비용 환불`,
+      deductResult.transactionId
+    );
+    if (conquerRow?.error_code === "already_conquered") {
+      return jsonError("이미 점령된 핀입니다.");
+    }
+    return jsonError("점령 처리에 실패했습니다.", 500);
   }
+
+  const newPin = conquerRow.new_pin;
+  const harvestTransferred = Number(conquerRow.harvest_transferred ?? 0);
 
   const applyLandmarks = async () => {
     if (!inLandmarkZone) return;
@@ -278,6 +287,7 @@ export async function POST(request: Request) {
         pinText: targetPinText,
         lat: Number(newPin.lat),
         lng: Number(newPin.lng),
+        harvestTransferred,
       }),
       notifyConquerAttemptResult({
         attackerUserId: user.id,

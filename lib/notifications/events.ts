@@ -121,19 +121,24 @@ export async function notifyPinConquered(input: {
   pinText: string;
   lat: number;
   lng: number;
+  harvestTransferred: number;
 }): Promise<void> {
   if (input.ownerUserId === input.attackerUserId) {
     return;
   }
 
   const nickname = await getProfileNickname(input.attackerUserId);
+  const harvestText =
+    input.harvestTransferred > 0
+      ? ` 쌓여 있던 수확 포인트 ${input.harvestTransferred.toLocaleString("ko-KR")}P도 함께 넘어갔어요.`
+      : "";
 
   await createNotification({
     userId: input.ownerUserId,
     category: "game",
     type: "pin_conquered",
     title: "내 핀이 점령당했어요",
-    body: `${nickname ?? "누군가"}가 "${input.pinText}" 깃발을 점령했습니다.`,
+    body: `${nickname ?? "누군가"}가 "${input.pinText}" 깃발을 점령했습니다.${harvestText}`,
     data: {
       path: buildPinFocusPath(input.pinId, input.lat, input.lng),
       pinId: input.pinId,

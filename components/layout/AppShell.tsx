@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import { usePathname } from "next/navigation";
+import AnnouncementPopup from "@/components/announcements/AnnouncementPopup";
 import HomePage from "@/components/HomePage";
 import BottomNav from "./BottomNav";
 
@@ -53,6 +54,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <BottomNav />
+      <AnnouncementPopup />
     </div>
   );
 }

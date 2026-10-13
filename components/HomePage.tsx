@@ -28,6 +28,12 @@ import CelebrationOverlay, {
   type CelebrationType,
 } from "@/components/CelebrationOverlay";
 import GuideModal from "@/components/guide/GuideModal";
+import OverlayPortal from "@/components/layout/OverlayPortal";
+import {
+  getAnnouncementPopupServerSnapshot,
+  getAnnouncementPopupSnapshot,
+  subscribeAnnouncementPopup,
+} from "@/lib/announcements/popupState";
 import { getDistanceMeters } from "@/lib/geo";
 import {
   LANDMARK_PIN_RADIUS_METERS,
@@ -50,6 +56,13 @@ import {
   subscribeFocusPremiumPlace,
 } from "@/lib/premium/focusPlace";
 import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
+import { subscribeHarvestRefresh } from "@/lib/harvest/refreshSignal";
+import {
+  formatHarvestNotice,
+  isHarvestNoticeShownThisPeriod,
+  markHarvestNoticeShown,
+} from "@/lib/harvest/notice";
+import type { HarvestSummary } from "@/types/harvest";
 import type { Pin } from "@/types/pin";
 import type { RandomPoint } from "@/types/randomPoint";
 import type { SerializedLandmark } from "@/types/landmark";
@@ -60,6 +73,13 @@ import type {
 
 const POSITION_UPDATE_THRESHOLD_METERS = 5;
 const EMPTY_CREW_HIGHLIGHT_USER_IDS: string[] = [];
+
+interface NoticeToast {
+  id: number;
+  userId: string;
+  message: string;
+  harvestNotice: boolean;
+}
 
 interface HomePageProps {
   active?: boolean;
@@ -138,6 +158,22 @@ export default function HomePage({ active = true }: HomePageProps) {
   const [appliedFocusPlace, setAppliedFocusPlace] =
     useState<SerializedPremiumPlace | null>(null);
   const [wasActive, setWasActive] = useState(active);
+  const [noticeQueue, setNoticeQueue] = useState<NoticeToast[]>([]);
+  const [noticeQueueUserId, setNoticeQueueUserId] = useState<string | null>(
+    null
+  );
+  const noticeIdRef = useRef(0);
+  const announcementPopup = useSyncExternalStore(
+    subscribeAnnouncementPopup,
+    getAnnouncementPopupSnapshot,
+    getAnnouncementPopupServerSnapshot
+  );
+
+  const currentUserId = user?.id ?? null;
+  if (noticeQueueUserId !== currentUserId) {
+    setNoticeQueueUserId(currentUserId);
+    setNoticeQueue([]);
+  }
 
   if (wasActive !== active) {
     setWasActive(active);
@@ -190,6 +226,31 @@ export default function HomePage({ active = true }: HomePageProps) {
     const timer = window.setTimeout(() => setToast(null), 3000);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  const enqueueNotice = useCallback(
+    (userId: string, message: string, harvestNotice: boolean) => {
+      if (dailyBonusUserRef.current !== userId) return;
+      noticeIdRef.current += 1;
+      const id = noticeIdRef.current;
+      setNoticeQueue((prev) => [...prev, { id, userId, message, harvestNotice }]);
+    },
+    []
+  );
+
+  const noticeToast = announcementPopup.done ? (noticeQueue[0] ?? null) : null;
+  const mapToast = active ? toast : null;
+
+  useEffect(() => {
+    if (!noticeToast) return;
+    if (noticeToast.harvestNotice) {
+      markHarvestNoticeShown(noticeToast.userId);
+    }
+    const shownId = noticeToast.id;
+    const timer = window.setTimeout(() => {
+      setNoticeQueue((prev) => prev.filter((notice) => notice.id !== shownId));
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [noticeToast]);
 
   const focusPinRequestRef = useRef<string | null>(null);
 
@@ -416,6 +477,14 @@ export default function HomePage({ active = true }: HomePageProps) {
     });
   }, [fetchPins, fetchPremiumPlaces, fetchLandmarks, fetchCrewMapMembers]);
 
+  useEffect(
+    () =>
+      subscribeHarvestRefresh(() => {
+        void fetchPins();
+      }),
+    [fetchPins]
+  );
+
   useEffect(() => {
     void (async () => {
       const premiumConfigRes = await fetch("/api/premium-places/config");
@@ -499,20 +568,37 @@ export default function HomePage({ active = true }: HomePageProps) {
       return;
     }
     if (dailyBonusUserRef.current === user.id) return;
-    dailyBonusUserRef.current = user.id;
+    const userId = user.id;
+    dailyBonusUserRef.current = userId;
 
     queueMicrotask(() => {
       void (async () => {
-        const res = await fetch("/api/daily-bonus", { method: "POST" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.claimed) {
-          await refreshProfile();
-          showToast(`출석 보너스 ${data.amount}P를 받았어요!`);
+        try {
+          const res = await fetch("/api/daily-bonus", { method: "POST" });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.claimed) {
+              await refreshProfile();
+              enqueueNotice(userId, `출석 보너스 ${data.amount}P를 받았어요!`, false);
+            }
+          }
+        } catch {
+          // 출석 처리 결과와 관계없이 수확 안내는 이어서 확인한다.
+        }
+
+        if (isHarvestNoticeShownThisPeriod(userId)) return;
+        try {
+          const res = await fetch("/api/harvest/summary", { cache: "no-store" });
+          if (!res.ok) return;
+          const summary = (await res.json()) as HarvestSummary;
+          if (summary.harvestTotal <= 0) return;
+          enqueueNotice(userId, formatHarvestNotice(summary), true);
+        } catch {
+          // 다음 메인 탭 진입 때 다시 확인한다.
         }
       })();
     });
-  }, [user, refreshProfile, showToast]);
+  }, [user, refreshProfile, enqueueNotice]);
 
   const handlePanToCurrent = () => {
     void (async () => {
@@ -1058,6 +1144,23 @@ export default function HomePage({ active = true }: HomePageProps) {
               : "깃발 문구를 바꿨어요!"
           );
         }}
+        onHarvested={(result) => {
+          const harvestedPin = result.pin;
+          if (harvestedPin) {
+            setSelectedPin((prev) =>
+              prev ? { ...prev, ...harvestedPin } : prev
+            );
+            setPins((prev) =>
+              prev.map((p) =>
+                p.id === harvestedPin.id ? { ...p, ...harvestedPin } : p
+              )
+            );
+          } else {
+            void fetchPins();
+          }
+          setProfilePoints(result.points);
+          showToast(result.message);
+        }}
         isOwner={selectedPin?.user_id === user?.id}
         disabled={actionLoading}
         currentPosition={position}
@@ -1114,12 +1217,24 @@ export default function HomePage({ active = true }: HomePageProps) {
         />
       )}
 
-      {toast && (
-        <div className="fixed top-28 left-4 right-4 z-50 flex justify-center pointer-events-none">
-          <p className="bg-gray-900/90 backdrop-blur text-white text-sm font-medium px-5 py-2.5 rounded-full shadow-xl animate-fade-in">
-            {toast}
-          </p>
-        </div>
+      {(noticeToast || mapToast) && (
+        <OverlayPortal>
+          <div className="fixed top-28 left-4 right-4 z-50 flex flex-col items-center gap-2 pointer-events-none">
+            {noticeToast && (
+              <p
+                key={noticeToast.id}
+                className="bg-gray-900/90 backdrop-blur text-white text-sm font-medium px-5 py-2.5 rounded-full shadow-xl animate-fade-in"
+              >
+                {noticeToast.message}
+              </p>
+            )}
+            {mapToast && (
+              <p className="bg-gray-900/90 backdrop-blur text-white text-sm font-medium px-5 py-2.5 rounded-full shadow-xl animate-fade-in">
+                {mapToast}
+              </p>
+            )}
+          </div>
+        </OverlayPortal>
       )}
 
       <GuideModal

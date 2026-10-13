@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import GuideHelpButton from "@/components/guide/GuideHelpButton";
 import NotificationBell from "@/components/notifications/NotificationBell";
@@ -20,7 +21,7 @@ export default function PointBalance({
   premiumPromotionDisabled,
   onOpenGuide,
 }: PointBalanceProps) {
-  const { openAuthModal, loading: authLoading } = useAuth();
+  const { user, openAuthModal, loading: authLoading } = useAuth();
   const showPoints = typeof points === "number";
 
   return (
@@ -57,13 +58,23 @@ export default function PointBalance({
               </div>
             ) : (
               !authLoading && (
-                <button
-                  type="button"
-                  onClick={() => openAuthModal("login")}
-                  className={`${chipClassName} shrink-0 px-2.5 sm:px-3.5 text-sm font-extrabold text-gray-900 active:scale-98 transition-transform`}
-                >
-                  로그인
-                </button>
+                <>
+                  {!user && (
+                    <Link
+                      href="/support"
+                      className={`${chipClassName} shrink-0 px-2.5 sm:px-3.5 text-sm font-semibold text-gray-700 active:scale-98 transition-transform`}
+                    >
+                      고객센터
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal("login")}
+                    className={`${chipClassName} shrink-0 px-2.5 sm:px-3.5 text-sm font-extrabold text-gray-900 active:scale-98 transition-transform`}
+                  >
+                    로그인
+                  </button>
+                </>
               )
             )}
           </div>

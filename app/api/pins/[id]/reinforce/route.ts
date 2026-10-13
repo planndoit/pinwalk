@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import {
+  PIN_HARVEST_HOURLY_PERCENT,
+  PIN_HARVEST_MAX_HOURS,
   PIN_MAX_COST,
   PIN_REINFORCE_COST,
   getNextPinCost,
@@ -113,19 +115,15 @@ export async function POST(
     return jsonError(deductResult.error!);
   }
 
-  const now = new Date().toISOString();
   const { data: updated, error: updateError } = await admin
-    .from("pins")
-    .update({
-      cost: nextCost,
-      text: trimmedText,
-      last_reinforced_at: now,
-      updated_at: now,
+    .rpc("reinforce_pin_with_harvest", {
+      p_pin_id: pinId,
+      p_user_id: user.id,
+      p_next_cost: nextCost,
+      p_text: trimmedText,
+      p_hourly_percent: PIN_HARVEST_HOURLY_PERCENT,
+      p_max_hours: PIN_HARVEST_MAX_HOURS,
     })
-    .eq("id", pinId)
-    .eq("status", "active")
-    .eq("user_id", user.id)
-    .select()
     .single();
 
   if (updateError || !updated) {

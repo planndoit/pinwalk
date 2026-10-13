@@ -97,6 +97,21 @@ const ROUTE_META: { test: (pathname: string) => boolean; meta: AdminPageMeta }[]
       meta: { title: "크루 상세" },
     },
     {
+      test: (p) => p === "/admin/announcements",
+      meta: {
+        title: "공지 관리",
+        description: "공지 팝업과 고객센터 공지사항을 관리합니다.",
+      },
+    },
+    {
+      test: (p) => p === "/admin/announcements/new",
+      meta: { title: "공지 작성" },
+    },
+    {
+      test: (p) => /^\/admin\/announcements\/[^/]+$/.test(p),
+      meta: { title: "공지 상세" },
+    },
+    {
       test: (p) => p === "/admin/inquiries",
       meta: {
         title: "문의 관리",

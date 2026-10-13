@@ -14,6 +14,8 @@ export interface Pin {
   conquered_by: string | null;
   conquered_at: string | null;
   last_reinforced_at?: string | null;
+  harvest_stored: number;
+  harvest_settled_at: string;
   created_at: string;
   updated_at: string;
   nickname?: string;

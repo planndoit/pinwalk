@@ -21,6 +21,7 @@ import {
 } from "@/lib/flagVisual";
 import { formatActivityDate } from "@/lib/formatDate";
 import { getDistanceMeters } from "@/lib/geo";
+import { REMOTE_HARVEST_MIN_TOTAL, getPinHarvestState } from "@/lib/harvest";
 import { getPinOwnerAvatarUrl } from "@/lib/pinAvatar";
 import { useClock } from "@/lib/useClock";
 import { useSubmitLock } from "@/lib/useSubmitLock";
@@ -31,10 +32,17 @@ interface PinBottomSheetProps {
   onConquer: () => void;
   onDeleted?: (pinId: string) => void;
   onReinforced?: (pin: Pin) => void;
+  onHarvested?: (result: PinHarvestResult) => void;
   isOwner: boolean;
   disabled?: boolean;
   currentPosition?: { lat: number; lng: number } | null;
 }
+
+export type PinHarvestResult = {
+  pin: Pin | null;
+  points: number;
+  message: string;
+};
 
 type AttemptSummary = {
   successCount: number;
@@ -96,6 +104,7 @@ export default function PinBottomSheet({
   onConquer,
   onDeleted,
   onReinforced,
+  onHarvested,
   isOwner,
   disabled,
   currentPosition,
@@ -131,9 +140,14 @@ export default function PinBottomSheet({
     run: runUpdateText,
     unlock: unlockUpdateText,
   } = useSubmitLock();
+  const {
+    locked: harvesting,
+    run: runHarvest,
+    unlock: unlockHarvest,
+  } = useSubmitLock();
 
   const [prevPin, setPrevPin] = useState<Pin | null>(null);
-  const nowMs = useClock(Boolean(pin && isOwner));
+  const nowMs = useClock(Boolean(pin));
 
   if (pin !== prevPin) {
     setPrevPin(pin);
@@ -158,7 +172,8 @@ export default function PinBottomSheet({
     unlock();
     unlockReinforce();
     unlockUpdateText();
-  }, [pin, unlock, unlockReinforce, unlockUpdateText]);
+    unlockHarvest();
+  }, [pin, unlock, unlockReinforce, unlockUpdateText, unlockHarvest]);
 
   useEffect(() => {
     activePinIdRef.current = pin?.id ?? null;
@@ -243,7 +258,8 @@ export default function PinBottomSheet({
   const avatarOpen = Boolean(avatarForPin?.open && avatarUrl);
   const nextCost = getNextPinCost(pin.cost);
   const isMaxCost = nextCost === null || pin.cost >= PIN_MAX_COST;
-  const busy = disabled || deleting || reinforcing || updatingText;
+  const busy =
+    disabled || deleting || reinforcing || updatingText || harvesting;
   const trimmedEditText = editText.trim();
   const textChanged = trimmedEditText !== pin.text.trim();
   const insideRadius =
@@ -254,6 +270,17 @@ export default function PinBottomSheet({
       pin.lat,
       pin.lng
     ) <= pin.radius_meters;
+  const harvest = getPinHarvestState(pin, nowMs);
+  const canHarvest = insideRadius
+    ? harvest.amount > 0
+    : harvest.remoteAmount > 0;
+  const harvestHint = insideRadius
+    ? harvest.amount > 0
+      ? null
+      : "아직 쌓인 수확 포인트가 없어요"
+    : harvest.remoteAmount > 0
+      ? `영역 안에서 직접 수확하면 ${harvest.amount.toLocaleString()}P를 모두 받아요`
+      : `${REMOTE_HARVEST_MIN_TOTAL}P 이상 쌓이면 원격 수확할 수 있어요`;
   const canReinforce =
     isOwner &&
     !isMaxCost &&
@@ -322,8 +349,11 @@ export default function PinBottomSheet({
 
   const handleDelete = () => {
     if (busy) return;
+    const harvestNow = getPinHarvestState(pin, Date.now()).amount;
     const ok = window.confirm(
-      "이 깃발을 삭제할까요? 삭제 후에는 지도에서 사라집니다."
+      harvestNow > 0
+        ? `이 깃발을 삭제할까요? 삭제 후에는 지도에서 사라지고, 쌓인 수확 포인트 ${harvestNow.toLocaleString()}P도 함께 사라집니다.`
+        : "이 깃발을 삭제할까요? 삭제 후에는 지도에서 사라집니다."
     );
     if (!ok) return;
 
@@ -363,6 +393,46 @@ export default function PinBottomSheet({
       if (data.pin) {
         onReinforced?.(data.pin as Pin);
       }
+      return "release";
+    });
+  };
+
+  const handleHarvest = () => {
+    if (busy || !isOwner) return;
+    if (!canHarvest) return;
+    const mode = insideRadius ? "direct" : "remote";
+    if (mode === "remote") {
+      const ok = window.confirm(
+        `원격 수확하면 ${harvest.remoteAmount.toLocaleString()}P만 받고 ${(harvest.amount - harvest.remoteAmount).toLocaleString()}P는 사라져요. 계속할까요?`
+      );
+      if (!ok) return;
+    }
+    setActionError(null);
+
+    void runHarvest(async () => {
+      const res = await fetch(`/api/pins/${pin.id}/harvest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          mode === "direct" && currentPosition
+            ? {
+                mode,
+                current_lat: currentPosition.lat,
+                current_lng: currentPosition.lng,
+              }
+            : { mode }
+        ),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionError(data.error ?? "수확에 실패했습니다.");
+        return "release";
+      }
+      onHarvested?.({
+        pin: (data.pin as Pin | null) ?? null,
+        points: Number(data.points),
+        message: String(data.message ?? ""),
+      });
       return "release";
     });
   };
@@ -498,6 +568,64 @@ export default function PinBottomSheet({
               {getFlagLabel(tier)}
             </span>
             <span className="text-gray-400">· 점령될 때까지 유지</span>
+          </div>
+
+          <div className="mt-2 rounded-xl bg-amber-50 px-3.5 py-3 shrink-0">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-amber-800">🌾 수확 포인트</span>
+              <span className="tabular-nums text-amber-900">
+                <span className="font-bold">
+                  {harvest.amount.toLocaleString()}
+                </span>{" "}
+                / {harvest.limit.toLocaleString()}P
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 rounded-full bg-amber-100 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-amber-500"
+                style={{
+                  width: `${harvest.limit > 0 ? (harvest.amount / harvest.limit) * 100 : 0}%`,
+                }}
+              />
+            </div>
+            <p
+              className={`mt-1.5 text-[11px] ${
+                harvest.isFull ? "font-semibold text-red-500" : "text-amber-700"
+              }`}
+            >
+              {harvest.isFull
+                ? "가득 참 · 수확하기 전까지 더 쌓이지 않아요"
+                : `매시 정각마다 쌓여요 · ${harvest.hoursUntilFull}시간 안에 가득 차요`}
+            </p>
+            {isOwner ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handleHarvest()}
+                  disabled={busy || !canHarvest}
+                  className="mt-3 w-full py-3 rounded-2xl bg-amber-500 text-white font-bold shadow-lg shadow-amber-500/20 active:scale-98 transition-transform disabled:opacity-40"
+                >
+                  {harvesting
+                    ? "수확 중..."
+                    : insideRadius
+                      ? harvest.amount > 0
+                        ? `직접 수확 (+${harvest.amount.toLocaleString()}P)`
+                        : "직접 수확"
+                      : harvest.remoteAmount > 0
+                        ? `원격 수확 (+${harvest.remoteAmount.toLocaleString()}P)`
+                        : "원격 수확"}
+                </button>
+                {harvestHint ? (
+                  <p className="mt-1.5 text-center text-[11px] text-amber-700">
+                    {harvestHint}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="mt-1.5 text-[11px] text-amber-700">
+                점령하면 쌓인 수확 포인트도 함께 가져와요
+              </p>
+            )}
           </div>
 
           {isOwner && (

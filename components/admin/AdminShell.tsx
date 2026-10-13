@@ -20,6 +20,7 @@ const MENU = [
       { href: "/admin/premium-places", label: "프리미엄 장소 관리" },
       { href: "/admin/landmarks", label: "랜드마크 관리" },
       { href: "/admin/crews", label: "크루 관리" },
+      { href: "/admin/announcements", label: "공지 관리" },
     ],
   },
   {

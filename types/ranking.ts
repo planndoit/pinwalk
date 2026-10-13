@@ -2,6 +2,7 @@ export type RankingType =
   | "combat_power"
   | "active_pins"
   | "total_earned"
+  | "harvest_earned"
   | "conquers";
 
 export interface RankingEntry {

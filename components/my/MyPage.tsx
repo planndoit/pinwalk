@@ -7,8 +7,10 @@ import ActivityTimeline from "@/components/ActivityTimeline";
 import { useAuth } from "@/components/AuthProvider";
 import MainTabHeader from "@/components/layout/MainTabHeader";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import HarvestCard from "@/components/my/HarvestCard";
 import ProfileEditorSection from "@/components/my/ProfileEditorSection";
 import VisitStatsSection from "@/components/my/VisitStatsSection";
+import { emitHarvestRefresh } from "@/lib/harvest/refreshSignal";
 import { useSubmitLock } from "@/lib/useSubmitLock";
 import type { TimelineEvent, UserStats } from "@/types/ranking";
 import type { VisitStats } from "@/types/visit";
@@ -18,6 +20,7 @@ export default function MyPage() {
     user,
     profile,
     refreshProfile,
+    setProfilePoints,
     logout,
     loading: authLoading,
     openAuthModal,
@@ -224,6 +227,16 @@ export default function MyPage() {
                     </button>
                     <button
                       type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        router.push("/support");
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 border-t border-gray-100"
+                    >
+                      고객센터
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => void handleLogout()}
                       className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 border-t border-gray-100"
                     >
@@ -260,6 +273,17 @@ export default function MyPage() {
             </p>
           </div>
         </section>
+
+        <HarvestCard
+          onHarvested={({ points, message }) => {
+            setProfilePoints(points);
+            emitHarvestRefresh();
+            void fetchStats();
+            void fetchTimeline();
+            showToast(message);
+          }}
+          onError={showToast}
+        />
 
         <section className="px-4 pt-2">
           <Link

@@ -21,6 +21,13 @@ export default function SettingsPage() {
   }, [authLoading, user, router, openAuthModal]);
 
   const handleWithdraw = () => {
+    if (
+      !window.confirm(
+        "정말 탈퇴할까요?\n탈퇴하면 계정과 데이터가 삭제되며 복구할 수 없습니다."
+      )
+    ) {
+      return;
+    }
     void run(async () => {
       const res = await fetch("/api/auth/withdraw", { method: "POST" });
       const data = await res.json();
@@ -43,33 +50,6 @@ export default function SettingsPage() {
         <MySubpageHeader title="설정" />
 
         <section>
-          <h2 className="text-sm font-bold text-gray-800 mb-3">약관</h2>
-          <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-100">
-            <Link
-              href="/legal/privacy"
-              className="flex items-center justify-between px-4 py-3.5"
-            >
-              <span className="text-sm text-gray-800">개인정보처리방침</span>
-              <span className="text-xs text-gray-400">보기</span>
-            </Link>
-            <Link
-              href="/legal/location-terms"
-              className="flex items-center justify-between px-4 py-3.5"
-            >
-              <span className="text-sm text-gray-800">위치기반서비스 이용약관</span>
-              <span className="text-xs text-gray-400">보기</span>
-            </Link>
-            <Link
-              href="/legal/location-consent"
-              className="flex items-center justify-between px-4 py-3.5"
-            >
-              <span className="text-sm text-gray-800">개인위치정보 수집·이용 안내</span>
-              <span className="text-xs text-gray-400">보기</span>
-            </Link>
-          </div>
-        </section>
-
-        <section className="mt-6">
           <h2 className="text-sm font-bold text-gray-800 mb-3">알림</h2>
           <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-100">
             <Link
@@ -84,18 +64,6 @@ export default function SettingsPage() {
               className="flex items-center justify-between px-4 py-3.5"
             >
               <span className="text-sm text-gray-800">알림 설정</span>
-              <span className="text-xs text-gray-400">보기</span>
-            </Link>
-          </div>
-        </section>
-
-        <section className="mt-6">
-          <div className="bg-white rounded-2xl border border-gray-100">
-            <Link
-              href="/my/inquiries"
-              className="flex items-center justify-between px-4 py-3.5"
-            >
-              <span className="text-sm text-gray-800">문의하기</span>
               <span className="text-xs text-gray-400">보기</span>
             </Link>
           </div>
