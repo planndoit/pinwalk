@@ -20,12 +20,14 @@ const MENU = [
       { href: "/admin/premium-places", label: "프리미엄 장소 관리" },
       { href: "/admin/landmarks", label: "랜드마크 관리" },
       { href: "/admin/crews", label: "크루 관리" },
-      { href: "/admin/announcements", label: "공지 관리" },
     ],
   },
   {
     label: "고객지원",
-    children: [{ href: "/admin/inquiries", label: "문의 관리" }],
+    children: [
+      { href: "/admin/inquiries", label: "문의 관리" },
+      { href: "/admin/announcements", label: "공지 관리" },
+    ],
   },
   {
     label: "설정",

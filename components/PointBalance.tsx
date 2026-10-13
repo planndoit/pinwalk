@@ -21,7 +21,7 @@ export default function PointBalance({
   premiumPromotionDisabled,
   onOpenGuide,
 }: PointBalanceProps) {
-  const { user, openAuthModal, loading: authLoading } = useAuth();
+  const { openAuthModal, loading: authLoading } = useAuth();
   const showPoints = typeof points === "number";
 
   return (
@@ -46,6 +46,28 @@ export default function PointBalance({
                 <span className="hidden sm:inline">홍보 요청</span>
               </button>
             )}
+            {!authLoading && (
+              <Link
+                href="/support"
+                aria-label="고객센터"
+                title="고객센터"
+                className={`${chipClassName} shrink-0 justify-center px-2.5 text-gray-700 active:scale-98 transition-transform`}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-[18px] h-[18px]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Zm0 0a9 9 0 1 1 18 0m0 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3Z" />
+                  <path d="M21 16v2a4 4 0 0 1-4 4h-5" />
+                </svg>
+              </Link>
+            )}
             <NotificationBell variant="chip" className="shrink-0" />
             {showPoints ? (
               <div className={`${chipClassName} shrink-0 px-2.5 sm:px-3.5`}>
@@ -58,23 +80,13 @@ export default function PointBalance({
               </div>
             ) : (
               !authLoading && (
-                <>
-                  {!user && (
-                    <Link
-                      href="/support"
-                      className={`${chipClassName} shrink-0 px-2.5 sm:px-3.5 text-sm font-semibold text-gray-700 active:scale-98 transition-transform`}
-                    >
-                      고객센터
-                    </Link>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => openAuthModal("login")}
-                    className={`${chipClassName} shrink-0 px-2.5 sm:px-3.5 text-sm font-extrabold text-gray-900 active:scale-98 transition-transform`}
-                  >
-                    로그인
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => openAuthModal("login")}
+                  className={`${chipClassName} shrink-0 px-2.5 sm:px-3.5 text-sm font-extrabold text-gray-900 active:scale-98 transition-transform`}
+                >
+                  로그인
+                </button>
               )
             )}
           </div>
