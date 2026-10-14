@@ -26,12 +26,10 @@ export interface Pin {
 export interface PinAttempt {
   id: string;
   attacker_id: string;
-  target_pin_id: string;
-  new_pin_id: string | null;
+  attacker_nickname: string;
+  target_owner_nickname: string;
   selected_probability: number;
   cost: number;
   success: boolean;
   created_at: string;
-  attacker_nickname?: string;
-  previous_owner_nickname?: string | null;
 }
