@@ -1,3 +1,4 @@
+import { getAttendancePeriodKey } from "@/lib/dailyBonus";
 import { findSigunguByLatLng } from "@/lib/geo/koreaSigungu";
 import {
   MISSION_DEFINITIONS,
@@ -56,6 +57,7 @@ async function fetchTransactions(
         "reinforce_pin",
         "random_point_claim",
         "daily_bonus",
+        "harvest_direct",
       ])
       .gte("created_at", since)
       .lt("created_at", until)
@@ -244,6 +246,20 @@ export async function getUserMissions(
         (!successOnly || row.success) &&
         isInRange(row.created_at, ranges[period])
     ).length;
+  const countDirectHarvests = (period: Exclude<MissionPeriod, "starter">) =>
+    new Set(
+      transactions
+        .filter(
+          (row) =>
+            row.type === "harvest_direct" &&
+            row.related_id &&
+            isInRange(row.created_at, ranges[period])
+        )
+        .map(
+          (row) =>
+            `${row.related_id}:${getAttendancePeriodKey(new Date(row.created_at))}`
+        )
+    ).size;
 
   const monthlyCreateTransactions = transactions.filter(
     (row) =>
@@ -285,12 +301,14 @@ export async function getUserMissions(
       countTransactions("create_pin", "daily") +
       countTransactions("reinforce_pin", "daily") +
       countAttempts("daily"),
+    daily_harvest_direct: countDirectHarvests("daily"),
     weekly_claim_point: countTransactions("random_point_claim", "weekly"),
     weekly_acquire_pin:
       countTransactions("create_pin", "weekly") +
       countAttempts("weekly", true),
     weekly_reinforce: countTransactions("reinforce_pin", "weekly"),
     weekly_conquer_attempt: countAttempts("weekly"),
+    weekly_harvest_direct: countDirectHarvests("weekly"),
     weekly_attendance: countTransactions("daily_bonus", "weekly"),
     monthly_claim_point: countTransactions("random_point_claim", "monthly"),
     monthly_acquire_pin:
@@ -301,6 +319,7 @@ export async function getUserMissions(
     monthly_core_clear: 0,
     monthly_conquer: countAttempts("monthly", true),
     monthly_regions: monthlyRegionCount,
+    monthly_harvest_direct: countDirectHarvests("monthly"),
     start_avatar: profileResult.data.avatar_mime ? 1 : 0,
     start_plant: startPlantCount > 0 ? 1 : 0,
     start_reinforce: startReinforceCount > 0 ? 1 : 0,
