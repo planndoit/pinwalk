@@ -166,11 +166,13 @@ export default function AdminLandmarkNewPage() {
             lng={form.lng}
             pickable
             onPick={handlePick}
+            showNearbyLandmarks
           />
           <p className="text-xs text-gray-500 mt-2">
             {form.lat != null && form.lng != null
               ? `${form.lat.toFixed(6)}, ${form.lng.toFixed(6)}`
-              : "지도를 클릭해 위치를 선택하세요."}
+              : "지도를 클릭해 위치를 선택하세요."}{" "}
+            근처 2km 안의 기존 랜드마크도 함께 보여 줍니다.
           </p>
         </div>
 

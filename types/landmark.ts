@@ -55,6 +55,17 @@ export interface SerializedLandmark {
   titleHolderScore?: number | null;
 }
 
+/** 관리자 위치 지정 지도용. 근처 조회에만 쓰는 가벼운 필드. */
+export interface AdminNearbyLandmark {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  radiusMeters: number;
+  mapVisible: boolean;
+  isClosed: boolean;
+}
+
 export interface LandmarkRankingEntry {
   rank: number;
   subjectType: "user" | "crew";

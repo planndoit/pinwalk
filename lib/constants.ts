@@ -96,6 +96,9 @@ export const DAILY_BONUS_RESET_HOUR_KST = 9;
 /** 랜드마크 기본 영향 반경(m). .env.local의 LANDMARK_RADIUS_METERS 로 오버라이드. */
 export const DEFAULT_LANDMARK_RADIUS_METERS = 200;
 
+/** 관리자 위치 지정 지도에서 근처 랜드마크를 불러올 반경(m). */
+export const ADMIN_LANDMARK_NEARBY_RADIUS_METERS = 2000;
+
 /** 랜드마크 존 안 깃발 반경(m). */
 export const LANDMARK_PIN_RADIUS_METERS = 5;
 
