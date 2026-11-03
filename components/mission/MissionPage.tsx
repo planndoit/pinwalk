@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import CoupangPartnersBanner from "@/components/ads/CoupangPartnersBanner";
 import { useAuth } from "@/components/AuthProvider";
 import MainTabHeader from "@/components/layout/MainTabHeader";
+import MissionClaimModal from "@/components/mission/MissionClaimModal";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import type { MissionPeriod, SerializedMission } from "@/types/mission";
 
@@ -117,7 +119,7 @@ export default function MissionPage() {
   const [missions, setMissions] = useState<SerializedMission[]>([]);
   const [loading, setLoading] = useState(true);
   const [claimingId, setClaimingId] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [claimMessage, setClaimMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchMissions = useCallback(async () => {
@@ -162,7 +164,6 @@ export default function MissionPage() {
   const handleClaim = (missionId: string) => {
     if (claimingId) return;
     setClaimingId(missionId);
-    setMessage(null);
     setError(null);
 
     void (async () => {
@@ -176,7 +177,7 @@ export default function MissionPage() {
         throw new Error(data.error ?? "보상을 받지 못했습니다.");
       }
       setMissions(data.missions ?? []);
-      setMessage(data.message ?? "미션 보상을 받았습니다.");
+      setClaimMessage(data.message ?? "미션 보상을 받았습니다.");
       void refreshProfile();
     })()
       .catch((claimError: unknown) => {
@@ -238,11 +239,6 @@ export default function MissionPage() {
           </div>
         </div>
 
-        {message ? (
-          <p className="mx-4 mb-2 rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm font-medium text-emerald-700">
-            {message}
-          </p>
-        ) : null}
         {error ? (
           <p className="mx-4 mb-2 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-600">
             {error}
@@ -294,8 +290,19 @@ export default function MissionPage() {
           ) : (
             renderCards(activeMissions)
           )}
+
+          <CoupangPartnersBanner
+            placement="mission_bottom"
+            className="mt-5"
+          />
         </div>
       </div>
+
+      <MissionClaimModal
+        open={claimMessage != null}
+        message={claimMessage ?? ""}
+        onClose={() => setClaimMessage(null)}
+      />
     </div>
   );
 }
