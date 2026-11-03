@@ -103,7 +103,7 @@ export default function CoupangPartnersBanner({
         />
       </div>
       <p
-        className={`text-center text-[11px] leading-relaxed text-gray-400 ${
+        className={`whitespace-pre-line text-center text-[11px] leading-relaxed text-gray-400 ${
           isMissionBottom ? "px-3 py-2" : "mt-2"
         }`}
       >
