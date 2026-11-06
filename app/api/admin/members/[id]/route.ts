@@ -62,8 +62,9 @@ export async function GET(
     }),
     admin
       .from("point_transactions")
-      .select("description, created_at")
-      .eq("user_id", id),
+      .select("type, description, created_at")
+      .eq("user_id", id)
+      .eq("type", "daily_bonus"),
   ]);
 
   if (statsError) {

@@ -12,10 +12,10 @@ export function isAttendanceTransaction(tx: {
   title?: string | null;
 }): boolean {
   if (tx.type === DAILY_BONUS_TYPE) return true;
-  if (tx.title === "출석 보너스") return true;
-  if (tx.description === DAILY_BONUS_DESCRIPTION) return true;
-  if (typeof tx.description === "string" && tx.description.includes("출석")) {
-    return true;
+  // 레거시 행: type이 비어 있거나 누락된 출석 보너스만 허용
+  if (tx.type == null || tx.type === "") {
+    if (tx.title === "출석 보너스") return true;
+    if (tx.description === DAILY_BONUS_DESCRIPTION) return true;
   }
   return false;
 }

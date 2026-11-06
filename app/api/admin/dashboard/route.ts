@@ -54,10 +54,10 @@ async function countAttendanceTxsFallback(admin: AdminClient): Promise<number> {
   let total = 0;
   let from = 0;
   for (;;) {
-    // type 컬럼 REST 조회가 실패하는 환경이 있어 description 중심으로 집계
     const { data, error } = await admin
       .from("point_transactions")
-      .select("description")
+      .select("type, description")
+      .eq("type", "daily_bonus")
       .order("created_at", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error || !data) break;

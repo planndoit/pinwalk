@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import {
   computeAttendanceStreak,
-  DAILY_BONUS_DESCRIPTION,
   DAILY_BONUS_TYPE,
-  isAttendanceTransaction,
 } from "@/lib/dailyBonus";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -27,11 +25,9 @@ export async function GET() {
         .eq("success", false),
       admin
         .from("point_transactions")
-        .select("type, description, created_at")
+        .select("created_at")
         .eq("user_id", user.id)
-        .or(
-          `type.eq.${DAILY_BONUS_TYPE},description.eq.${DAILY_BONUS_DESCRIPTION},description.ilike.%출석%`
-        ),
+        .eq("type", DAILY_BONUS_TYPE),
     ]
   );
 
@@ -39,11 +35,11 @@ export async function GET() {
     return jsonError("통계 조회에 실패했습니다.", 500);
   }
 
-  const attendanceTxs = (pointTxs ?? []).filter(isAttendanceTransaction);
-  const attendanceCount = attendanceTxs.length;
-  const attendanceStreak = computeAttendanceStreak(
-    attendanceTxs.map((tx) => tx.created_at as string)
+  const attendanceAts = (pointTxs ?? []).map(
+    (tx) => tx.created_at as string
   );
+  const attendanceCount = attendanceAts.length;
+  const attendanceStreak = computeAttendanceStreak(attendanceAts);
 
   const stats = data[0];
   return NextResponse.json({

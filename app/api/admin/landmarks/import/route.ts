@@ -23,6 +23,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     inserted,
     updated,
-    landmarks: landmarks.map((row) => serializeLandmark(row)),
+    landmarks: landmarks.map((row) => serializeLandmark(row, { includeAdminNote: true })),
   });
 }

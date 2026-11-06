@@ -16,7 +16,24 @@ export async function POST(request: Request) {
     return jsonError("로그인이 필요합니다.", 401);
   }
 
-  const body = await request.json();
+  let body: Partial<{
+    categoryCode: string;
+    storeName: string;
+    contactPhone: string;
+    contactEmail: string;
+    contactName: string;
+    address: string;
+    placePhone: string;
+    lat: number;
+    lng: number;
+    promoText: string;
+    promoLink: string;
+  }>;
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return jsonError("요청 본문이 올바르지 않습니다.");
+  }
   const validation = validatePromotionRequestInput(body);
   if (!validation.valid) {
     return jsonError(validation.error);
@@ -69,12 +86,7 @@ export async function POST(request: Request) {
 
   if (error || !inserted) {
     console.error("premium_promotion_requests insert failed:", error);
-    return jsonError(
-      error?.message
-        ? `홍보 요청 저장에 실패했습니다. (${error.message})`
-        : "홍보 요청 저장에 실패했습니다.",
-      500
-    );
+    return jsonError("홍보 요청 저장에 실패했습니다.", 500);
   }
 
   const categoryName = await getCommonCodeName("PREMIUM_CATEGORY", data.categoryCode);

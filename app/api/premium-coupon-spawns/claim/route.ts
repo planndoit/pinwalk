@@ -145,6 +145,11 @@ export async function POST(request: Request) {
   });
 
   if (insertError) {
+    await admin
+      .from("premium_coupon_spawns")
+      .update({ status: "active" })
+      .eq("id", spawn_id)
+      .eq("status", "claimed");
     return jsonError("쿠폰함 저장에 실패했습니다.", 500);
   }
 

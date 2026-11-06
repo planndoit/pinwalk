@@ -94,7 +94,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    landmarks: ((data ?? []) as Landmark[]).map((row) => serializeLandmark(row)),
+    landmarks: ((data ?? []) as Landmark[]).map((row) => serializeLandmark(row, { includeAdminNote: true })),
     total: count ?? 0,
     page,
     limit,
@@ -169,5 +169,5 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ landmark: serializeLandmark(data as Landmark) });
+  return NextResponse.json({ landmark: serializeLandmark(data as Landmark, { includeAdminNote: true }) });
 }

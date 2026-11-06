@@ -12,6 +12,7 @@ import {
   CREW_NAME_MAX_LENGTH,
 } from "@/lib/constants";
 import { compressAvatarFile } from "@/lib/avatar";
+import { emitCrewMapRefresh } from "@/lib/crew/mapRefreshSignal";
 import { useSubmitLock } from "@/lib/useSubmitLock";
 import MainTabHeader from "@/components/layout/MainTabHeader";
 import GuideHelpButton from "@/components/guide/GuideHelpButton";
@@ -320,6 +321,7 @@ function CrewHome({
       await loadPending();
       await loadMembers();
       await onChanged();
+      emitCrewMapRefresh();
     } finally {
       setBusyId(null);
     }
@@ -348,6 +350,7 @@ function CrewHome({
       await refreshProfile();
       await onChanged();
       await loadMembers();
+      emitCrewMapRefresh();
     } finally {
       setBusyId(null);
     }
@@ -751,7 +754,8 @@ export default function CrewPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const searchSeqRef = useRef(0);
+  const searchUiSeqRef = useRef(0);
+  const crewsFetchSeqRef = useRef(0);
   const bootstrappedRef = useRef(false);
   const skipNextSearchRef = useRef(false);
   const { locked: creating, run: runCreate, unlock: unlockCreate } =
@@ -780,13 +784,20 @@ export default function CrewPage() {
   }, [userId]);
 
   const loadCrews = useCallback(async (query: string, area: string) => {
+    const seq = ++crewsFetchSeqRef.current;
     const params = new URLSearchParams({ limit: "30" });
     if (query.trim()) params.set("q", query.trim());
     if (area) params.set("areaCode", area);
-    const res = await fetch(`/api/crews?${params}`, { cache: "no-store" });
-    if (res.ok) {
-      const data = await res.json();
-      setCrews(data.crews ?? []);
+    try {
+      const res = await fetch(`/api/crews?${params}`, { cache: "no-store" });
+      if (seq !== crewsFetchSeqRef.current) return;
+      if (res.ok) {
+        const data = await res.json();
+        if (seq !== crewsFetchSeqRef.current) return;
+        setCrews(data.crews ?? []);
+      }
+    } catch {
+      // 이전 목록 유지
     }
   }, []);
 
@@ -815,11 +826,11 @@ export default function CrewPage() {
       skipNextSearchRef.current = false;
       return;
     }
-    const seq = ++searchSeqRef.current;
+    const seq = ++searchUiSeqRef.current;
     const timer = window.setTimeout(() => {
       setSearchLoading(true);
       void loadCrews(q, areaCode).finally(() => {
-        if (seq === searchSeqRef.current) {
+        if (seq === searchUiSeqRef.current) {
           setSearchLoading(false);
         }
       });
@@ -856,6 +867,7 @@ export default function CrewPage() {
       await refreshProfile();
       await loadMine();
       await loadCrews(q, areaCode);
+      emitCrewMapRefresh();
       return "keep";
     });
   };

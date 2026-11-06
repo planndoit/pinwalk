@@ -131,10 +131,13 @@ export default function PinBottomSheet({
   const nowMs = useClock(Boolean(pin));
 
   if (pin !== prevPin) {
+    const switchedPin = pin?.id !== prevPin?.id;
     setPrevPin(pin);
-    setEditText(pin?.text ?? "");
-    setActionError(null);
-    if (pin) {
+    if (switchedPin) {
+      setEditText(pin?.text ?? "");
+      setActionError(null);
+    }
+    if (pin && switchedPin) {
       const cachedAttempts = attemptHistoryCache.get(pin.id);
       setAttempts(cachedAttempts?.attempts ?? []);
       setSummary(cachedAttempts?.summary ?? EMPTY_SUMMARY);
@@ -187,13 +190,16 @@ export default function PinBottomSheet({
   }, [pin]);
 
   useEffect(() => {
-    if (!pin) return;
+    if (!pin || !isOwner) return;
 
     const pinId = pin.id;
     const cached = tollHistoryCache.get(pinId);
     let cancelled = false;
     fetch(`/api/pins/${pinId}/tolls`)
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) throw new Error("tolls fetch failed");
+        return res.json();
+      })
       .then((data) => {
         if (cancelled) return;
         const next: TollHistory = {
@@ -216,7 +222,7 @@ export default function PinBottomSheet({
     return () => {
       cancelled = true;
     };
-  }, [pin]);
+  }, [pin, isOwner]);
 
   if (!pin) return null;
 
@@ -653,14 +659,14 @@ export default function PinBottomSheet({
             </div>
           )}
 
-          {tollsLoading && (
+          {isOwner && tollsLoading && (
             <div className="mt-4 p-4 bg-gray-50 rounded-2xl shrink-0">
               <p className="text-xs font-semibold text-gray-600">통행료 기록</p>
               <p className="mt-2.5 text-xs text-gray-400">불러오는 중...</p>
             </div>
           )}
 
-          {!tollsLoading && tollSummary.total > 0 && (
+          {isOwner && !tollsLoading && tollSummary.total > 0 && (
             <div className="mt-4 p-4 bg-gray-50 rounded-2xl flex flex-col shrink-0">
               <div className="flex items-center justify-between shrink-0">
                 <p className="text-xs font-semibold text-gray-600">통행료 기록</p>

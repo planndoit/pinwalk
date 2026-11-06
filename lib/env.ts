@@ -80,11 +80,14 @@ export function getAdminPassword(): string | null {
 }
 
 export function getAdminSessionSecret(): string {
-  return (
-    process.env.ADMIN_SESSION_SECRET ??
-    process.env.ADMIN_PASSWORD ??
-    "admin-session-fallback-secret"
-  );
+  const secret =
+    process.env.ADMIN_SESSION_SECRET ?? process.env.ADMIN_PASSWORD ?? null;
+  if (!secret) {
+    throw new Error(
+      "ADMIN_SESSION_SECRET 또는 ADMIN_PASSWORD 환경 변수가 필요합니다."
+    );
+  }
+  return secret;
 }
 
 export function getAdminNotificationEmail(): string | null {

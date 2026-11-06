@@ -87,7 +87,7 @@ export default function MyPage() {
   }, [authLoading, user, router, openAuthModal]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     queueMicrotask(() => {
       void fetchStats();
       void fetchVisits();

@@ -55,6 +55,7 @@ import {
   subscribeFocusPremiumPlace,
 } from "@/lib/premium/focusPlace";
 import { trackPremiumPlaceEvent } from "@/lib/premium/trackEvent";
+import { subscribeCrewMapRefresh } from "@/lib/crew/mapRefreshSignal";
 import { subscribeHarvestRefresh } from "@/lib/harvest/refreshSignal";
 import {
   formatHarvestNotice,
@@ -277,22 +278,34 @@ export default function HomePage({ active = true }: HomePageProps) {
 
   const focusPinRequestRef = useRef<string | null>(null);
 
-  const fetchPins = useCallback(async () => {
-    const res = await fetch("/api/pins?all=true", { cache: "no-store" });
-    if (res.ok) {
+  const pinsFetchSeqRef = useRef(0);
+
+  const fetchPins = useCallback(async (): Promise<boolean> => {
+    const seq = ++pinsFetchSeqRef.current;
+    try {
+      const res = await fetch("/api/pins?all=true", { cache: "no-store" });
+      if (!res.ok) return false;
       const data = await res.json();
+      if (seq !== pinsFetchSeqRef.current) return false;
       setPins(data.pins ?? []);
+      return true;
+    } catch {
+      return false;
     }
   }, []);
 
-  const fetchRandomPoints = useCallback(async () => {
-    const res = await fetch("/api/random-points", { cache: "no-store" });
-    if (res.ok) {
+  const fetchRandomPoints = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/random-points", { cache: "no-store" });
+      if (!res.ok) return false;
       const data = await res.json();
       setRandomPoints(data.randomPoints ?? []);
       if (typeof data.claimRadiusMeters === "number") {
         setRandomPointClaimRadius(data.claimRadiusMeters);
       }
+      return true;
+    } catch {
+      return false;
     }
   }, []);
 
@@ -358,58 +371,71 @@ export default function HomePage({ active = true }: HomePageProps) {
     };
   }, [active, searchParams, router, showToast, requestRecenter]);
 
-  const fetchPremiumPlaces = useCallback(async () => {
-    const res = await fetch("/api/premium-places", { cache: "no-store" });
-    if (res.ok) {
+  const fetchPremiumPlaces = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/premium-places", { cache: "no-store" });
+      if (!res.ok) return false;
       const data = await res.json();
       setPremiumPlaces(data.places ?? []);
+      return true;
+    } catch {
+      return false;
     }
   }, []);
 
-  const fetchLandmarks = useCallback(async () => {
-    const res = await fetch("/api/landmarks", { cache: "no-store" });
-    if (res.ok) {
+  const fetchLandmarks = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/landmarks", { cache: "no-store" });
+      if (!res.ok) return false;
       const data = await res.json();
       setLandmarks(data.landmarks ?? []);
+      return true;
+    } catch {
+      return false;
     }
   }, []);
 
-  const fetchCrewMapMembers = useCallback(async () => {
-    const res = await fetch("/api/crews/map-members", { cache: "no-store" });
-    if (!res.ok) {
-      setAllCrewUserIds([]);
-      setMyCrewUserIds([]);
-      setMyCrewAvailable(false);
-      return;
-    }
-    const data = await res.json();
-    const allIds = Array.isArray(data.allCrewUserIds)
-      ? (data.allCrewUserIds as string[])
-      : [];
-    setAllCrewUserIds(allIds);
+  const fetchCrewMapMembers = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/crews/map-members", { cache: "no-store" });
+      if (!res.ok) {
+        setAllCrewUserIds([]);
+        setMyCrewUserIds([]);
+        setMyCrewAvailable(false);
+        return false;
+      }
+      const data = await res.json();
+      const allIds = Array.isArray(data.allCrewUserIds)
+        ? (data.allCrewUserIds as string[])
+        : [];
+      setAllCrewUserIds(allIds);
 
-    const userId = userIdRef.current;
-    if (!userId) {
-      setMyCrewUserIds([]);
-      setMyCrewAvailable(false);
-      return;
-    }
+      const userId = userIdRef.current;
+      if (!userId) {
+        setMyCrewUserIds([]);
+        setMyCrewAvailable(false);
+        return true;
+      }
 
-    const myCrew =
-      data.myCrew &&
-      typeof data.myCrew === "object" &&
-      Array.isArray(data.myCrew.userIds)
-        ? (data.myCrew as { crewId: string; userIds: string[] })
-        : null;
-    const crews = Array.isArray(data.crews)
-      ? (data.crews as { crewId: string; userIds: string[] }[])
-      : [];
-    const mine =
-      myCrew ?? crews.find((crew) => crew.userIds.includes(userId)) ?? null;
-    setMyCrewUserIds(mine?.userIds ?? []);
-    setMyCrewAvailable(Boolean(mine));
-    if (!mine) {
-      saveMyCrewOnly(false);
+      const myCrew =
+        data.myCrew &&
+        typeof data.myCrew === "object" &&
+        Array.isArray(data.myCrew.userIds)
+          ? (data.myCrew as { crewId: string; userIds: string[] })
+          : null;
+      const crews = Array.isArray(data.crews)
+        ? (data.crews as { crewId: string; userIds: string[] }[])
+        : [];
+      const mine =
+        myCrew ?? crews.find((crew) => crew.userIds.includes(userId)) ?? null;
+      setMyCrewUserIds(mine?.userIds ?? []);
+      setMyCrewAvailable(Boolean(mine));
+      if (!mine) {
+        saveMyCrewOnly(false);
+      }
+      return true;
+    } catch {
+      return false;
     }
   }, []);
 
@@ -584,12 +610,14 @@ export default function HomePage({ active = true }: HomePageProps) {
       ) {
         return;
       }
-      lastMapFetchRef.current.static = now;
-      await Promise.all([
+      const results = await Promise.all([
         fetchPremiumPlaces(),
         fetchLandmarks(),
         fetchCrewMapMembers(),
       ]);
+      if (results.some(Boolean)) {
+        lastMapFetchRef.current.static = Date.now();
+      }
     },
     [fetchPremiumPlaces, fetchLandmarks, fetchCrewMapMembers]
   );
@@ -603,8 +631,10 @@ export default function HomePage({ active = true }: HomePageProps) {
       ) {
         return;
       }
-      lastMapFetchRef.current.pins = now;
-      await fetchPins();
+      const ok = await fetchPins();
+      if (ok) {
+        lastMapFetchRef.current.pins = Date.now();
+      }
     },
     [fetchPins]
   );
@@ -649,6 +679,18 @@ export default function HomePage({ active = true }: HomePageProps) {
         void refreshMapPins(true);
       }),
     [refreshMapPins]
+  );
+
+  useEffect(
+    () =>
+      subscribeCrewMapRefresh(() => {
+        if (!activeRef.current) {
+          mapDataDirtyRef.current = true;
+          return;
+        }
+        void fetchCrewMapMembers();
+      }),
+    [fetchCrewMapMembers]
   );
 
   useEffect(() => {
@@ -729,6 +771,13 @@ export default function HomePage({ active = true }: HomePageProps) {
         setCouponSpawns((prev) => (prev.length === 0 ? prev : []));
         setMyCrewUserIds([]);
         setMyCrewAvailable(false);
+        lastCouponSyncAtRef.current = 0;
+        lastCouponSyncPosRef.current = null;
+        pendingCouponSyncRef.current = null;
+        if (couponSyncTimerRef.current !== null) {
+          window.clearTimeout(couponSyncTimerRef.current);
+          couponSyncTimerRef.current = null;
+        }
       }
     });
   }, [authLoading, currentUserId, fetchRandomPoints, fetchCrewMapMembers]);

@@ -74,6 +74,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     updated: data?.length ?? 0,
-    landmarks: ((data ?? []) as Landmark[]).map((row) => serializeLandmark(row)),
+    landmarks: ((data ?? []) as Landmark[]).map((row) => serializeLandmark(row, { includeAdminNote: true })),
   });
 }

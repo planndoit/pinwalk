@@ -67,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
   const userRef = useRef<User | null>(null);
   const profileRef = useRef<Profile | null>(null);
+  const lastProfileFetchAtRef = useRef(0);
   const isClient = useSyncExternalStore(
     subscribeNoop,
     getClientSnapshot,
@@ -90,21 +91,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const shouldAuthenticate = isClient && supabase !== null;
   const loading = !isClient || (shouldAuthenticate ? authLoading : false);
 
-  const fetchProfile = useCallback(async (): Promise<boolean> => {
-    try {
-      const res = await fetch("/api/profile");
-      if (res.ok) {
-        const data = await res.json();
-        setProfile(data.profile);
-        return true;
+  const fetchProfile = useCallback(
+    async (options?: { clearOnFailure?: boolean }): Promise<boolean> => {
+      const clearOnFailure = options?.clearOnFailure === true;
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const data = await res.json();
+          setProfile(data.profile);
+          lastProfileFetchAtRef.current = Date.now();
+          return true;
+        }
+        if (clearOnFailure || res.status === 401 || res.status === 404) {
+          setProfile(null);
+        }
+        return false;
+      } catch {
+        if (clearOnFailure) {
+          setProfile(null);
+        }
+        return false;
       }
-      setProfile(null);
-      return false;
-    } catch {
-      setProfile(null);
-      return false;
-    }
-  }, []);
+    },
+    []
+  );
 
   const loadProfileWithRetry = useCallback(async () => {
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -116,14 +126,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchProfile]);
 
   const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    if (supabase) {
-      await supabase.auth.signOut();
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+      await clearNativeSession();
+    } finally {
+      clearActivity();
+      lastProfileFetchAtRef.current = 0;
+      setUser(null);
+      setProfile(null);
     }
-    await clearNativeSession();
-    clearActivity();
-    setUser(null);
-    setProfile(null);
   }, [supabase]);
 
   const initSession = useCallback(async () => {
@@ -244,6 +258,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
+    const PROFILE_REFRESH_TTL_MS = 30_000;
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -253,24 +269,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (nextUser) {
         void persistNativeSession(session);
         const currentProfile = profileRef.current;
-        if (!currentProfile || currentProfile.id !== nextUser.id) {
-          void fetchProfile();
+        const identityChanged =
+          !currentProfile || currentProfile.id !== nextUser.id;
+        const stale =
+          Date.now() - lastProfileFetchAtRef.current >= PROFILE_REFRESH_TTL_MS;
+        if (identityChanged || stale) {
+          void fetchProfile({ clearOnFailure: identityChanged });
         }
         touchActivity();
       } else {
+        lastProfileFetchAtRef.current = 0;
         setProfile(null);
       }
     });
 
     const onActivity = () => touchActivity();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!userRef.current) return;
+      if (
+        Date.now() - lastProfileFetchAtRef.current <
+        PROFILE_REFRESH_TTL_MS
+      ) {
+        return;
+      }
+      void fetchProfile({ clearOnFailure: false });
+    };
     window.addEventListener("pointerdown", onActivity);
     window.addEventListener("keydown", onActivity);
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       active = false;
       subscription.unsubscribe();
       window.removeEventListener("pointerdown", onActivity);
       window.removeEventListener("keydown", onActivity);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [shouldAuthenticate, supabase, initSession, fetchProfile]);
 

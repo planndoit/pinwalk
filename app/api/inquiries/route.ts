@@ -41,7 +41,12 @@ export async function POST(request: Request) {
     return jsonError("로그인이 필요합니다.", 401);
   }
 
-  const body = await request.json();
+  let body: { title?: unknown; content?: unknown };
+  try {
+    body = (await request.json()) as { title?: unknown; content?: unknown };
+  } catch {
+    return jsonError("요청 본문이 올바르지 않습니다.");
+  }
   const titleValidation = validateInquiryTitle(
     typeof body.title === "string" ? body.title : ""
   );

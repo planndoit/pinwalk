@@ -67,7 +67,7 @@ export async function POST(
       );
     }
 
-    return NextResponse.json({ landmark: serializeLandmark(data as Landmark) });
+    return NextResponse.json({ landmark: serializeLandmark(data as Landmark, { includeAdminNote: true }) });
   } catch (error) {
     const message =
       error instanceof TourApiError

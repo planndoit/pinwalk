@@ -31,14 +31,8 @@ export interface RandomPoint {
 
 export interface PinToll {
   id: string;
-  pin_id: string;
-  random_point_id: string;
-  collector_id: string;
-  owner_id: string;
   base_points: number;
   toll_points: number;
-  point_lat: number;
-  point_lng: number;
   created_at: string;
   collector_nickname?: string | null;
 }

@@ -28,7 +28,7 @@ export async function GET(
     );
   }
 
-  return NextResponse.json({ landmark: serializeLandmark(data as Landmark) });
+  return NextResponse.json({ landmark: serializeLandmark(data as Landmark, { includeAdminNote: true }) });
 }
 
 export async function PATCH(
@@ -102,5 +102,5 @@ export async function PATCH(
     await recomputeLandmarkScores(landmark.id);
   }
 
-  return NextResponse.json({ landmark: serializeLandmark(landmark) });
+  return NextResponse.json({ landmark: serializeLandmark(landmark, { includeAdminNote: true }) });
 }

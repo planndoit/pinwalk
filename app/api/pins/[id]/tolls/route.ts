@@ -1,41 +1,53 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_NICKNAME } from "@/lib/constants";
 
 type TollRow = {
   id: string;
-  pin_id: string;
-  random_point_id: string;
-  collector_id: string;
-  owner_id: string;
   base_points: number;
   toll_points: number;
-  point_lat: number;
-  point_lng: number;
   created_at: string;
+  collector_id: string;
 };
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return jsonError("로그인이 필요합니다.", 401);
+  }
+
   const { id } = await params;
   const admin = createAdminClient();
 
+  const { data: pin, error: pinError } = await admin
+    .from("pins")
+    .select("id, user_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (pinError) {
+    return jsonError("통행료 기록 조회에 실패했습니다.", 500);
+  }
+  if (!pin) {
+    return jsonError("핀을 찾을 수 없습니다.", 404);
+  }
+  if (pin.user_id !== user.id) {
+    return jsonError("통행료 기록은 깃발 주인만 볼 수 있습니다.", 403);
+  }
+
   const { data, error } = await admin
     .from("pin_tolls")
-    .select(
-      "id, pin_id, random_point_id, collector_id, owner_id, base_points, toll_points, point_lat, point_lng, created_at"
-    )
+    .select("id, base_points, toll_points, created_at, collector_id")
     .eq("pin_id", id)
     .order("created_at", { ascending: false })
     .limit(50);
 
   if (error) {
-    return NextResponse.json(
-      { error: "통행료 기록 조회에 실패했습니다." },
-      { status: 500 }
-    );
+    return jsonError("통행료 기록 조회에 실패했습니다.", 500);
   }
 
   const rows = (data ?? []) as TollRow[];
@@ -58,14 +70,8 @@ export async function GET(
 
   const tolls = rows.map((row) => ({
     id: row.id,
-    pin_id: row.pin_id,
-    random_point_id: row.random_point_id,
-    collector_id: row.collector_id,
-    owner_id: row.owner_id,
     base_points: row.base_points,
     toll_points: row.toll_points,
-    point_lat: row.point_lat,
-    point_lng: row.point_lng,
     created_at: row.created_at,
     collector_nickname:
       nicknameById.get(row.collector_id) ?? DEFAULT_NICKNAME,

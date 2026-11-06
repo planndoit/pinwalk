@@ -97,10 +97,12 @@ export default function RankingPage() {
   const rankingCacheRef = useRef<
     Record<string, { entries: RankingEntry[]; crewEntries: CrewRankEntry[] }>
   >({});
+  const rankingFetchSeqRef = useRef(0);
 
   const activeTab = TABS[activeTabIndex]!;
 
   const fetchRanking = useCallback(async (tab: RankTab) => {
+    const seq = ++rankingFetchSeqRef.current;
     const cacheKey = tab.kind === "crew" ? "crew" : tab.type;
     const cached = rankingCacheRef.current[cacheKey];
     if (cached) {
@@ -111,38 +113,53 @@ export default function RankingPage() {
       setLoading(true);
     }
 
-    if (tab.kind === "crew") {
-      const res = await fetch("/api/ranking/crews");
-      if (res.ok) {
-        const data = await res.json();
-        const nextCrew = data.entries ?? [];
-        setCrewEntries(nextCrew);
-        setEntries([]);
-        rankingCacheRef.current[cacheKey] = {
-          entries: [],
-          crewEntries: nextCrew,
-        };
-      } else if (!cached) {
-        setCrewEntries([]);
-        setEntries([]);
+    try {
+      if (tab.kind === "crew") {
+        const res = await fetch("/api/ranking/crews");
+        if (seq !== rankingFetchSeqRef.current) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (seq !== rankingFetchSeqRef.current) return;
+          const nextCrew = data.entries ?? [];
+          setCrewEntries(nextCrew);
+          setEntries([]);
+          rankingCacheRef.current[cacheKey] = {
+            entries: [],
+            crewEntries: nextCrew,
+          };
+        } else if (!cached) {
+          setCrewEntries([]);
+          setEntries([]);
+        }
+      } else {
+        const res = await fetch(`/api/ranking?type=${tab.type}`);
+        if (seq !== rankingFetchSeqRef.current) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (seq !== rankingFetchSeqRef.current) return;
+          const nextEntries = data.entries ?? [];
+          setEntries(nextEntries);
+          setCrewEntries([]);
+          rankingCacheRef.current[cacheKey] = {
+            entries: nextEntries,
+            crewEntries: [],
+          };
+        } else if (!cached) {
+          setEntries([]);
+          setCrewEntries([]);
+        }
       }
-    } else {
-      const res = await fetch(`/api/ranking?type=${tab.type}`);
-      if (res.ok) {
-        const data = await res.json();
-        const nextEntries = data.entries ?? [];
-        setEntries(nextEntries);
-        setCrewEntries([]);
-        rankingCacheRef.current[cacheKey] = {
-          entries: nextEntries,
-          crewEntries: [],
-        };
-      } else if (!cached) {
+    } catch {
+      if (seq !== rankingFetchSeqRef.current) return;
+      if (!cached) {
         setEntries([]);
         setCrewEntries([]);
+      }
+    } finally {
+      if (seq === rankingFetchSeqRef.current) {
+        setLoading(false);
       }
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {

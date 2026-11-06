@@ -6,6 +6,7 @@ export function serializeLandmark(
   extra?: {
     titleHolderNickname?: string | null;
     titleHolderScore?: number | null;
+    includeAdminNote?: boolean;
   }
 ): SerializedLandmark {
   return {
@@ -29,7 +30,7 @@ export function serializeLandmark(
     radiusMeters: row.radius_meters,
     mapVisible: row.map_visible,
     isClosed: row.is_closed,
-    adminNote: row.admin_note,
+    adminNote: extra?.includeAdminNote === true ? row.admin_note : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     titleHolderNickname: extra?.titleHolderNickname ?? null,

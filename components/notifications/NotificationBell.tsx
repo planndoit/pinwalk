@@ -28,11 +28,11 @@ async function loadUnreadCount(userId: string, force = false): Promise<number> {
     return unreadCache.count;
   }
 
-  if (unreadInFlight) {
+  if (!force && unreadInFlight) {
     return unreadInFlight;
   }
 
-  unreadInFlight = (async () => {
+  const request = (async () => {
     const res = await fetch("/api/my/notifications/unread-count");
     if (!res.ok) {
       return unreadCache?.userId === userId ? unreadCache.count : 0;
@@ -42,8 +42,12 @@ async function loadUnreadCount(userId: string, force = false): Promise<number> {
       typeof data.unreadCount === "number" ? data.unreadCount : 0;
     unreadCache = { userId, count, fetchedAt: Date.now() };
     return count;
-  })().finally(() => {
-    unreadInFlight = null;
+  })();
+
+  unreadInFlight = request.finally(() => {
+    if (unreadInFlight === request) {
+      unreadInFlight = null;
+    }
   });
 
   return unreadInFlight;

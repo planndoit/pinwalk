@@ -123,6 +123,10 @@ export async function POST(request: Request) {
     return jsonError("이미 점령된 핀입니다.");
   }
 
+  if (targetPin.user_id === user.id) {
+    return jsonError("자신의 깃발은 점령할 수 없습니다.");
+  }
+
   const distance = getDistanceMeters(
     current_lat,
     current_lng,

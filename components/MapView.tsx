@@ -1331,10 +1331,13 @@ export default function MapView({
     if (!mapReady || !map || !naverObj?.maps) return;
 
     const renderKey = randomPoints
-      .map(
-        (point) =>
-          `${point.id}:${point.lat}:${point.lng}:${point.points}:${point.territory ?? ""}`
-      )
+      .map((point) => {
+        const territory = point.territory;
+        const territoryKey = territory
+          ? `${territory.inOwnTerritory ? 1 : 0}:${territory.claimPoints}:${territory.otherPinCount}:${territory.tollPerPin}`
+          : "";
+        return `${point.id}:${point.lat}:${point.lng}:${point.points}:${territoryKey}`;
+      })
       .join("|");
     if (renderKey === lastRandomRenderKeyRef.current) return;
     lastRandomRenderKeyRef.current = renderKey;
