@@ -9,25 +9,74 @@ type NotificationBellProps = {
   className?: string;
 };
 
+const UNREAD_TTL_MS = 20_000;
+let unreadCache: {
+  userId: string;
+  count: number;
+  fetchedAt: number;
+} | null = null;
+let unreadInFlight: Promise<number> | null = null;
+
+async function loadUnreadCount(userId: string, force = false): Promise<number> {
+  const now = Date.now();
+  if (
+    !force &&
+    unreadCache &&
+    unreadCache.userId === userId &&
+    now - unreadCache.fetchedAt < UNREAD_TTL_MS
+  ) {
+    return unreadCache.count;
+  }
+
+  if (unreadInFlight) {
+    return unreadInFlight;
+  }
+
+  unreadInFlight = (async () => {
+    const res = await fetch("/api/my/notifications/unread-count");
+    if (!res.ok) {
+      return unreadCache?.userId === userId ? unreadCache.count : 0;
+    }
+    const data = await res.json();
+    const count =
+      typeof data.unreadCount === "number" ? data.unreadCount : 0;
+    unreadCache = { userId, count, fetchedAt: Date.now() };
+    return count;
+  })().finally(() => {
+    unreadInFlight = null;
+  });
+
+  return unreadInFlight;
+}
+
+export function invalidateUnreadCountCache(): void {
+  unreadCache = null;
+}
+
 export default function NotificationBell({
   variant = "plain",
   className = "",
 }: NotificationBellProps) {
   const { user, loading: authLoading } = useAuth();
+  const userId = user?.id ?? null;
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const fetchUnreadCount = useCallback(async () => {
-    if (!user) {
-      setUnreadCount(0);
-      return;
-    }
+  const fetchUnreadCount = useCallback(
+    async (force = false) => {
+      if (!userId) {
+        setUnreadCount(0);
+        return;
+      }
 
-    const res = await fetch("/api/my/notifications/unread-count");
-    if (res.ok) {
-      const data = await res.json();
-      setUnreadCount(typeof data.unreadCount === "number" ? data.unreadCount : 0);
-    }
-  }, [user]);
+      try {
+        const count = await loadUnreadCount(userId, force);
+        setUnreadCount(count);
+      } catch {
+        // 이전 배지 유지
+      }
+    },
+    [userId]
+  );
 
   useEffect(() => {
     if (authLoading) return;
@@ -37,16 +86,20 @@ export default function NotificationBell({
   }, [authLoading, fetchUnreadCount]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
 
+    let lastFocusFetchAt = 0;
     const onFocus = () => {
+      const now = Date.now();
+      if (now - lastFocusFetchAt < UNREAD_TTL_MS) return;
+      lastFocusFetchAt = now;
       void fetchUnreadCount();
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [user, fetchUnreadCount]);
+  }, [userId, fetchUnreadCount]);
 
-  if (authLoading || !user) {
+  if (authLoading || !userId) {
     return null;
   }
 

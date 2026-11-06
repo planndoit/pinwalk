@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   let query = admin
     .from("pins")
     .select(
-      "*, profiles!pins_user_id_fkey(nickname, avatar_mime, avatar_updated_at), pin_landmarks(landmark_id)"
+      "id, user_id, text, lat, lng, radius_meters, cost, created_at, last_reinforced_at, harvest_stored, harvest_settled_at, profiles!pins_user_id_fkey(nickname, avatar_mime, avatar_updated_at), pin_landmarks(landmark_id)"
     )
     .eq("status", "active");
 
@@ -42,15 +42,40 @@ export async function GET(request: Request) {
 
   const result = (pins ?? []).map((pin) => {
     const links = (pin.pin_landmarks ?? []) as { landmark_id: string }[];
+    const profile = pin.profiles as
+      | {
+          nickname?: string | null;
+          avatar_mime?: string | null;
+          avatar_updated_at?: string | null;
+        }
+      | {
+          nickname?: string | null;
+          avatar_mime?: string | null;
+          avatar_updated_at?: string | null;
+        }[]
+      | null;
+    const profileRow = Array.isArray(profile) ? profile[0] : profile;
     return {
-      ...pin,
-      nickname: pin.profiles?.nickname ?? "익명의 워커",
-      has_avatar: Boolean(pin.profiles?.avatar_mime),
-      avatar_updated_at:
-        (pin.profiles?.avatar_updated_at as string | null | undefined) ?? null,
+      id: pin.id,
+      user_id: pin.user_id,
+      text: pin.text,
+      lat: pin.lat,
+      lng: pin.lng,
+      radius_meters: pin.radius_meters,
+      status: "active" as const,
+      cost: pin.cost,
+      expires_at: null,
+      conquered_by: null,
+      conquered_at: null,
+      created_at: pin.created_at,
+      updated_at: pin.created_at,
+      last_reinforced_at: pin.last_reinforced_at ?? null,
+      harvest_stored: pin.harvest_stored,
+      harvest_settled_at: pin.harvest_settled_at,
+      nickname: profileRow?.nickname ?? "익명의 워커",
+      has_avatar: Boolean(profileRow?.avatar_mime),
+      avatar_updated_at: profileRow?.avatar_updated_at ?? null,
       landmark_ids: links.map((link) => link.landmark_id),
-      profiles: undefined,
-      pin_landmarks: undefined,
     };
   });
 

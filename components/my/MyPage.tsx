@@ -93,7 +93,7 @@ export default function MyPage() {
       void fetchVisits();
       void fetchTimeline();
     });
-  }, [user, fetchStats, fetchVisits, fetchTimeline]);
+  }, [user?.id, fetchStats, fetchVisits, fetchTimeline]);
 
   useEffect(() => {
     if (!loadMoreRef.current || !hasMore) return;
@@ -250,7 +250,7 @@ export default function MyPage() {
         />
 
         <ProfileEditorSection
-          key={profile.updated_at}
+          key={`${profile.nickname}:${profile.avatar_updated_at ?? ""}`}
           profile={profile}
           saving={saving}
           onSave={handleSaveProfile}

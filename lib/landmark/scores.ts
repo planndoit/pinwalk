@@ -246,26 +246,33 @@ export async function getTitleHoldersByLandmarkIds(
 
   const admin = createAdminClient();
   const BATCH = 80;
-
+  const batches: string[][] = [];
   for (let i = 0; i < landmarkIds.length; i += BATCH) {
-    const batch = landmarkIds.slice(i, i + BATCH);
-    const [{ data: userData }, { data: crewData }] = await Promise.all([
-      admin
-        .from("landmark_user_scores")
-        .select(
-          "landmark_id, user_id, score, score_reached_at, profiles!inner(nickname)"
-        )
-        .in("landmark_id", batch)
-        .gt("score", 0),
-      admin
-        .from("landmark_crew_scores")
-        .select(
-          "landmark_id, crew_id, score, score_reached_at, crews!inner(name, status)"
-        )
-        .in("landmark_id", batch)
-        .gt("score", 0),
-    ]);
+    batches.push(landmarkIds.slice(i, i + BATCH));
+  }
 
+  const batchResults = await Promise.all(
+    batches.map((batch) =>
+      Promise.all([
+        admin
+          .from("landmark_user_scores")
+          .select(
+            "landmark_id, user_id, score, score_reached_at, profiles!inner(nickname)"
+          )
+          .in("landmark_id", batch)
+          .gt("score", 0),
+        admin
+          .from("landmark_crew_scores")
+          .select(
+            "landmark_id, crew_id, score, score_reached_at, crews!inner(name, status)"
+          )
+          .in("landmark_id", batch)
+          .gt("score", 0),
+      ])
+    )
+  );
+
+  for (const [{ data: userData }, { data: crewData }] of batchResults) {
     for (const row of userData ?? []) {
       const landmarkId = row.landmark_id as string;
       const score = row.score as number;

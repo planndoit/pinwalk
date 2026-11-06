@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPremiumCouponSpawnDistanceMeters } from "@/lib/env";
-import { offsetPointMeters } from "@/lib/geo";
+import { getDistanceMeters, offsetPointMeters } from "@/lib/geo";
+
+const COORD_UPDATE_SKIP_METERS = 0.5;
 
 /** 기존 활성 스폰만 갱신·반환. 자동 생성하지 않음. */
 export async function POST(request: Request) {
@@ -43,6 +45,7 @@ export async function POST(request: Request) {
   ]);
 
   const spawnDistance = getPremiumCouponSpawnDistanceMeters();
+  const expireIds: string[] = [];
 
   const results = await Promise.all(
     (activeSpawns ?? []).map(async (spawn) => {
@@ -59,10 +62,7 @@ export async function POST(request: Request) {
       } | null;
 
       if (!coupon?.is_active || !place?.is_active) {
-        await admin
-          .from("premium_coupon_spawns")
-          .update({ status: "expired" })
-          .eq("id", spawn.id);
+        expireIds.push(spawn.id as string);
         return null;
       }
 
@@ -77,19 +77,35 @@ export async function POST(request: Request) {
               place.lng,
               spawnDistance
             )
-          : { lat: spawn.lat, lng: spawn.lng };
+          : { lat: spawn.lat as number, lng: spawn.lng as number };
 
-      await admin
-        .from("premium_coupon_spawns")
-        .update({ lat: offset.lat, lng: offset.lng })
-        .eq("id", spawn.id);
+      const currentLat = Number(spawn.lat);
+      const currentLng = Number(spawn.lng);
+      const movedMeters = getDistanceMeters(
+        currentLat,
+        currentLng,
+        offset.lat,
+        offset.lng
+      );
+
+      if (movedMeters > COORD_UPDATE_SKIP_METERS) {
+        await admin
+          .from("premium_coupon_spawns")
+          .update({ lat: offset.lat, lng: offset.lng })
+          .eq("id", spawn.id);
+      }
+
+      const lat =
+        movedMeters > COORD_UPDATE_SKIP_METERS ? offset.lat : currentLat;
+      const lng =
+        movedMeters > COORD_UPDATE_SKIP_METERS ? offset.lng : currentLng;
 
       return {
         id: spawn.id,
         couponId: spawn.coupon_id,
         premiumPlaceId: spawn.premium_place_id,
-        lat: offset.lat,
-        lng: offset.lng,
+        lat,
+        lng,
         status: spawn.status,
         expiresAt: spawn.expires_at,
         couponTitle: coupon.title ?? "",
@@ -97,6 +113,13 @@ export async function POST(request: Request) {
       };
     })
   );
+
+  if (expireIds.length > 0) {
+    await admin
+      .from("premium_coupon_spawns")
+      .update({ status: "expired" })
+      .in("id", expireIds);
+  }
 
   const spawns = results.filter((spawn) => spawn !== null);
 

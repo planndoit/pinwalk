@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -50,6 +51,12 @@ function getServerSnapshot() {
   return false;
 }
 
+function sameUser(prev: User | null, next: User | null): boolean {
+  if (prev === next) return true;
+  if (!prev || !next) return false;
+  return prev.id === next.id;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -58,11 +65,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">(
     "login"
   );
+  const userRef = useRef<User | null>(null);
+  const profileRef = useRef<Profile | null>(null);
   const isClient = useSyncExternalStore(
     subscribeNoop,
     getClientSnapshot,
     getServerSnapshot
   );
+
+  useEffect(() => {
+    userRef.current = user;
+    profileRef.current = profile;
+  }, [user, profile]);
 
   const supabase = useMemo(() => {
     if (!isClient) return null;
@@ -149,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    setUser(currentUser);
+    setUser((prev) => (sameUser(prev, currentUser) ? prev : currentUser));
     await loadProfileWithRetry();
     touchActivity();
 
@@ -176,14 +190,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const requireAuth = useCallback(
     (onAuthed?: () => void) => {
-      if (user && profile) {
+      if (userRef.current && profileRef.current) {
         onAuthed?.();
         return true;
       }
       openAuthModal("login");
       return false;
     },
-    [user, profile, openAuthModal]
+    [openAuthModal]
   );
 
   const handleAuthSuccess = useCallback(
@@ -201,7 +215,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } = await supabase.auth.getSession();
 
       if (session?.user) {
-        setUser(session.user);
+        setUser((prev) =>
+          sameUser(prev, session.user) ? prev : session.user
+        );
         touchActivity();
         void persistNativeSession(session);
       }
@@ -231,10 +247,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
+      const nextUser = session?.user ?? null;
+      setUser((prev) => (sameUser(prev, nextUser) ? prev : nextUser));
+
+      if (nextUser) {
         void persistNativeSession(session);
-        void fetchProfile();
+        const currentProfile = profileRef.current;
+        if (!currentProfile || currentProfile.id !== nextUser.id) {
+          void fetchProfile();
+        }
         touchActivity();
       } else {
         setProfile(null);
@@ -253,19 +274,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [shouldAuthenticate, supabase, initSession, fetchProfile]);
 
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      profile,
+      loading,
+      refreshProfile,
+      setProfilePoints,
+      logout,
+      requireAuth,
+      openAuthModal,
+    }),
+    [
+      user,
+      profile,
+      loading,
+      refreshProfile,
+      setProfilePoints,
+      logout,
+      requireAuth,
+      openAuthModal,
+    ]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        profile,
-        loading,
-        refreshProfile,
-        setProfilePoints,
-        logout,
-        requireAuth,
-        openAuthModal,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
       <AuthModal
         open={authModalOpen}

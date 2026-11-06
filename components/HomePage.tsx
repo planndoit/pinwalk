@@ -71,6 +71,10 @@ import type {
 } from "@/types/premiumClient";
 
 const POSITION_UPDATE_THRESHOLD_METERS = 5;
+const MAP_PINS_REFETCH_TTL_MS = 30_000;
+const MAP_STATIC_REFETCH_TTL_MS = 60_000;
+const COUPON_SYNC_MIN_INTERVAL_MS = 15_000;
+const COUPON_SYNC_MIN_DISTANCE_METERS = 25;
 const EMPTY_CREW_HIGHLIGHT_USER_IDS: string[] = [];
 
 interface NoticeToast {
@@ -148,6 +152,23 @@ export default function HomePage({ active = true }: HomePageProps) {
   } | null>(null);
   const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null);
   const dailyBonusUserRef = useRef<string | null>(null);
+  const activeRef = useRef(active);
+  const userIdRef = useRef<string | null>(user?.id ?? null);
+  const lastMapFetchRef = useRef({ pins: 0, static: 0 });
+  const mapDataDirtyRef = useRef(false);
+  const couponSyncInFlightRef = useRef(false);
+  const lastCouponSyncAtRef = useRef(0);
+  const lastCouponSyncPosRef = useRef<{ lat: number; lng: number } | null>(
+    null
+  );
+  const pendingCouponSyncRef = useRef<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const couponSyncTimerRef = useRef<number | null>(null);
+  const runCouponSyncRef = useRef<(lat: number, lng: number) => Promise<void>>(
+    async () => undefined
+  );
   const pendingFocusPlace = useSyncExternalStore(
     subscribeFocusPremiumPlace,
     getFocusPremiumPlaceSnapshot,
@@ -168,6 +189,10 @@ export default function HomePage({ active = true }: HomePageProps) {
   );
 
   const currentUserId = user?.id ?? null;
+  useEffect(() => {
+    activeRef.current = active;
+    userIdRef.current = currentUserId;
+  }, [active, currentUserId]);
   if (noticeQueueUserId !== currentUserId) {
     setNoticeQueueUserId(currentUserId);
     setNoticeQueue([]);
@@ -363,22 +388,30 @@ export default function HomePage({ active = true }: HomePageProps) {
       : [];
     setAllCrewUserIds(allIds);
 
-    if (!user) {
+    const userId = userIdRef.current;
+    if (!userId) {
       setMyCrewUserIds([]);
       setMyCrewAvailable(false);
       return;
     }
 
+    const myCrew =
+      data.myCrew &&
+      typeof data.myCrew === "object" &&
+      Array.isArray(data.myCrew.userIds)
+        ? (data.myCrew as { crewId: string; userIds: string[] })
+        : null;
     const crews = Array.isArray(data.crews)
       ? (data.crews as { crewId: string; userIds: string[] }[])
       : [];
-    const mine = crews.find((crew) => crew.userIds.includes(user.id));
+    const mine =
+      myCrew ?? crews.find((crew) => crew.userIds.includes(userId)) ?? null;
     setMyCrewUserIds(mine?.userIds ?? []);
     setMyCrewAvailable(Boolean(mine));
     if (!mine) {
       saveMyCrewOnly(false);
     }
-  }, [user]);
+  }, []);
 
   const handleLayerVisibilityChange = useCallback(
     (key: MapLayerKey, next: boolean) => {
@@ -396,13 +429,22 @@ export default function HomePage({ active = true }: HomePageProps) {
     []
   );
 
-  const syncCouponSpawns = useCallback(
-    async (lat: number, lng: number) => {
-      if (!user) {
-        setCouponSpawns((prev) => (prev.length === 0 ? prev : []));
-        return;
-      }
+  const runCouponSync = useCallback(async (lat: number, lng: number) => {
+    if (!userIdRef.current) {
+      setCouponSpawns((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
+    if (couponSyncInFlightRef.current) {
+      pendingCouponSyncRef.current = { lat, lng };
+      return;
+    }
 
+    couponSyncInFlightRef.current = true;
+    lastCouponSyncAtRef.current = Date.now();
+    lastCouponSyncPosRef.current = { lat, lng };
+    pendingCouponSyncRef.current = null;
+
+    try {
       const res = await fetch("/api/premium-coupon-spawns/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -415,15 +457,82 @@ export default function HomePage({ active = true }: HomePageProps) {
         setCouponSpawns((prev) => {
           if (
             prev.length === next.length &&
-            prev.every((spawn, index) => spawn.id === next[index]?.id)
+            prev.every(
+              (spawn, index) =>
+                spawn.id === next[index]?.id &&
+                spawn.lat === next[index]?.lat &&
+                spawn.lng === next[index]?.lng
+            )
           ) {
             return prev;
           }
           return next;
         });
       }
+    } finally {
+      couponSyncInFlightRef.current = false;
+      const pendingPos = pendingCouponSyncRef.current as
+        | { lat: number; lng: number }
+        | null;
+      const pendingLat = pendingPos?.lat;
+      const pendingLng = pendingPos?.lng;
+      pendingCouponSyncRef.current = null;
+      if (
+        typeof pendingLat === "number" &&
+        typeof pendingLng === "number"
+      ) {
+        void runCouponSyncRef.current(pendingLat, pendingLng);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    runCouponSyncRef.current = runCouponSync;
+  }, [runCouponSync]);
+
+  const syncCouponSpawns = useCallback(
+    (lat: number, lng: number, options?: { force?: boolean }) => {
+      if (!userIdRef.current) {
+        setCouponSpawns((prev) => (prev.length === 0 ? prev : []));
+        return Promise.resolve();
+      }
+
+      const force = options?.force === true;
+      const now = Date.now();
+      const lastPos = lastCouponSyncPosRef.current;
+      const movedMeters = lastPos
+        ? getDistanceMeters(lastPos.lat, lastPos.lng, lat, lng)
+        : Number.POSITIVE_INFINITY;
+      const withinInterval =
+        now - lastCouponSyncAtRef.current < COUPON_SYNC_MIN_INTERVAL_MS;
+      const withinDistance = movedMeters < COUPON_SYNC_MIN_DISTANCE_METERS;
+
+      if (!force && withinInterval && withinDistance) {
+        pendingCouponSyncRef.current = { lat, lng };
+        if (couponSyncTimerRef.current === null) {
+          const waitMs = Math.max(
+            0,
+            COUPON_SYNC_MIN_INTERVAL_MS - (now - lastCouponSyncAtRef.current)
+          );
+          couponSyncTimerRef.current = window.setTimeout(() => {
+            couponSyncTimerRef.current = null;
+            const pendingLat = pendingCouponSyncRef.current?.lat;
+            const pendingLng = pendingCouponSyncRef.current?.lng;
+            pendingCouponSyncRef.current = null;
+            if (
+              typeof pendingLat === "number" &&
+              typeof pendingLng === "number"
+            ) {
+              void runCouponSyncRef.current(pendingLat, pendingLng);
+            }
+          }, waitMs);
+        }
+        return Promise.resolve();
+      }
+
+      return runCouponSync(lat, lng);
     },
-    [user]
+    [runCouponSync]
   );
 
   const requestPosition = useCallback((): Promise<{
@@ -466,21 +575,80 @@ export default function HomePage({ active = true }: HomePageProps) {
     return coords;
   }, [locationLoading, requestPosition, fetchPins, showToast]);
 
+  const refreshMapStaticData = useCallback(
+    async (force = false) => {
+      const now = Date.now();
+      if (
+        !force &&
+        now - lastMapFetchRef.current.static < MAP_STATIC_REFETCH_TTL_MS
+      ) {
+        return;
+      }
+      lastMapFetchRef.current.static = now;
+      await Promise.all([
+        fetchPremiumPlaces(),
+        fetchLandmarks(),
+        fetchCrewMapMembers(),
+      ]);
+    },
+    [fetchPremiumPlaces, fetchLandmarks, fetchCrewMapMembers]
+  );
+
+  const refreshMapPins = useCallback(
+    async (force = false) => {
+      const now = Date.now();
+      if (
+        !force &&
+        now - lastMapFetchRef.current.pins < MAP_PINS_REFETCH_TTL_MS
+      ) {
+        return;
+      }
+      lastMapFetchRef.current.pins = now;
+      await fetchPins();
+    },
+    [fetchPins]
+  );
+
+  const refreshVisibleMapData = useCallback(
+    async (options?: { force?: boolean; includeRandom?: boolean }) => {
+      const force = options?.force === true;
+      await Promise.all([
+        refreshMapPins(force),
+        refreshMapStaticData(force),
+        options?.includeRandom && userIdRef.current
+          ? fetchRandomPoints()
+          : Promise.resolve(),
+      ]);
+    },
+    [refreshMapPins, refreshMapStaticData, fetchRandomPoints]
+  );
+
   useEffect(() => {
     queueMicrotask(() => {
-      void fetchPins();
-      void fetchPremiumPlaces();
-      void fetchLandmarks();
-      void fetchCrewMapMembers();
+      void refreshVisibleMapData({ force: true });
     });
-  }, [fetchPins, fetchPremiumPlaces, fetchLandmarks, fetchCrewMapMembers]);
+  }, [refreshVisibleMapData]);
+
+  useEffect(() => {
+    if (!active) return;
+    if (!mapDataDirtyRef.current) return;
+    mapDataDirtyRef.current = false;
+    void refreshVisibleMapData({
+      force: true,
+      includeRandom: Boolean(userIdRef.current),
+    });
+  }, [active, refreshVisibleMapData]);
 
   useEffect(
     () =>
       subscribeHarvestRefresh(() => {
-        void fetchPins();
+        if (!activeRef.current) {
+          mapDataDirtyRef.current = true;
+          return;
+        }
+        void refreshMapPins(true);
       }),
-    [fetchPins]
+    [refreshMapPins]
   );
 
   useEffect(() => {
@@ -496,22 +664,17 @@ export default function HomePage({ active = true }: HomePageProps) {
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      void fetchPins();
-      void fetchPremiumPlaces();
-      void fetchLandmarks();
-      void fetchCrewMapMembers();
-      if (user) void fetchRandomPoints();
+      if (!activeRef.current) {
+        mapDataDirtyRef.current = true;
+        return;
+      }
+      void refreshVisibleMapData({
+        includeRandom: Boolean(userIdRef.current),
+      });
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [
-    fetchPins,
-    fetchRandomPoints,
-    fetchPremiumPlaces,
-    fetchLandmarks,
-    fetchCrewMapMembers,
-    user,
-  ]);
+  }, [refreshVisibleMapData]);
 
   useEffect(() => {
     if (!active || !navigator.geolocation) return;
@@ -529,14 +692,20 @@ export default function HomePage({ active = true }: HomePageProps) {
         }
         lastPositionRef.current = next;
         setPosition(next);
-        if (user) void syncCouponSpawns(next.lat, next.lng);
+        if (userIdRef.current) void syncCouponSpawns(next.lat, next.lng);
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
 
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [active, user, syncCouponSpawns]);
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      if (couponSyncTimerRef.current !== null) {
+        window.clearTimeout(couponSyncTimerRef.current);
+        couponSyncTimerRef.current = null;
+      }
+    };
+  }, [active, syncCouponSpawns]);
 
   useEffect(() => {
     if (!appliedFocusPlace) return;
@@ -552,21 +721,25 @@ export default function HomePage({ active = true }: HomePageProps) {
     if (authLoading) return;
 
     queueMicrotask(() => {
-      if (user) {
+      if (currentUserId) {
         void fetchRandomPoints();
+        void fetchCrewMapMembers();
       } else {
         setRandomPoints([]);
+        setCouponSpawns((prev) => (prev.length === 0 ? prev : []));
+        setMyCrewUserIds([]);
+        setMyCrewAvailable(false);
       }
     });
-  }, [authLoading, user, fetchRandomPoints]);
+  }, [authLoading, currentUserId, fetchRandomPoints, fetchCrewMapMembers]);
 
   useEffect(() => {
-    if (!user) {
+    if (!currentUserId) {
       dailyBonusUserRef.current = null;
       return;
     }
-    if (dailyBonusUserRef.current === user.id) return;
-    const userId = user.id;
+    if (dailyBonusUserRef.current === currentUserId) return;
+    const userId = currentUserId;
     dailyBonusUserRef.current = userId;
 
     queueMicrotask(() => {
@@ -596,7 +769,7 @@ export default function HomePage({ active = true }: HomePageProps) {
         }
       })();
     });
-  }, [user, refreshProfile, enqueueNotice]);
+  }, [currentUserId, refreshProfile, enqueueNotice]);
 
   const handlePanToCurrent = () => {
     void (async () => {
@@ -971,12 +1144,12 @@ export default function HomePage({ active = true }: HomePageProps) {
 
       if (!res.ok) {
         showToast(data.error);
-        await syncCouponSpawns(position.lat, position.lng);
+        await syncCouponSpawns(position.lat, position.lng, { force: true });
         return;
       }
 
       setSelectedCouponSpawn(null);
-      await syncCouponSpawns(position.lat, position.lng);
+      await syncCouponSpawns(position.lat, position.lng, { force: true });
       showToast(data.message);
     } finally {
       setActionLoading(false);

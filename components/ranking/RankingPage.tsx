@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import MainTabHeader from "@/components/layout/MainTabHeader";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import type { RankingEntry, RankingType } from "@/types/ranking";
@@ -94,29 +94,53 @@ export default function RankingPage() {
   const [entries, setEntries] = useState<RankingEntry[]>([]);
   const [crewEntries, setCrewEntries] = useState<CrewRankEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const rankingCacheRef = useRef<
+    Record<string, { entries: RankingEntry[]; crewEntries: CrewRankEntry[] }>
+  >({});
 
   const activeTab = TABS[activeTabIndex]!;
 
   const fetchRanking = useCallback(async (tab: RankTab) => {
-    setLoading(true);
+    const cacheKey = tab.kind === "crew" ? "crew" : tab.type;
+    const cached = rankingCacheRef.current[cacheKey];
+    if (cached) {
+      setEntries(cached.entries);
+      setCrewEntries(cached.crewEntries);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     if (tab.kind === "crew") {
       const res = await fetch("/api/ranking/crews");
       if (res.ok) {
         const data = await res.json();
-        setCrewEntries(data.entries ?? []);
-      } else {
+        const nextCrew = data.entries ?? [];
+        setCrewEntries(nextCrew);
+        setEntries([]);
+        rankingCacheRef.current[cacheKey] = {
+          entries: [],
+          crewEntries: nextCrew,
+        };
+      } else if (!cached) {
         setCrewEntries([]);
+        setEntries([]);
       }
-      setEntries([]);
     } else {
       const res = await fetch(`/api/ranking?type=${tab.type}`);
       if (res.ok) {
         const data = await res.json();
-        setEntries(data.entries ?? []);
-      } else {
+        const nextEntries = data.entries ?? [];
+        setEntries(nextEntries);
+        setCrewEntries([]);
+        rankingCacheRef.current[cacheKey] = {
+          entries: nextEntries,
+          crewEntries: [],
+        };
+      } else if (!cached) {
         setEntries([]);
+        setCrewEntries([]);
       }
-      setCrewEntries([]);
     }
     setLoading(false);
   }, []);
@@ -188,6 +212,8 @@ export default function RankingPage() {
                       <img
                         src={`/api/crews/${entry.crewId}/image`}
                         alt=""
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover"
                       />
                     ) : (

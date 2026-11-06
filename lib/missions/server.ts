@@ -106,13 +106,16 @@ async function fetchAttempts(
   return rows;
 }
 
-async function requireCount(
-  result: { count: number | null; error: { message: string } | null }
+async function requireExists(
+  result: {
+    data: unknown[] | null;
+    error: { message: string } | null;
+  }
 ): Promise<number> {
   if (result.error) {
     throw new Error(result.error.message);
   }
-  return result.count ?? 0;
+  return (result.data?.length ?? 0) > 0 ? 1 : 0;
 }
 
 export async function getUserMissions(
@@ -169,31 +172,37 @@ export async function getUserMissions(
       .single(),
     admin
       .from("point_transactions")
-      .select("id", { count: "exact", head: true })
+      .select("id")
       .eq("user_id", userId)
-      .eq("type", "create_pin"),
+      .eq("type", "create_pin")
+      .limit(1),
     admin
       .from("point_transactions")
-      .select("id", { count: "exact", head: true })
+      .select("id")
       .eq("user_id", userId)
-      .eq("type", "reinforce_pin"),
+      .eq("type", "reinforce_pin")
+      .limit(1),
     admin
       .from("point_transactions")
-      .select("id", { count: "exact", head: true })
+      .select("id")
       .eq("user_id", userId)
-      .eq("type", "random_point_claim"),
+      .eq("type", "random_point_claim")
+      .limit(1),
     admin
       .from("random_points")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId),
+      .select("id")
+      .eq("user_id", userId)
+      .limit(1),
     admin
       .from("crew_members")
-      .select("user_id", { count: "exact", head: true })
-      .eq("user_id", userId),
+      .select("user_id")
+      .eq("user_id", userId)
+      .limit(1),
     admin
       .from("pin_attempts")
-      .select("id", { count: "exact", head: true })
-      .eq("attacker_id", userId),
+      .select("id")
+      .eq("attacker_id", userId)
+      .limit(1),
     admin
       .from("mission_claims")
       .select("mission_id, period_key")
@@ -219,12 +228,12 @@ export async function getUserMissions(
     startCrewCount,
     startConquerCount,
   ] = await Promise.all([
-    requireCount(startPlantResult),
-    requireCount(startReinforceResult),
-    requireCount(startClaimResult),
-    requireCount(startFindResult),
-    requireCount(startCrewResult),
-    requireCount(startConquerResult),
+    requireExists(startPlantResult),
+    requireExists(startReinforceResult),
+    requireExists(startClaimResult),
+    requireExists(startFindResult),
+    requireExists(startCrewResult),
+    requireExists(startConquerResult),
   ]);
 
   const randomPoints = (randomPointsResult.data ?? []) as RandomPointRow[];

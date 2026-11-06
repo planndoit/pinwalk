@@ -667,6 +667,10 @@ export default function MapView({
   const pinCirclesRef = useRef<InstanceType<typeof naver.maps.Circle>[]>([]);
   const pinListenersRef = useRef<unknown[]>([]);
   const randomMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
+  const randomListenersRef = useRef<unknown[]>([]);
+  const lastRandomRenderKeyRef = useRef<string>("");
+  const lastCouponRenderKeyRef = useRef<string>("");
+  const couponListenersRef = useRef<unknown[]>([]);
   const landmarkMarkersRef = useRef<InstanceType<typeof naver.maps.Marker>[]>([]);
   const landmarkCirclesRef = useRef<InstanceType<typeof naver.maps.Circle>[]>([]);
   const landmarkListenersRef = useRef<unknown[]>([]);
@@ -777,14 +781,10 @@ export default function MapView({
     }
 
     const zoom = map.getZoom();
-    const { points: visiblePins, boundsKey } = getVisiblePoints(
-      pinsRef.current,
-      map
-    );
+    const { points: visiblePins } = getVisiblePoints(pinsRef.current, map);
     const crewKey = crewHighlightUserIdsRef.current.join(",");
     const renderKey = [
       zoom,
-      boundsKey,
       currentUserIdRef.current ?? "",
       crewKey,
       visiblePins.map(getPinOverlaySignature).join("|"),
@@ -793,6 +793,7 @@ export default function MapView({
 
     clearPinOverlays();
     lastPinRenderKeyRef.current = renderKey;
+    const crewHighlightSet = new Set(crewHighlightUserIdsRef.current);
 
     const gridSizePx = getClusterGridSizePx(zoom);
     const showRadiusCircle = zoom >= PIN_RADIUS_CIRCLE_ZOOM;
@@ -836,9 +837,7 @@ export default function MapView({
       const isMine =
         currentUserIdRef.current !== null &&
         pin.user_id === currentUserIdRef.current;
-      const crewHighlight = crewHighlightUserIdsRef.current.includes(
-        pin.user_id
-      );
+      const crewHighlight = crewHighlightSet.has(pin.user_id);
       const color = getFlagAccentColor(getFlagTier(pin.cost), isMine);
       const pinPos = new naverObj.maps.LatLng(pin.lat, pin.lng);
       const nearbyCount =
@@ -885,9 +884,11 @@ export default function MapView({
         },
       });
 
-      const listener = naverObj.maps.Event.addListener(marker, "click", () =>
-        onPinClickRef.current(pin)
-      );
+      const listener = naverObj.maps.Event.addListener(marker, "click", () => {
+        const latest =
+          pinsRef.current.find((item) => item.id === pin.id) ?? pin;
+        onPinClickRef.current(latest);
+      });
       pinListenersRef.current.push(listener);
       pinMarkersRef.current.push(marker);
     });
@@ -926,13 +927,9 @@ export default function MapView({
     }
 
     const zoom = map.getZoom();
-    const { points: places, boundsKey } = getVisiblePoints(
-      landmarksRef.current,
-      map
-    );
+    const { points: places } = getVisiblePoints(landmarksRef.current, map);
     const renderKey = [
       zoom,
-      boundsKey,
       places.map(getLandmarkOverlaySignature).join("|"),
     ].join("::");
     if (renderKey === lastLandmarkRenderKeyRef.current) return;
@@ -1052,13 +1049,9 @@ export default function MapView({
     }
 
     const zoom = map.getZoom();
-    const { points: places, boundsKey } = getVisiblePoints(
-      premiumPlacesRef.current,
-      map
-    );
+    const { points: places } = getVisiblePoints(premiumPlacesRef.current, map);
     const renderKey = [
       zoom,
-      boundsKey,
       places.map(getPremiumOverlaySignature).join("|"),
     ].join("::");
     if (renderKey === lastPremiumRenderKeyRef.current) return;
@@ -1337,6 +1330,19 @@ export default function MapView({
     const map = mapInstanceRef.current;
     if (!mapReady || !map || !naverObj?.maps) return;
 
+    const renderKey = randomPoints
+      .map(
+        (point) =>
+          `${point.id}:${point.lat}:${point.lng}:${point.points}:${point.territory ?? ""}`
+      )
+      .join("|");
+    if (renderKey === lastRandomRenderKeyRef.current) return;
+    lastRandomRenderKeyRef.current = renderKey;
+
+    randomListenersRef.current.forEach((listener) => {
+      naver.maps.Event.removeListener(listener);
+    });
+    randomListenersRef.current = [];
     randomMarkersRef.current.forEach((m) => m.setMap(null));
     randomMarkersRef.current = [];
 
@@ -1350,9 +1356,10 @@ export default function MapView({
         },
       });
 
-      naverObj.maps.Event.addListener(marker, "click", () =>
+      const listener = naverObj.maps.Event.addListener(marker, "click", () =>
         onRandomPointClickRef.current(point)
       );
+      randomListenersRef.current.push(listener);
       randomMarkersRef.current.push(marker);
     });
   }, [mapReady, randomPoints]);
@@ -1363,10 +1370,33 @@ export default function MapView({
     const map = mapInstanceRef.current;
     if (!mapReady || !map || !naverObj?.maps) return;
 
+    if (!layerVisibility.premium) {
+      if (lastCouponRenderKeyRef.current === "hidden") return;
+      lastCouponRenderKeyRef.current = "hidden";
+      couponListenersRef.current.forEach((listener) => {
+        naver.maps.Event.removeListener(listener);
+      });
+      couponListenersRef.current = [];
+      couponMarkersRef.current.forEach((m) => m.setMap(null));
+      couponMarkersRef.current = [];
+      return;
+    }
+
+    const renderKey = couponSpawns
+      .map(
+        (spawn) =>
+          `${spawn.id}:${spawn.lat}:${spawn.lng}:${spawn.couponTitle}`
+      )
+      .join("|");
+    if (renderKey === lastCouponRenderKeyRef.current) return;
+    lastCouponRenderKeyRef.current = renderKey;
+
+    couponListenersRef.current.forEach((listener) => {
+      naver.maps.Event.removeListener(listener);
+    });
+    couponListenersRef.current = [];
     couponMarkersRef.current.forEach((m) => m.setMap(null));
     couponMarkersRef.current = [];
-
-    if (!layerVisibility.premium) return;
 
     couponSpawns.forEach((spawn) => {
       const marker = new naverObj.maps.Marker({
@@ -1379,9 +1409,10 @@ export default function MapView({
         },
       });
 
-      naverObj.maps.Event.addListener(marker, "click", () =>
+      const listener = naverObj.maps.Event.addListener(marker, "click", () =>
         onCouponSpawnClickRef.current(spawn)
       );
+      couponListenersRef.current.push(listener);
       couponMarkersRef.current.push(marker);
     });
   }, [mapReady, couponSpawns, layerVisibility.premium]);

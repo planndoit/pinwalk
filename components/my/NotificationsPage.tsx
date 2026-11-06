@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { invalidateUnreadCountCache } from "@/components/notifications/NotificationBell";
 import MySubpageHeader from "@/components/my/MySubpageHeader";
 import { formatActivityDate } from "@/lib/formatDate";
 import {
@@ -113,6 +114,7 @@ export default function NotificationsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ all: true }),
     });
+    invalidateUnreadCountCache();
     await fetchNotifications();
     setMarkingAll(false);
   };
@@ -126,6 +128,7 @@ export default function NotificationsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificationId: notification.id }),
       });
+      invalidateUnreadCountCache();
       setNotifications((prev) =>
         prev.map((item) =>
           item.id === notification.id

@@ -166,6 +166,14 @@ export default function VisitMapModal({
     return map;
   }, [visits]);
 
+  const regionPaths = useMemo(() => {
+    if (!geojson) return [] as Array<{ code: string; d: string }>;
+    return geojson.features.map((feature) => ({
+      code: feature.properties.SIG_CD,
+      d: geometryToPath(feature.geometry),
+    }));
+  }, [geojson]);
+
   const focusRegion = useCallback(
     (code: string) => {
       const feature = geojson?.features.find(
@@ -256,16 +264,15 @@ export default function VisitMapModal({
                     role="img"
                     aria-label="전국 시군구 방문 지도"
                   >
-                    {geojson.features.map((feature) => {
-                      const code = feature.properties.SIG_CD;
-                      const visited = visitedByCode.has(code);
-                      const selected = selectedCode === code;
+                    {regionPaths.map((region) => {
+                      const visited = visitedByCode.has(region.code);
+                      const selected = selectedCode === region.code;
                       return (
                         <path
-                          key={code}
-                          d={geometryToPath(feature.geometry)}
+                          key={region.code}
+                          d={region.d}
                           fillRule="evenodd"
-                          onClick={() => setSelectedCode(code)}
+                          onClick={() => setSelectedCode(region.code)}
                           className="cursor-pointer"
                           fill={regionFill(visited, selected)}
                           stroke={regionStroke(visited, selected)}

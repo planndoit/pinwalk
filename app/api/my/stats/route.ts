@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser, jsonError } from "@/lib/api/auth";
 import {
   computeAttendanceStreak,
+  DAILY_BONUS_DESCRIPTION,
+  DAILY_BONUS_TYPE,
   isAttendanceTransaction,
 } from "@/lib/dailyBonus";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -25,8 +27,11 @@ export async function GET() {
         .eq("success", false),
       admin
         .from("point_transactions")
-        .select("description, created_at")
-        .eq("user_id", user.id),
+        .select("type, description, created_at")
+        .eq("user_id", user.id)
+        .or(
+          `type.eq.${DAILY_BONUS_TYPE},description.eq.${DAILY_BONUS_DESCRIPTION},description.ilike.%출석%`
+        ),
     ]
   );
 

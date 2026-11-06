@@ -104,5 +104,12 @@ export async function GET(request: Request) {
       leaderNickname: row.crew.leaderNickname ?? null,
     }));
 
-  return NextResponse.json({ entries });
+  return NextResponse.json(
+    { entries },
+    {
+      headers: {
+        "Cache-Control": "public, max-age=30, stale-while-revalidate=60",
+      },
+    }
+  );
 }

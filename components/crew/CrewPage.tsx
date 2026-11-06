@@ -742,13 +742,18 @@ function CrewHome({
 
 export default function CrewPage() {
   const { user, requireAuth, refreshProfile } = useAuth();
+  const userId = user?.id ?? null;
   const [mine, setMine] = useState<MineState | null>(null);
   const [crews, setCrews] = useState<SerializedCrew[]>([]);
   const [areaCode, setAreaCode] = useState("");
   const [q, setQ] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const searchSeqRef = useRef(0);
+  const bootstrappedRef = useRef(false);
+  const skipNextSearchRef = useRef(false);
   const { locked: creating, run: runCreate, unlock: unlockCreate } =
     useSubmitLock();
   const [form, setForm] = useState({
@@ -764,7 +769,7 @@ export default function CrewPage() {
   const [showGuideModal, setShowGuideModal] = useState(false);
 
   const loadMine = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setMine(null);
       return;
     }
@@ -772,27 +777,55 @@ export default function CrewPage() {
     if (res.ok) {
       setMine(await res.json());
     }
-  }, [user]);
+  }, [userId]);
 
-  const loadCrews = useCallback(async () => {
+  const loadCrews = useCallback(async (query: string, area: string) => {
     const params = new URLSearchParams({ limit: "30" });
-    if (q.trim()) params.set("q", q.trim());
-    if (areaCode) params.set("areaCode", areaCode);
+    if (query.trim()) params.set("q", query.trim());
+    if (area) params.set("areaCode", area);
     const res = await fetch(`/api/crews?${params}`, { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       setCrews(data.crews ?? []);
     }
-  }, [q, areaCode]);
+  }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    bootstrappedRef.current = false;
     queueMicrotask(() => {
-      setLoading(true);
-      void Promise.all([loadMine(), loadCrews()]).finally(() =>
-        setLoading(false)
-      );
+      setInitialLoading(true);
+      void Promise.all([loadMine(), loadCrews(q, areaCode)]).finally(() => {
+        if (cancelled) return;
+        setInitialLoading(false);
+        bootstrappedRef.current = true;
+        skipNextSearchRef.current = true;
+      });
     });
-  }, [loadMine, loadCrews]);
+    return () => {
+      cancelled = true;
+    };
+    // 검색어 변경은 아래 debounce effect에서 처리한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, loadMine, loadCrews]);
+
+  useEffect(() => {
+    if (!bootstrappedRef.current || initialLoading) return;
+    if (skipNextSearchRef.current) {
+      skipNextSearchRef.current = false;
+      return;
+    }
+    const seq = ++searchSeqRef.current;
+    const timer = window.setTimeout(() => {
+      setSearchLoading(true);
+      void loadCrews(q, areaCode).finally(() => {
+        if (seq === searchSeqRef.current) {
+          setSearchLoading(false);
+        }
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [q, areaCode, loadCrews, initialLoading]);
 
   useEffect(() => {
     if (!showCreate) unlockCreate();
@@ -822,7 +855,7 @@ export default function CrewPage() {
       setPendingImage(null);
       await refreshProfile();
       await loadMine();
-      await loadCrews();
+      await loadCrews(q, areaCode);
       return "keep";
     });
   };
@@ -854,7 +887,7 @@ export default function CrewPage() {
     await loadMine();
   };
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-50">
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -961,7 +994,13 @@ export default function CrewPage() {
         ) : null}
 
         <div className="mt-4 space-y-2">
-          {crews.map((crew) => (
+          {searchLoading ? (
+            <div className="py-8 flex justify-center">
+              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : null}
+          {!searchLoading
+            ? crews.map((crew) => (
             <div
               key={crew.id}
               className="bg-white border border-gray-200 rounded-2xl p-3 flex items-center gap-3"
@@ -995,8 +1034,9 @@ export default function CrewPage() {
                 신청
               </button>
             </div>
-          ))}
-          {crews.length === 0 ? (
+            ))
+          : null}
+          {!searchLoading && crews.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">
               표시할 크루가 없습니다.
             </p>

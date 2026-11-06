@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /** 지도 하이라이트용: 크루 소속 유저 id 집합 */
 export async function GET() {
   const admin = createAdminClient();
-  const { data, error } = await admin.from("crew_members").select("user_id, crew_id");
+  const [{ data, error }, user] = await Promise.all([
+    admin.from("crew_members").select("user_id, crew_id"),
+    getAuthenticatedUser(),
+  ]);
 
   if (error) {
     return NextResponse.json(
@@ -13,23 +17,30 @@ export async function GET() {
     );
   }
 
+  const rows = data ?? [];
   const allCrewUserIds = [
-    ...new Set((data ?? []).map((row) => row.user_id as string)),
+    ...new Set(rows.map((row) => row.user_id as string)),
   ];
-  const byCrew = new Map<string, string[]>();
-  for (const row of data ?? []) {
-    const crewId = row.crew_id as string;
-    const userId = row.user_id as string;
-    const list = byCrew.get(crewId) ?? [];
-    list.push(userId);
-    byCrew.set(crewId, list);
+
+  let myCrew: { crewId: string; userIds: string[] } | null = null;
+  if (user) {
+    const myCrewId = rows.find((row) => row.user_id === user.id)?.crew_id as
+      | string
+      | undefined;
+    if (myCrewId) {
+      myCrew = {
+        crewId: myCrewId,
+        userIds: rows
+          .filter((row) => row.crew_id === myCrewId)
+          .map((row) => row.user_id as string),
+      };
+    }
   }
 
   return NextResponse.json({
     allCrewUserIds,
-    crews: [...byCrew.entries()].map(([crewId, userIds]) => ({
-      crewId,
-      userIds,
-    })),
+    myCrew,
+    // 하위 호환: 내 크루만 포함
+    crews: myCrew ? [myCrew] : [],
   });
 }

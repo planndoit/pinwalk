@@ -14,12 +14,17 @@ export async function GET() {
   }
 
   const admin = createAdminClient();
-  const now = new Date().toISOString();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const lastSeenThrottleIso = new Date(
+    now.getTime() - 5 * 60 * 1000
+  ).toISOString();
 
   const { data: seenProfile, error: seenError } = await admin
     .from("profiles")
-    .update({ last_seen_at: now, updated_at: now })
+    .update({ last_seen_at: nowIso })
     .eq("id", user.id)
+    .or(`last_seen_at.is.null,last_seen_at.lt.${lastSeenThrottleIso}`)
     .select(PROFILE_COLUMNS)
     .maybeSingle();
 

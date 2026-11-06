@@ -27,6 +27,36 @@ export function serializePremiumPlace(row: PremiumPlace) {
   };
 }
 
+/** 지도/일반 클라이언트용. 연락처·내부 식별자는 제외한다. */
+export function serializePremiumPlacePublic(
+  row: {
+    id: string;
+    category_code: string;
+    store_name: string;
+    place_phone: string | null;
+    lat: number;
+    lng: number;
+    promo_text: string;
+    promo_link: string | null;
+    is_active: boolean;
+  },
+  extras?: { categoryName?: string; hasCoupons?: boolean }
+) {
+  return {
+    id: row.id,
+    categoryCode: row.category_code,
+    categoryName: extras?.categoryName,
+    storeName: row.store_name,
+    placePhone: row.place_phone,
+    lat: row.lat,
+    lng: row.lng,
+    promoText: row.promo_text,
+    promoLink: row.promo_link,
+    isActive: row.is_active,
+    hasCoupons: extras?.hasCoupons ?? false,
+  };
+}
+
 export function serializePromotionRequest(
   row: PremiumPromotionRequest & {
     requester_nickname?: string | null;
