@@ -3,20 +3,25 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getNaverMapScriptUrl } from "@/lib/naverMap";
 import {
-  clusterItemsByGrid,
-  clusterPinsByGrid,
-  countNearbyPoints,
-  countNearbyPins,
+  clusterProjectedByGrid,
+  countNearbyProjected,
   expandClusterBounds,
+  filterPointsInBounds,
+  formatGeoBoundsKey,
   getClusterFocusZoom,
   getClusterGridSizePx,
   getItemsClusterBounds,
+  needsSparseNearbyCount,
+  padGeoBounds,
+  projectPoints,
   PIN_RADIUS_CIRCLE_ZOOM,
   PIN_TEXT_VISIBLE_ZOOM,
   SPARSE_NEARBY_RADIUS_PX,
   shouldShowPinText,
+  type GeoBounds,
   type LatLngPoint,
   type PinCluster,
+  type ProjectedPoint,
 } from "@/lib/pinClustering";
 import {
   createFlagIconSvg,
@@ -429,6 +434,88 @@ const MAP_FIT_PADDING = {
   left: 40,
 } as const;
 
+function readMapGeoBounds(
+  map: InstanceType<typeof naver.maps.Map>
+): GeoBounds | null {
+  if (typeof map.getBounds !== "function") return null;
+  const bounds = map.getBounds();
+  if (!bounds) return null;
+
+  const sw =
+    typeof bounds.getSW === "function"
+      ? bounds.getSW()
+      : typeof bounds.getMin === "function"
+        ? bounds.getMin()
+        : null;
+  const ne =
+    typeof bounds.getNE === "function"
+      ? bounds.getNE()
+      : typeof bounds.getMax === "function"
+        ? bounds.getMax()
+        : null;
+  if (!sw || !ne) return null;
+
+  const minLat = typeof sw.lat === "function" ? sw.lat() : Number(sw.y);
+  const minLng = typeof sw.lng === "function" ? sw.lng() : Number(sw.x);
+  const maxLat = typeof ne.lat === "function" ? ne.lat() : Number(ne.y);
+  const maxLng = typeof ne.lng === "function" ? ne.lng() : Number(ne.x);
+  if (
+    !Number.isFinite(minLat) ||
+    !Number.isFinite(minLng) ||
+    !Number.isFinite(maxLat) ||
+    !Number.isFinite(maxLng)
+  ) {
+    return null;
+  }
+
+  return { minLat, maxLat, minLng, maxLng };
+}
+
+function getVisiblePoints<T extends LatLngPoint>(
+  points: T[],
+  map: InstanceType<typeof naver.maps.Map>
+): { points: T[]; boundsKey: string } {
+  const bounds = readMapGeoBounds(map);
+  if (!bounds) {
+    return { points, boundsKey: "all" };
+  }
+  const padded = padGeoBounds(bounds);
+  return {
+    points: filterPointsInBounds(points, padded),
+    boundsKey: formatGeoBoundsKey(padded),
+  };
+}
+
+function getPinOverlaySignature(pin: Pin): string {
+  return [
+    pin.id,
+    pin.lat,
+    pin.lng,
+    pin.cost,
+    pin.radius_meters,
+    pin.user_id,
+    pin.text,
+    pin.has_avatar ? 1 : 0,
+    pin.avatar_updated_at ?? "",
+  ].join(":");
+}
+
+function getLandmarkOverlaySignature(place: SerializedLandmark): string {
+  return [
+    place.id,
+    place.lat,
+    place.lng,
+    place.radiusMeters,
+    place.name,
+    place.isClosed ? 1 : 0,
+    place.titleHolderNickname ?? "",
+  ].join(":");
+}
+
+function getPremiumOverlaySignature(place: SerializedPremiumPlace): string {
+  return [place.id, place.lat, place.lng, place.storeName].join(":");
+}
+
 function focusClusterOnMap(
   map: InstanceType<typeof naver.maps.Map>,
   naverObj: typeof naver,
@@ -602,6 +689,9 @@ export default function MapView({
   const layerVisibilityRef = useRef(layerVisibility);
   const crewHighlightUserIdsRef = useRef(crewHighlightUserIds);
   const renderRafRef = useRef<number | null>(null);
+  const lastPinRenderKeyRef = useRef<string>("");
+  const lastLandmarkRenderKeyRef = useRef<string>("");
+  const lastPremiumRenderKeyRef = useRef<string>("");
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const scriptId = "naver-maps-sdk-script";
@@ -647,17 +737,14 @@ export default function MapView({
     pinListenersRef.current = [];
   }, []);
 
-  const buildClusters = useCallback(
+  const buildPinClusters = useCallback(
     (
-      map: InstanceType<typeof naver.maps.Map>,
-      naverObj: typeof naver
+      visiblePins: Pin[],
+      projected: ProjectedPoint<Pin>[] | null,
+      gridSizePx: number | null
     ): PinCluster[] => {
-      const zoom = map.getZoom();
-      const gridSizePx = getClusterGridSizePx(zoom);
-      const currentPins = pinsRef.current;
-
       if (gridSizePx === null) {
-        return currentPins.map((pin) => ({
+        return visiblePins.map((pin) => ({
           lat: pin.lat,
           lng: pin.lng,
           pins: [pin],
@@ -665,11 +752,13 @@ export default function MapView({
         }));
       }
 
-      return clusterPinsByGrid(
-        currentPins,
-        map.getProjection(),
-        (lat, lng) => new naverObj.maps.LatLng(lat, lng),
-        gridSizePx
+      return clusterProjectedByGrid(projected ?? [], gridSizePx).map(
+        (cluster) => ({
+          lat: cluster.lat,
+          lng: cluster.lng,
+          pins: cluster.items,
+          count: cluster.count,
+        })
       );
     },
     []
@@ -680,16 +769,46 @@ export default function MapView({
     const map = mapInstanceRef.current;
     if (!mapReady || !map || !naverObj?.maps) return;
 
-    clearPinOverlays();
-    if (!layerVisibilityRef.current.pins) return;
+    if (!layerVisibilityRef.current.pins) {
+      if (lastPinRenderKeyRef.current === "hidden") return;
+      lastPinRenderKeyRef.current = "hidden";
+      clearPinOverlays();
+      return;
+    }
 
     const zoom = map.getZoom();
-    const clusters = buildClusters(map, naverObj);
+    const { points: visiblePins, boundsKey } = getVisiblePoints(
+      pinsRef.current,
+      map
+    );
+    const crewKey = crewHighlightUserIdsRef.current.join(",");
+    const renderKey = [
+      zoom,
+      boundsKey,
+      currentUserIdRef.current ?? "",
+      crewKey,
+      visiblePins.map(getPinOverlaySignature).join("|"),
+    ].join("::");
+    if (renderKey === lastPinRenderKeyRef.current) return;
+
+    clearPinOverlays();
+    lastPinRenderKeyRef.current = renderKey;
+
+    const gridSizePx = getClusterGridSizePx(zoom);
     const showRadiusCircle = zoom >= PIN_RADIUS_CIRCLE_ZOOM;
-    const allPins = pinsRef.current;
     const projection = map.getProjection();
     const createLatLng = (lat: number, lng: number) =>
       new naverObj.maps.LatLng(lat, lng);
+    const computeNearby = needsSparseNearbyCount(zoom);
+    const projected =
+      gridSizePx !== null || computeNearby
+        ? projectPoints(visiblePins, projection, createLatLng)
+        : null;
+    const projectedById =
+      computeNearby && projected
+        ? new Map(projected.map((point) => [point.item.id, point]))
+        : null;
+    const clusters = buildPinClusters(visiblePins, projected, gridSizePx);
 
     clusters.forEach((cluster) => {
       const pos = new naverObj.maps.LatLng(cluster.lat, cluster.lng);
@@ -722,13 +841,14 @@ export default function MapView({
       );
       const color = getFlagAccentColor(getFlagTier(pin.cost), isMine);
       const pinPos = new naverObj.maps.LatLng(pin.lat, pin.lng);
-      const nearbyCount = countNearbyPins(
-        pin,
-        allPins,
-        projection,
-        createLatLng,
-        SPARSE_NEARBY_RADIUS_PX
-      );
+      const nearbyCount =
+        computeNearby && projected && projectedById
+          ? countNearbyProjected(
+              projectedById.get(pin.id) ?? { x: 0, y: 0 },
+              projected,
+              SPARSE_NEARBY_RADIUS_PX
+            )
+          : 0;
       const showText = shouldShowPinText(zoom, cluster.count, nearbyCount);
 
       if (showRadiusCircle) {
@@ -771,7 +891,7 @@ export default function MapView({
       pinListenersRef.current.push(listener);
       pinMarkersRef.current.push(marker);
     });
-  }, [mapReady, buildClusters, clearPinOverlays]);
+  }, [mapReady, buildPinClusters, clearPinOverlays]);
 
   const clearPremiumOverlays = useCallback(() => {
     premiumMarkersRef.current.forEach((marker) => marker.setMap(null));
@@ -798,16 +918,42 @@ export default function MapView({
     const map = mapInstanceRef.current;
     if (!mapReady || !map || !naverObj?.maps) return;
 
-    clearLandmarkOverlays();
-    if (!layerVisibilityRef.current.landmarks) return;
+    if (!layerVisibilityRef.current.landmarks) {
+      if (lastLandmarkRenderKeyRef.current === "hidden") return;
+      lastLandmarkRenderKeyRef.current = "hidden";
+      clearLandmarkOverlays();
+      return;
+    }
 
     const zoom = map.getZoom();
+    const { points: places, boundsKey } = getVisiblePoints(
+      landmarksRef.current,
+      map
+    );
+    const renderKey = [
+      zoom,
+      boundsKey,
+      places.map(getLandmarkOverlaySignature).join("|"),
+    ].join("::");
+    if (renderKey === lastLandmarkRenderKeyRef.current) return;
+
+    clearLandmarkOverlays();
+    lastLandmarkRenderKeyRef.current = renderKey;
+
     const gridSizePx = getClusterGridSizePx(zoom);
-    const places = landmarksRef.current;
     const projection = map.getProjection();
     const createLatLng = (lat: number, lng: number) =>
       new naverObj.maps.LatLng(lat, lng);
     const showRadiusCircle = zoom >= PIN_RADIUS_CIRCLE_ZOOM;
+    const computeNearby = needsSparseNearbyCount(zoom);
+    const projected =
+      gridSizePx !== null || computeNearby
+        ? projectPoints(places, projection, createLatLng)
+        : null;
+    const projectedById =
+      computeNearby && projected
+        ? new Map(projected.map((point) => [point.item.id, point]))
+        : null;
 
     const clusters =
       gridSizePx === null
@@ -817,7 +963,7 @@ export default function MapView({
             items: [place],
             count: 1,
           }))
-        : clusterItemsByGrid(places, projection, createLatLng, gridSizePx);
+        : clusterProjectedByGrid(projected ?? [], gridSizePx);
 
     clusters.forEach((cluster) => {
       const pos = new naverObj.maps.LatLng(cluster.lat, cluster.lng);
@@ -842,13 +988,14 @@ export default function MapView({
       }
 
       const place = cluster.items[0];
-      const nearbyCount = countNearbyPoints(
-        place,
-        places,
-        projection,
-        createLatLng,
-        SPARSE_NEARBY_RADIUS_PX
-      );
+      const nearbyCount =
+        computeNearby && projected && projectedById
+          ? countNearbyProjected(
+              projectedById.get(place.id) ?? { x: 0, y: 0 },
+              projected,
+              SPARSE_NEARBY_RADIUS_PX
+            )
+          : 0;
       const showText = shouldShowPinText(zoom, cluster.count, nearbyCount);
       const placePos = new naverObj.maps.LatLng(place.lat, place.lng);
       const stroke = place.isClosed ? "#6b7280" : "#0f766e";
@@ -897,15 +1044,41 @@ export default function MapView({
     const map = mapInstanceRef.current;
     if (!mapReady || !map || !naverObj?.maps) return;
 
-    clearPremiumOverlays();
-    if (!layerVisibilityRef.current.premium) return;
+    if (!layerVisibilityRef.current.premium) {
+      if (lastPremiumRenderKeyRef.current === "hidden") return;
+      lastPremiumRenderKeyRef.current = "hidden";
+      clearPremiumOverlays();
+      return;
+    }
 
     const zoom = map.getZoom();
+    const { points: places, boundsKey } = getVisiblePoints(
+      premiumPlacesRef.current,
+      map
+    );
+    const renderKey = [
+      zoom,
+      boundsKey,
+      places.map(getPremiumOverlaySignature).join("|"),
+    ].join("::");
+    if (renderKey === lastPremiumRenderKeyRef.current) return;
+
+    clearPremiumOverlays();
+    lastPremiumRenderKeyRef.current = renderKey;
+
     const gridSizePx = getClusterGridSizePx(zoom);
-    const places = premiumPlacesRef.current;
     const projection = map.getProjection();
     const createLatLng = (lat: number, lng: number) =>
       new naverObj.maps.LatLng(lat, lng);
+    const computeNearby = needsSparseNearbyCount(zoom);
+    const projected =
+      gridSizePx !== null || computeNearby
+        ? projectPoints(places, projection, createLatLng)
+        : null;
+    const projectedById =
+      computeNearby && projected
+        ? new Map(projected.map((point) => [point.item.id, point]))
+        : null;
 
     const clusters =
       gridSizePx === null
@@ -915,7 +1088,7 @@ export default function MapView({
             items: [place],
             count: 1,
           }))
-        : clusterItemsByGrid(places, projection, createLatLng, gridSizePx);
+        : clusterProjectedByGrid(projected ?? [], gridSizePx);
 
     clusters.forEach((cluster) => {
       const pos = new naverObj.maps.LatLng(cluster.lat, cluster.lng);
@@ -940,13 +1113,14 @@ export default function MapView({
       }
 
       const place = cluster.items[0];
-      const nearbyCount = countNearbyPoints(
-        place,
-        places,
-        projection,
-        createLatLng,
-        SPARSE_NEARBY_RADIUS_PX
-      );
+      const nearbyCount =
+        computeNearby && projected && projectedById
+          ? countNearbyProjected(
+              projectedById.get(place.id) ?? { x: 0, y: 0 },
+              projected,
+              SPARSE_NEARBY_RADIUS_PX
+            )
+          : 0;
       const showText = shouldShowPinText(zoom, cluster.count, nearbyCount);
       const placePos = new naverObj.maps.LatLng(place.lat, place.lng);
 
