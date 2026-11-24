@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Geolocation } from "@capacitor/geolocation";
 import { useAuth } from "@/components/AuthProvider";
 import MapView from "@/components/MapView";
 import PointBalance from "@/components/PointBalance";
@@ -34,6 +35,10 @@ import {
   subscribeAnnouncementPopup,
 } from "@/lib/announcements/popupState";
 import { getDistanceMeters } from "@/lib/geo";
+import {
+  ensureNativeLocationPermission,
+  hasNativeGeolocation,
+} from "@/lib/capacitor/geolocation";
 import {
   LANDMARK_PIN_RADIUS_METERS,
   RANDOM_POINT_CLAIM_RADIUS_METERS,
@@ -561,10 +566,23 @@ export default function HomePage({ active = true }: HomePageProps) {
     [runCouponSync]
   );
 
-  const requestPosition = useCallback((): Promise<{
+  const requestPosition = useCallback(async (): Promise<{
     lat: number;
     lng: number;
   } | null> => {
+    if (hasNativeGeolocation()) {
+      try {
+        if (!(await ensureNativeLocationPermission())) return null;
+        const { coords } = await Geolocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 10000,
+        });
+        return { lat: coords.latitude, lng: coords.longitude };
+      } catch {
+        return null;
+      }
+    }
+
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
         resolve(null);
@@ -719,29 +737,47 @@ export default function HomePage({ active = true }: HomePageProps) {
   }, [refreshVisibleMapData]);
 
   useEffect(() => {
-    if (!active || !navigator.geolocation) return;
+    if (!active) return;
 
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        const prev = lastPositionRef.current;
-        if (
-          prev &&
-          getDistanceMeters(prev.lat, prev.lng, next.lat, next.lng) <
-            POSITION_UPDATE_THRESHOLD_METERS
-        ) {
-          return;
-        }
-        lastPositionRef.current = next;
-        setPosition(next);
-        if (userIdRef.current) void syncCouponSpawns(next.lat, next.lng);
-      },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
-    );
+    let stopped = false;
+    let stopWatching: (() => void) | undefined;
+    const onPosition = (pos: { coords: { latitude: number; longitude: number } }) => {
+      if (stopped) return;
+      const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const prev = lastPositionRef.current;
+      if (
+        prev &&
+        getDistanceMeters(prev.lat, prev.lng, next.lat, next.lng) <
+          POSITION_UPDATE_THRESHOLD_METERS
+      ) {
+        return;
+      }
+      lastPositionRef.current = next;
+      setPosition(next);
+      if (userIdRef.current) void syncCouponSpawns(next.lat, next.lng);
+    };
+    const options = { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 };
+
+    if (hasNativeGeolocation()) {
+      const clearNativeWatch = (id: string) => {
+        void Geolocation.clearWatch({ id }).catch(() => {});
+      };
+      void (async () => {
+        if (!(await ensureNativeLocationPermission()) || stopped) return;
+        const id = await Geolocation.watchPosition(options, (position) => {
+          if (position) onPosition(position);
+        });
+        if (stopped) clearNativeWatch(id);
+        else stopWatching = () => clearNativeWatch(id);
+      })().catch(() => {});
+    } else if (navigator.geolocation) {
+      const id = navigator.geolocation.watchPosition(onPosition, () => {}, options);
+      stopWatching = () => navigator.geolocation.clearWatch(id);
+    }
 
     return () => {
-      navigator.geolocation.clearWatch(watchId);
+      stopped = true;
+      stopWatching?.();
       if (couponSyncTimerRef.current !== null) {
         window.clearTimeout(couponSyncTimerRef.current);
         couponSyncTimerRef.current = null;

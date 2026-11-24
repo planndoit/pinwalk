@@ -21,6 +21,7 @@ import {
   loadNativeSession,
   persistNativeSession,
 } from "@/lib/auth/nativeSession";
+import { isCapacitorNative } from "@/lib/capacitor/platform";
 import type { AuthSuccessPayload } from "@/types/authClient";
 import type { Profile } from "@/types/profile";
 import type { User } from "@supabase/supabase-js";
@@ -129,21 +130,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
       if (supabase) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
       }
-      await clearNativeSession();
     } finally {
-      clearActivity();
-      lastProfileFetchAtRef.current = 0;
-      setUser(null);
-      setProfile(null);
+      try {
+        await clearNativeSession();
+      } finally {
+        clearActivity();
+        lastProfileFetchAtRef.current = 0;
+        setUser(null);
+        setProfile(null);
+      }
     }
   }, [supabase]);
 
   const initSession = useCallback(async () => {
     if (!supabase) return;
 
-    if (isSessionIdleExpired()) {
+    if (!isCapacitorNative() && isSessionIdleExpired()) {
       await logout();
       return;
     }
@@ -156,9 +160,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const stored = await loadNativeSession();
       if (stored) {
         const { error } = await supabase.auth.setSession(stored);
-        if (error) {
+        if (
+          error?.code === "session_not_found" ||
+          error?.code === "refresh_token_not_found" ||
+          error?.code === "refresh_token_already_used"
+        ) {
           await clearNativeSession();
-        } else {
+        } else if (!error) {
           const restored = await supabase.auth.getUser();
           currentUser = restored.data.user;
           const {
@@ -252,11 +260,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let active = true;
 
-    queueMicrotask(() => {
-      void initSession().finally(() => {
-        if (active) setAuthLoading(false);
-      });
-    });
+    let restoring = false;
+    const restoreSession = () => {
+      if (!active || restoring) return;
+      restoring = true;
+      void initSession()
+        .catch(() => {
+          // Keep the saved session available for the next restore attempt.
+        })
+        .finally(() => {
+          restoring = false;
+          if (active) setAuthLoading(false);
+        });
+    };
+    queueMicrotask(restoreSession);
 
     const PROFILE_REFRESH_TTL_MS = 30_000;
 
@@ -284,9 +301,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     const onActivity = () => touchActivity();
+    const onOnline = () => {
+      if (isCapacitorNative() && !userRef.current) restoreSession();
+    };
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      if (!userRef.current) return;
+      if (!userRef.current) {
+        onOnline();
+        return;
+      }
       if (
         Date.now() - lastProfileFetchAtRef.current <
         PROFILE_REFRESH_TTL_MS
@@ -297,6 +320,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("pointerdown", onActivity);
     window.addEventListener("keydown", onActivity);
+    window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
@@ -304,6 +328,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
       window.removeEventListener("pointerdown", onActivity);
       window.removeEventListener("keydown", onActivity);
+      window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [shouldAuthenticate, supabase, initSession, fetchProfile]);
